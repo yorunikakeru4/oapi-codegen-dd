@@ -33,69 +33,19 @@ var (
 	pathParamRE    *regexp.Regexp
 	predeclaredSet map[string]struct{}
 	separatorSet   map[rune]struct{}
-	nameNormalizer NameNormalizer = ToCamelCase
+	nameNormalizer = ToCamelCase
 )
 
-type NameNormalizerFunction string
+var camelCaseMatchParts = regexp.MustCompile(`[\p{Lu}\d]+([\p{Ll}\d]+|$)`)
 
-const (
-	// NameNormalizerFunctionUnset is the default case, where the `name-normalizer` option hasn't been set. This will use the `ToCamelCase` function.
-	//
-	// See the docs for `NameNormalizerFunctionToCamelCase` for more details.
-	NameNormalizerFunctionUnset NameNormalizerFunction = ""
-	// NameNormalizerFunctionToCamelCase will use the `ToCamelCase` function.
-	//
-	// For instance:
-	//
-	// - `getHttpPet`   => `GetHttpPet`
-	// - `OneOf2things` => `OneOf2things`
-	NameNormalizerFunctionToCamelCase NameNormalizerFunction = "ToCamelCase"
-	// NameNormalizerFunctionToCamelCaseWithDigits will use the `NameNormalizerFunctionToCamelCaseWithDigits` function.
-	//
-	// For instance:
-	//
-	// - `getHttpPet`   => `GetHttpPet`
-	// - `OneOf2things` => `OneOf2Things`
-	NameNormalizerFunctionToCamelCaseWithDigits NameNormalizerFunction = "ToCamelCaseWithDigits"
-	// NameNormalizerFunctionToCamelCaseWithInitialisms will use the `NameNormalizerFunctionToCamelCaseWithInitialisms` function.
-	//
-	// For instance:
-	//
-	// - `getHttpPet`   => `GetHTTPPet`
-	// - `OneOf2things` => `OneOf2things`
-	NameNormalizerFunctionToCamelCaseWithInitialisms NameNormalizerFunction = "ToCamelCaseWithInitialisms"
-)
-
-// NameNormalizer is a function that takes a type name, and returns that type name converted into a different format.
-//
-// This may be an Operation ID i.e. `retrieveUserRequests` or a Schema name i.e. `BigBlockOfCheese`
-//
-// NOTE: this must return a string that can be used as a valid Go type name
-type NameNormalizer func(string) string
-
-type NameNormalizerMap map[NameNormalizerFunction]NameNormalizer
-
-func (m NameNormalizerMap) Options() []string {
-	options := make([]string, 0, len(m))
-
-	for key := range NameNormalizers {
-		options = append(options, string(key))
-	}
-
-	sort.Strings(options)
-
-	return options
+var initialismsList = []string{
+	"ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON",
+	"QPS", "RAM", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "GID", "UID", "UUID",
+	"URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS", "SIP", "RTP", "AMQP", "DB", "TS",
 }
 
-// NameNormalizers contains the valid options for `NameNormalizerFunction`s that `oapi-codegen` supports.
-//
-// If you are calling `oapi-codegen` as a library, this allows you to specify your own normalisation types before generating code.
-var NameNormalizers = NameNormalizerMap{
-	NameNormalizerFunctionUnset:                      ToCamelCase,
-	NameNormalizerFunctionToCamelCase:                ToCamelCase,
-	NameNormalizerFunctionToCamelCaseWithDigits:      ToCamelCaseWithDigits,
-	NameNormalizerFunctionToCamelCaseWithInitialisms: ToCamelCaseWithInitialisms,
-}
+// targetWordRegex is a regex that matches all initialisms.
+var targetWordRegex *regexp.Regexp
 
 func init() {
 	pathParamRE = regexp.MustCompile(`{[.;?]?([^{}*]+)\*?}`)
@@ -290,17 +240,6 @@ func ToCamelCaseWithInitialisms(s string) string {
 	}
 	return strings.Join(parts, "")
 }
-
-var camelCaseMatchParts = regexp.MustCompile(`[\p{Lu}\d]+([\p{Ll}\d]+|$)`)
-
-var initialismsList = []string{
-	"ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON",
-	"QPS", "RAM", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "GID", "UID", "UUID",
-	"URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS", "SIP", "RTP", "AMQP", "DB", "TS",
-}
-
-// targetWordRegex is a regex that matches all initialisms.
-var targetWordRegex *regexp.Regexp
 
 func makeInitialismsMap(additionalInitialisms []string) map[string]string {
 	l := append(initialismsList, additionalInitialisms...)
@@ -519,117 +458,6 @@ func IsGoTypeReference(ref string) bool {
 // http://deepmap.com/schemas/document.json#/Foo        -> false
 func IsWholeDocumentReference(ref string) bool {
 	return ref != "" && !strings.ContainsAny(ref, "#")
-}
-
-// SwaggerUriToIrisUri converts a OpenAPI style path URI with parameters to an
-// Iris compatible path URI. We need to replace all of OpenAPI parameters with
-//
-//	{param}
-//	{param*}
-//	{.param}
-//	{.param*}
-//	{;param}
-//	{;param*}
-//	{?param}
-//	{?param*}
-func SwaggerUriToIrisUri(uri string) string {
-	return pathParamRE.ReplaceAllString(uri, ":$1")
-}
-
-// SwaggerUriToEchoUri converts a OpenAPI style path URI with parameters to an
-// Echo compatible path URI. We need to replace all of OpenAPI parameters with
-// ":param". Valid input parameters are:
-//
-//	{param}
-//	{param*}
-//	{.param}
-//	{.param*}
-//	{;param}
-//	{;param*}
-//	{?param}
-//	{?param*}
-func SwaggerUriToEchoUri(uri string) string {
-	return pathParamRE.ReplaceAllString(uri, ":$1")
-}
-
-// SwaggerUriToFiberUri converts a OpenAPI style path URI with parameters to a
-// Fiber compatible path URI. We need to replace all of OpenAPI parameters with
-// ":param". Valid input parameters are:
-//
-//	{param}
-//	{param*}
-//	{.param}
-//	{.param*}
-//	{;param}
-//	{;param*}
-//	{?param}
-//	{?param*}
-func SwaggerUriToFiberUri(uri string) string {
-	return pathParamRE.ReplaceAllString(uri, ":$1")
-}
-
-// SwaggerUriToChiUri converts a swagger style path URI with parameters to a
-// Chi compatible path URI. We need to replace all Swagger parameters with
-// "{param}". Valid input parameters are:
-//
-//	{param}
-//	{param*}
-//	{.param}
-//	{.param*}
-//	{;param}
-//	{;param*}
-//	{?param}
-//	{?param*}
-func SwaggerUriToChiUri(uri string) string {
-	return pathParamRE.ReplaceAllString(uri, "{$1}")
-}
-
-// SwaggerUriToGinUri converts a swagger style path URI with parameters to a
-// Gin compatible path URI. We need to replace all Swagger parameters with
-// ":param". Valid input parameters are:
-//
-//	{param}
-//	{param*}
-//	{.param}
-//	{.param*}
-//	{;param}
-//	{;param*}
-//	{?param}
-//	{?param*}
-func SwaggerUriToGinUri(uri string) string {
-	return pathParamRE.ReplaceAllString(uri, ":$1")
-}
-
-// SwaggerUriToGorillaUri converts a swagger style path URI with parameters to a
-// Gorilla compatible path URI. We need to replace all Swagger parameters with
-// ":param". Valid input parameters are:
-//
-//	{param}
-//	{param*}
-//	{.param}
-//	{.param*}
-//	{;param}
-//	{;param*}
-//	{?param}
-//	{?param*}
-func SwaggerUriToGorillaUri(uri string) string {
-	return pathParamRE.ReplaceAllString(uri, "{$1}")
-}
-
-// SwaggerUriToStdHttpUri converts a swagger style path URI with parameters to a
-// Chi compatible path URI. We need to replace all Swagger parameters with
-// "{param}". Valid input parameters are:
-//
-//	{param}
-//	{param*}
-//	{.param}
-//	{.param*}
-//	{;param}
-//	{;param*}
-//	{?param}
-//	{?param*}
-func SwaggerUriToStdHttpUri(uri string) string {
-	return pathParamRE.ReplaceAllString(uri, "{$1}")
 }
 
 // OrderedParamsFromUri returns the argument names, in order, in a given URI string, so for
