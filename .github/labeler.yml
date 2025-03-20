@@ -1,3 +1,0 @@
-'auto:no-head-branch':
-- head-branch:
-  - '^main$'
