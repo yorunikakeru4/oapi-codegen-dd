@@ -21,7 +21,6 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -565,41 +564,6 @@ func SanitizeGoIdentity(str string) string {
 	}
 
 	return str
-}
-
-// SanitizeEnumNames fixes illegal chars in the enum names
-// and removes duplicates
-func SanitizeEnumNames(enumNames, enumValues []string) map[string]string {
-	dupCheck := make(map[string]int, len(enumValues))
-	deDup := make([][]string, 0, len(enumValues))
-
-	for i, v := range enumValues {
-		n := v
-		if i < len(enumNames) {
-			n = enumNames[i]
-		}
-		if _, dup := dupCheck[n]; !dup {
-			deDup = append(deDup, []string{n, v})
-		}
-		dupCheck[n] = 0
-	}
-
-	dupCheck = make(map[string]int, len(deDup))
-	sanitizedDeDup := make(map[string]string, len(deDup))
-
-	for _, p := range deDup {
-		n, v := p[0], p[1]
-		sanitized := SanitizeGoIdentity(SchemaNameToTypeName(n))
-
-		if _, dup := dupCheck[sanitized]; !dup {
-			sanitizedDeDup[sanitized] = v
-		} else {
-			sanitizedDeDup[sanitized+strconv.Itoa(dupCheck[sanitized])] = v
-		}
-		dupCheck[sanitized]++
-	}
-
-	return sanitizedDeDup
 }
 
 func typeNamePrefix(name string) (prefix string) {

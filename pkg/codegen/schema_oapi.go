@@ -10,7 +10,7 @@ import (
 
 // oapiSchemaToGoType converts an OpenApi schema into a Go type definition for
 // all non-object types.
-func oapiSchemaToGoType(schema *openapi3.Schema, path []string, outSchema *Schema) error {
+func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (Schema, error) {
 	f := schema.Format
 	t := schema.Type
 
@@ -19,7 +19,7 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string, outSchema *Schem
 		// [] in front of it.
 		arrayType, err := GenerateGoSchema(schema.Items, path)
 		if err != nil {
-			return fmt.Errorf("error generating type for array: %w", err)
+			return Schema{}, fmt.Errorf("error generating type for array: %w", err)
 		}
 		if (arrayType.HasAdditionalProperties || len(arrayType.UnionElements) != 0) && arrayType.RefType == "" {
 			// If we have items which have additional properties or union values,
@@ -37,6 +37,7 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string, outSchema *Schem
 
 			arrayType.RefType = typeName
 		}
+		outSchema := Schema{}
 		outSchema.ArrayType = &arrayType
 		outSchema.GoType = "[]" + arrayType.TypeDecl()
 		outSchema.AdditionalTypes = arrayType.AdditionalTypes
@@ -45,8 +46,11 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string, outSchema *Schem
 		if slices.Contains(globalState.options.DisableTypeAliasesForType, "array") {
 			outSchema.DefineViaAlias = false
 		}
+		return outSchema, nil
+	}
 
-	} else if t.Is("integer") {
+	if t.Is("integer") {
+		outSchema := Schema{}
 		// We default to int if format doesn't ask for something else.
 		if f == "int64" {
 			outSchema.GoType = "int64"
@@ -72,23 +76,35 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string, outSchema *Schem
 			outSchema.GoType = "int"
 		}
 		outSchema.DefineViaAlias = true
-	} else if t.Is("number") {
+		return outSchema, nil
+	}
+
+	if t.Is("number") {
+		outSchema := Schema{}
 		// We default to float for "number"
 		if f == "double" {
 			outSchema.GoType = "float64"
 		} else if f == "float" || f == "" {
 			outSchema.GoType = "float32"
 		} else {
-			return fmt.Errorf("invalid number format: %s", f)
+			return Schema{}, fmt.Errorf("invalid number format: %s", f)
 		}
 		outSchema.DefineViaAlias = true
-	} else if t.Is("boolean") {
+		return outSchema, nil
+	}
+
+	if t.Is("boolean") {
 		if f != "" {
-			return fmt.Errorf("invalid format (%s) for boolean", f)
+			return Schema{}, fmt.Errorf("invalid format (%s) for boolean", f)
 		}
+		outSchema := Schema{}
 		outSchema.GoType = "bool"
 		outSchema.DefineViaAlias = true
-	} else if t.Is("string") {
+		return outSchema, nil
+	}
+
+	if t.Is("string") {
+		outSchema := Schema{}
 		// Special case string formats here.
 		switch f {
 		case "byte":
@@ -111,8 +127,8 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string, outSchema *Schem
 			outSchema.GoType = "string"
 		}
 		outSchema.DefineViaAlias = true
-	} else {
-		return fmt.Errorf("unhandled Schema type: %v", t)
+		return outSchema, nil
 	}
-	return nil
+
+	return Schema{}, fmt.Errorf("unhandled Schema type: %v", t)
 }
