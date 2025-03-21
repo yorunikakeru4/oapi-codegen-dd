@@ -1,0 +1,137 @@
+package codegen
+
+import (
+	"fmt"
+	"strings"
+)
+
+type Property struct {
+	Description   string
+	JsonFieldName string
+	Schema        Schema
+	Required      bool
+	Nullable      bool
+	ReadOnly      bool
+	WriteOnly     bool
+	NeedsFormTag  bool
+	Extensions    map[string]any
+	Deprecated    bool
+}
+
+func (p Property) GoFieldName() string {
+	goFieldName := p.JsonFieldName
+	if extension, ok := p.Extensions[extGoName]; ok {
+		if extGoFieldName, err := extParseGoFieldName(extension); err == nil {
+			goFieldName = extGoFieldName
+		}
+	}
+
+	return SchemaNameToTypeName(goFieldName)
+}
+
+func (p Property) GoTypeDef() string {
+	typeDef := p.Schema.TypeDecl()
+
+	if !p.Schema.SkipOptionalPointer &&
+		(!p.Required || p.Nullable ||
+			(p.ReadOnly && !p.Required) ||
+			p.WriteOnly) {
+		typeDef = "*" + typeDef
+	}
+	return typeDef
+}
+
+// GenFieldsFromProperties produce corresponding field names with JSON annotations,
+// given a list of schema descriptors
+func GenFieldsFromProperties(props []Property) []string {
+	var fields []string
+	for i, p := range props {
+		field := ""
+
+		goFieldName := p.GoFieldName()
+
+		// Add a comment to a field in case we have one, otherwise skip.
+		if p.Description != "" {
+			// Separate the comment from a previous-defined, unrelated field.
+			// Make sure the actual field is separated by a newline.
+			if i != 0 {
+				field += "\n"
+			}
+			field += fmt.Sprintf("%s\n", StringWithTypeNameToGoComment(p.Description, p.GoFieldName()))
+		}
+
+		if p.Deprecated {
+			// This comment has to be on its own line for godoc & IDEs to pick up
+			var deprecationReason string
+			if extension, ok := p.Extensions[extDeprecationReason]; ok {
+				if extOmitEmpty, err := extParseDeprecationReason(extension); err == nil {
+					deprecationReason = extOmitEmpty
+				}
+			}
+
+			field += fmt.Sprintf("%s\n", DeprecationComment(deprecationReason))
+		}
+
+		// Check x-go-type-skip-optional-pointer, which will override if the type
+		// should be a pointer or not when the field is optional.
+		if extension, ok := p.Extensions[extPropGoTypeSkipOptionalPointer]; ok {
+			if skipOptionalPointer, err := extParsePropGoTypeSkipOptionalPointer(extension); err == nil {
+				p.Schema.SkipOptionalPointer = skipOptionalPointer
+			}
+		}
+
+		field += fmt.Sprintf("    %s %s", goFieldName, p.GoTypeDef())
+
+		shouldOmitEmpty := (!p.Required || p.ReadOnly || p.WriteOnly) &&
+			(!p.Required || !p.ReadOnly)
+
+		omitEmpty := !p.Nullable && shouldOmitEmpty
+
+		// Support x-omitempty
+		if extOmitEmptyValue, ok := p.Extensions[extPropOmitEmpty]; ok {
+			if extOmitEmpty, err := extParseOmitEmpty(extOmitEmptyValue); err == nil {
+				omitEmpty = extOmitEmpty
+			}
+		}
+
+		fieldTags := make(map[string]string)
+
+		if !omitEmpty {
+			fieldTags["json"] = p.JsonFieldName
+			if p.NeedsFormTag {
+				fieldTags["form"] = p.JsonFieldName
+			}
+		} else {
+			fieldTags["json"] = p.JsonFieldName + ",omitempty"
+			if p.NeedsFormTag {
+				fieldTags["form"] = p.JsonFieldName + ",omitempty"
+			}
+		}
+
+		// Support x-go-json-ignore
+		if extension, ok := p.Extensions[extPropGoJsonIgnore]; ok {
+			if goJsonIgnore, err := extParseGoJsonIgnore(extension); err == nil && goJsonIgnore {
+				fieldTags["json"] = "-"
+			}
+		}
+
+		// Support x-oapi-codegen-extra-tags
+		if extension, ok := p.Extensions[extPropExtraTags]; ok {
+			if tags, err := extExtraTags(extension); err == nil {
+				keys := SortedMapKeys(tags)
+				for _, k := range keys {
+					fieldTags[k] = tags[k]
+				}
+			}
+		}
+		// Convert the fieldTags map into Go field annotations.
+		keys := SortedMapKeys(fieldTags)
+		tags := make([]string, len(keys))
+		for i, k := range keys {
+			tags[i] = fmt.Sprintf(`%s:"%s"`, k, fieldTags[k])
+		}
+		field += "`" + strings.Join(tags, " ") + "`"
+		fields = append(fields, field)
+	}
+	return fields
+}
