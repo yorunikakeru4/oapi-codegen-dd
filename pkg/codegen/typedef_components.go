@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"fmt"
-	"text/template"
 
 	"github.com/doordash/oapi-codegen/v2/pkg/util"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -10,7 +9,7 @@ import (
 
 // GenerateTypesForSchemas generates type definitions for any custom types defined in the
 // components/schemas section of the Swagger spec.
-func GenerateTypesForSchemas(t *template.Template, schemas map[string]*openapi3.SchemaRef) ([]TypeDefinition, error) {
+func GenerateTypesForSchemas(schemas map[string]*openapi3.SchemaRef) ([]TypeDefinition, error) {
 	types := make([]TypeDefinition, 0)
 	// We're going to define Go types for every object under components/schemas
 	for _, schemaName := range SortedSchemaKeys(schemas) {
@@ -39,7 +38,7 @@ func GenerateTypesForSchemas(t *template.Template, schemas map[string]*openapi3.
 
 // GenerateTypesForParameters generates type definitions for any custom types defined in the
 // components/parameters section of the Swagger spec.
-func GenerateTypesForParameters(t *template.Template, params map[string]*openapi3.ParameterRef) ([]TypeDefinition, error) {
+func GenerateTypesForParameters(params map[string]*openapi3.ParameterRef) ([]TypeDefinition, error) {
 	var types []TypeDefinition
 	for _, paramName := range SortedMapKeys(params) {
 		paramOrRef := params[paramName]
@@ -76,7 +75,7 @@ func GenerateTypesForParameters(t *template.Template, params map[string]*openapi
 
 // GenerateTypesForRequestBodies generates type definitions for any custom types defined in the
 // components/requestBodies section of the Swagger spec.
-func GenerateTypesForRequestBodies(t *template.Template, bodies map[string]*openapi3.RequestBodyRef) ([]TypeDefinition, error) {
+func GenerateTypesForRequestBodies(bodies map[string]*openapi3.RequestBodyRef) ([]TypeDefinition, error) {
 	var types []TypeDefinition
 
 	for _, requestBodyName := range SortedMapKeys(bodies) {
@@ -122,7 +121,7 @@ func GenerateTypesForRequestBodies(t *template.Template, bodies map[string]*open
 
 // GenerateTypesForResponses generates type definitions for any custom types defined in the
 // components/responses section of the Swagger spec.
-func GenerateTypesForResponses(t *template.Template, responses openapi3.ResponseBodies) ([]TypeDefinition, error) {
+func GenerateTypesForResponses(responses openapi3.ResponseBodies) ([]TypeDefinition, error) {
 	var types []TypeDefinition
 
 	for _, responseName := range SortedMapKeys(responses) {

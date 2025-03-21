@@ -208,24 +208,24 @@ func Generate(spec *openapi3.T, opts Configuration) (string, error) {
 func GenerateTypeDefinitions(t *template.Template, swagger *openapi3.T, ops []OperationDefinition) (string, error) {
 	var allTypes []TypeDefinition
 	if swagger.Components != nil {
-		schemaTypes, err := GenerateTypesForSchemas(t, swagger.Components.Schemas)
+		schemaTypes, err := GenerateTypesForSchemas(swagger.Components.Schemas)
 		if err != nil {
 			return "", fmt.Errorf("error generating Go types for component schemas: %w", err)
 		}
 
-		paramTypes, err := GenerateTypesForParameters(t, swagger.Components.Parameters)
+		paramTypes, err := GenerateTypesForParameters(swagger.Components.Parameters)
 		if err != nil {
 			return "", fmt.Errorf("error generating Go types for component parameters: %w", err)
 		}
 		allTypes = append(schemaTypes, paramTypes...)
 
-		responseTypes, err := GenerateTypesForResponses(t, swagger.Components.Responses)
+		responseTypes, err := GenerateTypesForResponses(swagger.Components.Responses)
 		if err != nil {
 			return "", fmt.Errorf("error generating Go types for component responses: %w", err)
 		}
 		allTypes = append(allTypes, responseTypes...)
 
-		bodyTypes, err := GenerateTypesForRequestBodies(t, swagger.Components.RequestBodies)
+		bodyTypes, err := GenerateTypesForRequestBodies(swagger.Components.RequestBodies)
 		if err != nil {
 			return "", fmt.Errorf("error generating Go types for component request bodies: %w", err)
 		}
