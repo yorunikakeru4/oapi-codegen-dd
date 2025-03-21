@@ -607,6 +607,7 @@ func typeNamePrefix(name string) (prefix string) {
 	if len(name) == 0 {
 		return "Empty"
 	}
+
 	for _, r := range name {
 		switch r {
 		case '$':
@@ -867,45 +868,6 @@ func findSchemaNameByRefPath(refPath string, spec *openapi3.T) (string, error) {
 	return "", nil
 }
 
-func ParseGoImportExtension(v *openapi3.SchemaRef) (*goImport, error) {
-	if v.Value.Extensions[extPropGoImport] == nil || v.Value.Extensions[extPropGoType] == nil {
-		return nil, nil
-	}
-
-	goTypeImportExt := v.Value.Extensions[extPropGoImport]
-
-	importI, ok := goTypeImportExt.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("failed to convert type: %T", goTypeImportExt)
-	}
-
-	gi := goImport{}
-	// replicate the case-insensitive field mapping json.Unmarshal would do
-	for k, v := range importI {
-		if strings.EqualFold(k, "name") {
-			if vs, ok := v.(string); ok {
-				gi.Name = vs
-			} else {
-				return nil, fmt.Errorf("failed to convert type: %T", v)
-			}
-		} else if strings.EqualFold(k, "path") {
-			if vs, ok := v.(string); ok {
-				gi.Path = vs
-			} else {
-				return nil, fmt.Errorf("failed to convert type: %T", v)
-			}
-		}
-	}
-
-	return &gi, nil
-}
-
-func MergeImports(dst, src map[string]goImport) {
-	for k, v := range src {
-		dst[k] = v
-	}
-}
-
 // TypeDefinitionsEquivalent checks for equality between two type definitions, but
 // not every field is considered. We only want to know if they are fundamentally
 // the same type.
@@ -923,13 +885,4 @@ func isAdditionalPropertiesExplicitFalse(s *openapi3.Schema) bool {
 	}
 
 	return *s.AdditionalProperties.Has == false //nolint:gosimple
-}
-
-func sliceContains[E comparable](s []E, v E) bool {
-	for _, ss := range s {
-		if ss == v {
-			return true
-		}
-	}
-	return false
 }
