@@ -42,7 +42,7 @@ func CreateParseContext(file string, cfg *Configuration) (*ParseContext, []error
 }
 
 func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*ParseContext, error) {
-	_, err := filterDocument(doc, *cfg)
+	_, err := filterDocument(doc, cfg)
 	if err != nil {
 		return nil, err
 	}

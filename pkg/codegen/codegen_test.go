@@ -21,7 +21,7 @@ const (
 func TestExampleOpenAPICodeGeneration(t *testing.T) {
 	// Input vars for code generation:
 	packageName := "testswagger"
-	opts := Configuration{
+	opts := &Configuration{
 		PackageName: packageName,
 	}
 
@@ -80,7 +80,7 @@ type GetTestByNameResponse struct {
 
 func TestExtPropGoTypeSkipOptionalPointer(t *testing.T) {
 	packageName := "api"
-	opts := Configuration{
+	opts := &Configuration{
 		PackageName: packageName,
 	}
 	spec := "test_specs/x-go-type-skip-optional-pointer.yaml"
@@ -112,7 +112,7 @@ func TestExtPropGoTypeSkipOptionalPointer(t *testing.T) {
 
 func TestGoTypeImport(t *testing.T) {
 	packageName := "api"
-	opts := Configuration{
+	opts := &Configuration{
 		PackageName: packageName,
 	}
 	spec := "test_specs/x-go-type-import-pet.yaml"

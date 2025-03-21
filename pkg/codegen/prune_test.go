@@ -18,7 +18,7 @@ func TestFindReferences(t *testing.T) {
 	t.Run("only cat", func(t *testing.T) {
 		swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
-		opts := Configuration{
+		opts := &Configuration{
 			Filter: FilterConfig{
 				Include: FilterParamsConfig{
 					Tags: []string{"cat"},
@@ -35,7 +35,7 @@ func TestFindReferences(t *testing.T) {
 		swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
 
-		opts := Configuration{
+		opts := &Configuration{
 			Filter: FilterConfig{
 				Include: FilterParamsConfig{
 					Tags: []string{"dog"},
@@ -55,7 +55,7 @@ func TestFilterOnlyCat(t *testing.T) {
 	swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
 	assert.NoError(t, err)
 
-	opts := Configuration{
+	opts := &Configuration{
 		Filter: FilterConfig{
 			Include: FilterParamsConfig{
 				Tags: []string{"cat"},
@@ -87,7 +87,7 @@ func TestFilterOnlyDog(t *testing.T) {
 	swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
 	assert.NoError(t, err)
 
-	opts := Configuration{
+	opts := &Configuration{
 		Filter: FilterConfig{
 			Include: FilterParamsConfig{
 				Tags: []string{"dog"},

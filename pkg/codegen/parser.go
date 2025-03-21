@@ -39,6 +39,22 @@ func NewParser(cfg *Configuration, ctx *ParseContext) (*Parser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading templates: %w", err)
 	}
+
+	// load user-provided templates. Will Override built-in versions.
+	for name, tplContents := range cfg.UserTemplates {
+		userTpl := tpl.New(name)
+
+		txt, err := GetUserTemplateText(tplContents)
+		if err != nil {
+			return nil, fmt.Errorf("error loading user-provided template %q: %w", name, err)
+		}
+
+		_, err = userTpl.Parse(txt)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing user-provided template %q: %w", name, err)
+		}
+	}
+
 	return &Parser{
 		tpl: tpl,
 		ctx: ctx,

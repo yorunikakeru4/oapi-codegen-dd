@@ -2,7 +2,7 @@ package codegen
 
 import "github.com/getkin/kin-openapi/openapi3"
 
-func filterDocument(doc *openapi3.T, cfg Configuration) (*openapi3.T, error) {
+func filterDocument(doc *openapi3.T, cfg *Configuration) (*openapi3.T, error) {
 	filterOperationsByTag(doc, cfg)
 	filterOperationsByOperationID(doc, cfg)
 
@@ -21,7 +21,7 @@ func sliceToMap(items []string) map[string]bool {
 	return m
 }
 
-func filterOperationsByTag(swagger *openapi3.T, opts Configuration) {
+func filterOperationsByTag(swagger *openapi3.T, opts *Configuration) {
 	if len(opts.Filter.Exclude.Tags) > 0 {
 		operationsWithTags(swagger.Paths, sliceToMap(opts.Filter.Exclude.Tags), true)
 	}
@@ -62,7 +62,7 @@ func operationHasTag(op *openapi3.Operation, tags map[string]bool) bool {
 	return false
 }
 
-func filterOperationsByOperationID(swagger *openapi3.T, opts Configuration) {
+func filterOperationsByOperationID(swagger *openapi3.T, opts *Configuration) {
 	if len(opts.Filter.Exclude.OperationIDs) > 0 {
 		operationsWithOperationIDs(swagger.Paths, sliceToMap(opts.Filter.Exclude.OperationIDs), true)
 	}

@@ -31,34 +31,10 @@ import (
 
 // Generate uses the Go templating engine to generate all of our server wrappers from
 // the descriptions we've built up above from the schema objects.
-func Generate(spec *openapi3.T, opts Configuration) (string, error) {
-	spec, err := filterDocument(spec, opts)
+func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
+	spec, err := filterDocument(spec, cfg)
 	if err != nil {
 		return "", fmt.Errorf("error filtering document: %w", err)
-	}
-
-	// This creates the golang templates text package
-	t := template.New("oapi-codegen").Funcs(TemplateFunctions)
-	// This parses all of our own template files into the template object
-	// above
-	err = LoadTemplates(templates, t)
-	if err != nil {
-		return "", fmt.Errorf("error parsing oapi-codegen templates: %w", err)
-	}
-
-	// load user-provided templates. Will Override built-in versions.
-	for name, template := range opts.UserTemplates {
-		utpl := t.New(name)
-
-		txt, err := GetUserTemplateText(template)
-		if err != nil {
-			return "", fmt.Errorf("error loading user-provided template %q: %w", name, err)
-		}
-
-		_, err = utpl.Parse(txt)
-		if err != nil {
-			return "", fmt.Errorf("error parsing user-provided template %q: %w", name, err)
-		}
 	}
 
 	ops, err := OperationDefinitions(spec)
@@ -73,7 +49,12 @@ func Generate(spec *openapi3.T, opts Configuration) (string, error) {
 
 	var typeDefinitions, constantDefinitions string
 
-	typeDefinitions, err = GenerateTypeDefinitions(t, spec, ops)
+	parser, err := NewParser(cfg, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating parser: %w", err)
+	}
+
+	typeDefinitions, err = GenerateTypeDefinitions(parser.tpl, spec, ops)
 	if err != nil {
 		return "", fmt.Errorf("error generating type definitions: %w", err)
 	}
@@ -84,13 +65,14 @@ func Generate(spec *openapi3.T, opts Configuration) (string, error) {
 	}
 	MergeImports(xGoTypeImports, imprts)
 
-	clientOut, err := GenerateClient(t, ops)
+	// temporary pass parser.tpl
+	clientOut, err := GenerateClient(parser.tpl, ops)
 	if err != nil {
 		return "", fmt.Errorf("error generating client: %w", err)
 	}
 
 	var clientWithResponsesOut string
-	clientWithResponsesOut, err = GenerateClientWithResponses(t, ops)
+	clientWithResponsesOut, err = GenerateClientWithResponses(parser.tpl, ops)
 	if err != nil {
 		return "", fmt.Errorf("error generating client with responses: %w", err)
 	}
@@ -100,9 +82,9 @@ func Generate(spec *openapi3.T, opts Configuration) (string, error) {
 
 	externalImports := importMap(xGoTypeImports).GoImports()
 	importsOut, err := GenerateImports(
-		t,
+		parser.tpl,
 		externalImports,
-		opts.PackageName,
+		cfg.PackageName,
 	)
 	if err != nil {
 		return "", fmt.Errorf("error generating imports: %w", err)
@@ -140,7 +122,7 @@ func Generate(spec *openapi3.T, opts Configuration) (string, error) {
 	// remove any byte-order-marks which break Go-Code
 	goCode := sanitizeCode(buf.String())
 
-	outBytes, err := imports.Process(opts.PackageName+".go", []byte(goCode), nil)
+	outBytes, err := imports.Process(cfg.PackageName+".go", []byte(goCode), nil)
 	if err != nil {
 		return "", fmt.Errorf("error formatting Go code %s: %w", goCode, err)
 	}
