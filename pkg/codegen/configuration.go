@@ -2,6 +2,8 @@ package codegen
 
 import (
 	"errors"
+	"fmt"
+	"sort"
 )
 
 // Configuration defines code generation customizations.
@@ -63,4 +65,28 @@ type FilterParamsConfig struct {
 type keyValue[K, V any] struct {
 	key   K
 	value V
+}
+
+func constructImportMapping(importMapping map[string]string) importMap {
+	var (
+		pathToName = map[string]string{}
+		result     = importMap{}
+	)
+
+	var packagePaths []string
+	for _, packageName := range importMapping {
+		packagePaths = append(packagePaths, packageName)
+	}
+	sort.Strings(packagePaths)
+
+	for _, packagePath := range packagePaths {
+		if _, ok := pathToName[packagePath]; !ok && packagePath != importMappingCurrentPackage {
+			pathToName[packagePath] = fmt.Sprintf("externalRef%d", len(pathToName))
+		}
+	}
+
+	for specPath, packagePath := range importMapping {
+		result[specPath] = goImport{Name: pathToName[packagePath], Path: packagePath}
+	}
+	return result
 }

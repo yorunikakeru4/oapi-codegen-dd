@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -48,31 +47,6 @@ var globalState struct {
 	// initialismsMap stores initialisms as "lower(initialism) -> initialism" map.
 	// List of initialisms was taken from https://staticcheck.io/docs/configuration/options/#initialisms.
 	initialismsMap map[string]string
-}
-
-func constructImportMapping(importMapping map[string]string) importMap {
-	var (
-		pathToName = map[string]string{}
-		result     = importMap{}
-	)
-
-	{
-		var packagePaths []string
-		for _, packageName := range importMapping {
-			packagePaths = append(packagePaths, packageName)
-		}
-		sort.Strings(packagePaths)
-
-		for _, packagePath := range packagePaths {
-			if _, ok := pathToName[packagePath]; !ok && packagePath != importMappingCurrentPackage {
-				pathToName[packagePath] = fmt.Sprintf("externalRef%d", len(pathToName))
-			}
-		}
-	}
-	for specPath, packagePath := range importMapping {
-		result[specPath] = goImport{Name: pathToName[packagePath], Path: packagePath}
-	}
-	return result
 }
 
 // Generate uses the Go templating engine to generate all of our server wrappers from
