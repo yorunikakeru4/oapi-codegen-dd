@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"go/token"
 	"net/url"
-	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -866,16 +865,6 @@ func findSchemaNameByRefPath(refPath string, spec *openapi3.T) (string, error) {
 		}
 	}
 	return "", nil
-}
-
-// TypeDefinitionsEquivalent checks for equality between two type definitions, but
-// not every field is considered. We only want to know if they are fundamentally
-// the same type.
-func TypeDefinitionsEquivalent(t1, t2 TypeDefinition) bool {
-	if t1.TypeName != t2.TypeName {
-		return false
-	}
-	return reflect.DeepEqual(t1.Schema.OAPISchema, t2.Schema.OAPISchema)
 }
 
 // isAdditionalPropertiesExplicitFalse determines whether an openapi3.Schema is explicitly defined as `additionalProperties: false`
