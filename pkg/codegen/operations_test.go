@@ -85,9 +85,9 @@ func TestIsJson(t *testing.T) {
 	}
 }
 
-func TestGenerateDefaultOperationID(t *testing.T) {
+func TestCreateOperationID(t *testing.T) {
 	type test struct {
-		op      string
+		method  string
 		path    string
 		want    string
 		wantErr bool
@@ -95,25 +95,25 @@ func TestGenerateDefaultOperationID(t *testing.T) {
 
 	suite := []test{
 		{
-			op:      http.MethodGet,
+			method:  http.MethodGet,
 			path:    "/v1/foo/bar",
 			want:    "GetV1FooBar",
 			wantErr: false,
 		},
 		{
-			op:      http.MethodGet,
+			method:  http.MethodGet,
 			path:    "/v1/foo/bar/",
 			want:    "GetV1FooBar",
 			wantErr: false,
 		},
 		{
-			op:      http.MethodPost,
+			method:  http.MethodPost,
 			path:    "/v1",
 			want:    "PostV1",
 			wantErr: false,
 		},
 		{
-			op:      http.MethodPost,
+			method:  http.MethodPost,
 			path:    "v1",
 			want:    "PostV1",
 			wantErr: false,
@@ -131,7 +131,7 @@ func TestGenerateDefaultOperationID(t *testing.T) {
 	}
 
 	for _, test := range suite {
-		got, err := generateDefaultOperationID(test.op, test.path)
+		got, err := createOperationID(test.method, test.path, "")
 		if err != nil {
 			if !test.wantErr {
 				t.Fatalf("did not expected error but got %v", err)

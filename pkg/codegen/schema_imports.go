@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/doordash/oapi-codegen/v2/pkg/util"
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
@@ -42,18 +41,18 @@ func (im importMap) GoImports() []string {
 	return goImports
 }
 
-func OperationSchemaImports(s *Schema) (map[string]goImport, error) {
+func collectSchemaImports(s Schema) (map[string]goImport, error) {
 	res := map[string]goImport{}
 
 	for _, p := range s.Properties {
-		imprts, err := GoSchemaImports(&openapi3.SchemaRef{Value: p.Schema.OAPISchema})
+		imprts, err := GoSchemaImports(p.Schema.OAPISchema)
 		if err != nil {
 			return nil, err
 		}
 		MergeImports(res, imprts)
 	}
 
-	imprts, err := GoSchemaImports(&openapi3.SchemaRef{Value: s.OAPISchema})
+	imprts, err := GoSchemaImports(s.OAPISchema)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +60,12 @@ func OperationSchemaImports(s *Schema) (map[string]goImport, error) {
 	return res, nil
 }
 
-func ParseGoImportExtension(v *openapi3.SchemaRef) (*goImport, error) {
-	if v.Value.Extensions[extPropGoImport] == nil || v.Value.Extensions[extPropGoType] == nil {
+func parseGoImportExtension(v *openapi3.Schema) (*goImport, error) {
+	if v.Extensions[extPropGoImport] == nil || v.Extensions[extPropGoType] == nil {
 		return nil, nil
 	}
 
-	goTypeImportExt := v.Value.Extensions[extPropGoImport]
+	goTypeImportExt := v.Extensions[extPropGoImport]
 
 	importI, ok := goTypeImportExt.(map[string]interface{})
 	if !ok {
@@ -94,171 +93,31 @@ func ParseGoImportExtension(v *openapi3.SchemaRef) (*goImport, error) {
 	return &gi, nil
 }
 
-func GoSchemaImports(schemas ...*openapi3.SchemaRef) (map[string]goImport, error) {
+func GoSchemaImports(schema *openapi3.Schema) (map[string]goImport, error) {
 	res := map[string]goImport{}
-	for _, sref := range schemas {
-		if sref == nil || sref.Value == nil || IsGoTypeReference(sref.Ref) {
-			return nil, nil
-		}
-		if gi, err := ParseGoImportExtension(sref); err != nil {
-			return nil, err
-		} else {
-			if gi != nil {
-				res[gi.String()] = *gi
-			}
-		}
-		schemaVal := sref.Value
-
-		t := schemaVal.Type
-		if t.Slice() == nil || t.Is("object") {
-			for _, v := range schemaVal.Properties {
-				imprts, err := GoSchemaImports(v)
-				if err != nil {
-					return nil, err
-				}
-				MergeImports(res, imprts)
-			}
-		} else if t.Is("array") {
-			imprts, err := GoSchemaImports(schemaVal.Items)
-			if err != nil {
-				return nil, err
-			}
-			MergeImports(res, imprts)
-		}
-	}
-	return res, nil
-}
-
-func OperationImports(ops []OperationDefinition) (map[string]goImport, error) {
-	res := map[string]goImport{}
-	for _, op := range ops {
-		for _, pd := range [][]ParameterDefinition{op.PathParams, op.QueryParams} {
-			for _, p := range pd {
-				imprts, err := OperationSchemaImports(&p.Schema)
-				if err != nil {
-					return nil, err
-				}
-				MergeImports(res, imprts)
-			}
-		}
-
-		if op.Body != nil {
-			imprts, err := OperationSchemaImports(&op.Body.Schema)
-			if err != nil {
-				return nil, err
-			}
-			MergeImports(res, imprts)
-		}
-
-		if op.Response.Success != nil {
-			imprts, err := OperationSchemaImports(&op.Response.Success.Schema)
-			if err != nil {
-				return nil, err
-			}
-			MergeImports(res, imprts)
-		}
-
-		if op.Response.Error != nil {
-			imprts, err := OperationSchemaImports(&op.Response.Error.Schema)
-			if err != nil {
-				return nil, err
-			}
-			MergeImports(res, imprts)
-		}
-
-	}
-	return res, nil
-}
-
-func GetTypeDefinitionsImports(swagger *openapi3.T) (map[string]goImport, error) {
-	res := map[string]goImport{}
-	if swagger.Components == nil {
-		return res, nil
+	if schema == nil {
+		return nil, nil
 	}
 
-	schemaImports, err := GetSchemaImports(swagger.Components.Schemas)
-	if err != nil {
+	if gi, err := parseGoImportExtension(schema); err != nil {
 		return nil, err
-	}
-
-	reqBodiesImports, err := GetRequestBodiesImports(swagger.Components.RequestBodies)
-	if err != nil {
-		return nil, err
-	}
-
-	responsesImports, err := GetResponsesImports(swagger.Components.Responses)
-	if err != nil {
-		return nil, err
-	}
-
-	parametersImports, err := GetParametersImports(swagger.Components.Parameters)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, imprts := range []map[string]goImport{schemaImports, reqBodiesImports, responsesImports, parametersImports} {
-		MergeImports(res, imprts)
-	}
-	return res, nil
-}
-
-func GetSchemaImports(schemas map[string]*openapi3.SchemaRef) (map[string]goImport, error) {
-	res := map[string]goImport{}
-	for _, schema := range schemas {
-		imprts, err := GoSchemaImports(schema)
-		if err != nil {
-			return nil, err
+	} else {
+		if gi != nil {
+			res[gi.String()] = *gi
 		}
-		MergeImports(res, imprts)
 	}
-	return res, nil
-}
 
-func GetRequestBodiesImports(bodies map[string]*openapi3.RequestBodyRef) (map[string]goImport, error) {
-	res := map[string]goImport{}
-	for _, r := range bodies {
-		response := r.Value
-		for mediaType, body := range response.Content {
-			if !util.IsMediaTypeJson(mediaType) {
-				continue
-			}
-
-			imprts, err := GoSchemaImports(body.Schema)
+	t := schema.Type
+	if t.Slice() == nil || t.Is("object") {
+		for _, v := range schema.Properties {
+			imprts, err := GoSchemaImports(v.Value)
 			if err != nil {
 				return nil, err
 			}
 			MergeImports(res, imprts)
 		}
-	}
-	return res, nil
-}
-
-func GetResponsesImports(responses map[string]*openapi3.ResponseRef) (map[string]goImport, error) {
-	res := map[string]goImport{}
-	for _, r := range responses {
-		response := r.Value
-		for mediaType, body := range response.Content {
-			if !util.IsMediaTypeJson(mediaType) {
-				continue
-			}
-
-			imprts, err := GoSchemaImports(body.Schema)
-			if err != nil {
-				return nil, err
-			}
-			MergeImports(res, imprts)
-		}
-	}
-	return res, nil
-}
-
-func GetParametersImports(params map[string]*openapi3.ParameterRef) (map[string]goImport, error) {
-	res := map[string]goImport{}
-	for _, param := range params {
-		if param.Value == nil {
-			continue
-		}
-		imprts, err := GoSchemaImports(param.Value.Schema)
+	} else if t.Is("array") {
+		imprts, err := GoSchemaImports(schema.Items.Value)
 		if err != nil {
 			return nil, err
 		}

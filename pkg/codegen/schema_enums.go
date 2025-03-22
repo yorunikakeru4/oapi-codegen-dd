@@ -135,3 +135,105 @@ func SanitizeEnumNames(enumNames, enumValues []string) map[string]string {
 
 	return sanitizedDeDup
 }
+
+func filterOutEnums(types []TypeDefinition) ([]EnumDefinition, []TypeDefinition) {
+	var enums []EnumDefinition
+	var rest []TypeDefinition
+
+	// Keep track of which enums we've generated
+	m := map[string]bool{}
+
+	// These are all types defined globally
+	for _, td := range types {
+		if found := m[td.TypeName]; found {
+			continue
+		}
+
+		for _, p := range td.Schema.Properties {
+			if len(p.Schema.EnumValues) == 0 {
+				continue
+			}
+
+			name := p.Schema.RefType
+			if name == "" {
+				name = p.GoName
+			}
+
+			if found := m[name]; found {
+				continue
+			}
+
+			wrapper := ""
+			if p.Schema.GoType == "string" {
+				wrapper = `"`
+			}
+
+			enums = append(enums, EnumDefinition{
+				Schema:         p.Schema,
+				TypeName:       name,
+				ValueWrapper:   wrapper,
+				PrefixTypeName: true,
+			})
+			m[name] = true
+		}
+
+		if len(td.Schema.EnumValues) > 0 {
+			wrapper := ""
+			if td.Schema.GoType == "string" {
+				wrapper = `"`
+			}
+			enums = append(enums, EnumDefinition{
+				Schema:         td.Schema,
+				TypeName:       td.TypeName,
+				ValueWrapper:   wrapper,
+				PrefixTypeName: true,
+			})
+			m[td.TypeName] = true
+		} else {
+			rest = append(rest, td)
+		}
+	}
+
+	// Now, go through all the enums, and figure out if we have conflicts with any others.
+	for i := range enums {
+		// Look through all other enums not compared so far.
+		// Make sure we don't compare against self.
+		e1 := enums[i]
+		for j := i + 1; j < len(enums); j++ {
+			e2 := enums[j]
+
+			for e1key := range e1.GetValues() {
+				_, found := e2.GetValues()[e1key]
+				if found {
+					e1.PrefixTypeName = true
+					e2.PrefixTypeName = true
+					enums[i] = e1
+					enums[j] = e2
+					break
+				}
+			}
+		}
+
+		// now see if this enum conflicts with any type names.
+		for _, tp := range types {
+			// Skip over enums, since we've handled those above.
+			if len(tp.Schema.EnumValues) > 0 {
+				continue
+			}
+			_, found := e1.Schema.EnumValues[tp.TypeName]
+			if found {
+				e1.PrefixTypeName = true
+				enums[i] = e1
+			}
+		}
+
+		// Another edge case is that an enum value can conflict with its own type name.
+		_, found := e1.GetValues()[e1.TypeName]
+		if found {
+			e1.PrefixTypeName = true
+			enums[i] = e1
+		}
+	}
+
+	return enums, rest
+}

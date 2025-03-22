@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go/format"
 	"io/fs"
+	"os"
 	"strings"
 	"text/template"
 
@@ -233,4 +234,26 @@ func getSpecLocationOutName(specLocation SpecLocation) string {
 	default:
 		return string(specLocation)
 	}
+}
+
+// GetUserTemplateText attempts to retrieve the template text from a passed string or file..
+func GetUserTemplateText(inputData string) (template string, err error) {
+	// if the input data is more than one line, assume its a template and return that data.
+	if strings.Contains(inputData, "\n") {
+		return inputData, nil
+	}
+
+	// load data from file
+	data, err := os.ReadFile(inputData)
+	// return data if found and loaded
+	if err == nil {
+		return string(data), nil
+	}
+
+	// check for non "not found" errors
+	if !os.IsNotExist(err) {
+		return "", fmt.Errorf("failed to open file %s: %w", inputData, err)
+	}
+
+	return string(data), nil
 }

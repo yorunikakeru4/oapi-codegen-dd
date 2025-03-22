@@ -63,7 +63,7 @@ func (s Schema) TypeDecl() string {
 // the same name, but different definition, will collide. It's safe to merge the
 // fields of two schemas with overlapping properties if those properties are
 // identical.
-func (s *Schema) AddProperty(p Property) error {
+func (s Schema) AddProperty(p Property) error {
 	// Scan all existing properties for a conflict
 	for _, e := range s.Properties {
 		if e.JsonFieldName == p.JsonFieldName && !PropertiesEqual(e, p) {
@@ -76,6 +76,28 @@ func (s *Schema) AddProperty(p Property) error {
 
 func (s Schema) GetAdditionalTypeDefs() []TypeDefinition {
 	return s.AdditionalTypes
+}
+
+func (s Schema) createGoStruct(fields []string) string {
+	// Start out with struct {
+	objectParts := []string{"struct {"}
+
+	// Append all the field definitions
+	objectParts = append(objectParts, fields...)
+
+	// Close the struct
+	if s.HasAdditionalProperties {
+		objectParts = append(objectParts,
+			fmt.Sprintf("AdditionalProperties map[string]%s `json:\"-\"`",
+				additionalPropertiesType(s)))
+	}
+
+	if len(s.UnionElements) != 0 {
+		objectParts = append(objectParts, "union json.RawMessage")
+	}
+
+	objectParts = append(objectParts, "}")
+	return strings.Join(objectParts, "\n")
 }
 
 type Constants struct {

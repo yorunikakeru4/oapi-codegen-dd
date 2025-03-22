@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 	"unicode"
 
 	"github.com/doordash/oapi-codegen/v2/pkg/util"
@@ -196,4 +197,56 @@ func CombineOperationParameters(globalParams []ParameterDefinition, localParams 
 	}
 
 	return allParams, nil
+}
+
+// generateParamsTypes defines the schema for a parameters definition object.
+func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([]TypeDefinition, []Schema) {
+	if len(objectParams) == 0 {
+		return nil, nil
+	}
+	specLocation := SpecLocation(strings.ToLower(objectParams[0].In))
+
+	var typeDefs []TypeDefinition
+	var properties []Property
+	var imports []Schema
+
+	for _, param := range objectParams {
+		pSchema := param.Schema
+		if pSchema.HasAdditionalProperties {
+			propRefName := strings.Join([]string{typeName, param.GoName()}, "_")
+			pSchema.RefType = propRefName
+
+			typeDefs = append(typeDefs, TypeDefinition{
+				TypeName:     propRefName,
+				Schema:       param.Schema,
+				SpecLocation: specLocation,
+			})
+		}
+
+		typeDefs = append(typeDefs, pSchema.AdditionalTypes...)
+
+		properties = append(properties, Property{
+			Description:   param.Spec.Description,
+			JsonFieldName: param.ParamName,
+			Required:      param.Required,
+			Schema:        pSchema,
+			NeedsFormTag:  param.Style() == "form",
+			Extensions:    param.Spec.Extensions,
+		})
+		imports = append(imports, pSchema)
+	}
+
+	s := Schema{
+		Properties: properties,
+	}
+	fields := GenFieldsFromProperties(properties)
+	s.GoType = s.createGoStruct(fields)
+
+	td := TypeDefinition{
+		TypeName:     typeName,
+		Schema:       s,
+		SpecLocation: specLocation,
+	}
+
+	return append(typeDefs, td), imports
 }

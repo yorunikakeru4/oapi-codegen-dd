@@ -34,12 +34,12 @@ type ClientWithResponsesInterface interface {
 {{$pathParams := .PathParams -}}
 {{$opid := .ID -}}
     // {{$opid}}{{if .Body}}WithBody{{end}}WithResponse request{{if .Body}} with any body{{end}}
-    {{$opid}}{{if .Body}}WithBody{{end}}WithResponse(ctx context.Context{{genParamArgs .PathParams}}{{if .RequiresParamObject}}, params *{{$opid}}Params{{end}}{{if .Body}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error)
+    {{$opid}}{{if .Body}}WithBody{{end}}WithResponse(ctx context.Context{{if .RequiresParamObject}}, params *{{$opid}}Params{{end}}{{if .Body}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error)
 
 {{$body := .Body}}
 {{if $body}}
 {{if $body.IsSupportedByClient -}}
-    {{$opid}}{{$body.Suffix}}WithResponse(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}, body {{$opid}}{{$body.NameTag}}RequestBody, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error)
+    {{$opid}}{{$body.Suffix}}WithResponse(ctx context.Context{{if $hasParams}}, params *{{$opid}}Params{{end}}, body {{$opid}}{{$body.NameTag}}RequestBody, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error)
 {{end -}}
 {{end -}}
 
@@ -86,7 +86,7 @@ func (r {{genResponseTypeName $opid | ucFirst}}) StatusCode() int {
 {{/* Generate client methods (with responses)*/}}
 
 // {{$opid}}{{if .Body}}WithBody{{end}}WithResponse request{{if .Body}} with arbitrary body{{end}} returning *{{genResponseTypeName $opid}}
-func (c *ClientWithResponses) {{$opid}}{{if .Body}}WithBody{{end}}WithResponse(ctx context.Context{{genParamArgs .PathParams}}{{if .RequiresParamObject}}, params *{{$opid}}Params{{end}}{{if .Body}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error){
+func (c *ClientWithResponses) {{$opid}}{{if .Body}}WithBody{{end}}WithResponse(ctx context.Context{{if .RequiresParamObject}}, params *{{$opid}}Params{{end}}{{if .Body}}, contentType string, body io.Reader{{end}}, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error){
     rsp, err := c.{{$opid}}{{if .Body}}WithBody{{end}}(ctx{{genParamNames .PathParams}}{{if .RequiresParamObject}}, params{{end}}{{if .Body}}, contentType, body{{end}}, reqEditors...)
     if err != nil {
         return nil, err
@@ -101,7 +101,7 @@ func (c *ClientWithResponses) {{$opid}}{{if .Body}}WithBody{{end}}WithResponse(c
 
 {{if $body}}
 {{if $body.IsSupportedByClient -}}
-func (c *ClientWithResponses) {{$opid}}{{$body.Suffix}}WithResponse(ctx context.Context{{genParamArgs $pathParams}}{{if $hasParams}}, params *{{$opid}}Params{{end}}, body {{$opid}}{{$body.NameTag}}RequestBody, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error) {
+func (c *ClientWithResponses) {{$opid}}{{$body.Suffix}}WithResponse(ctx context.Context{{if $hasParams}}, params *{{$opid}}Params{{end}}, body {{$opid}}{{$body.NameTag}}RequestBody, reqEditors... RequestEditorFn) (*{{genResponseTypeName $opid}}, error) {
     rsp, err := c.{{$opid}}{{$body.Suffix}}(ctx{{genParamNames $pathParams}}{{if $hasParams}}, params{{end}}, body, reqEditors...)
     if err != nil {
         return nil, err

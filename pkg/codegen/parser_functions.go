@@ -27,7 +27,6 @@ const (
 // function here by keyName from the template code.
 var TemplateFunctions = template.FuncMap{
 	// previous
-	"genParamArgs":               genParamArgs,
 	"genParamTypes":              genParamTypes,
 	"genParamNames":              genParamNames,
 	"genParamFmtString":          ReplacePathParamsWithStr,
@@ -98,22 +97,6 @@ func getConditionOfResponseName(statusCodeVar, responseName string) string {
 	default:
 		return fmt.Sprintf("%s == %s", statusCodeVar, responseName)
 	}
-}
-
-// genParamArgs takes an array of Parameter definition, and generates a valid
-// Go parameter declaration from them, eg:
-// ", foo int, bar string, baz float32". The preceding comma is there to save
-// a lot of work in the template engine.
-func genParamArgs(params []ParameterDefinition) string {
-	if len(params) == 0 {
-		return ""
-	}
-	parts := make([]string, len(params))
-	for i, p := range params {
-		paramName := p.GoVariableName()
-		parts[i] = fmt.Sprintf("%s %s", paramName, p.TypeDef())
-	}
-	return ", " + strings.Join(parts, ", ")
 }
 
 // genParamTypes is much like the one above, except it only produces the

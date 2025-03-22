@@ -17,12 +17,7 @@ package codegen
 import (
 	"bufio"
 	"bytes"
-	"embed"
 	"fmt"
-	"io/fs"
-	"os"
-	"runtime/debug"
-	"strings"
 	"text/template"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -37,42 +32,223 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 		return "", fmt.Errorf("error filtering document: %w", err)
 	}
 
-	ops, err := OperationDefinitions(spec)
-	if err != nil {
-		return "", fmt.Errorf("error creating operation definitions: %w", err)
+	var (
+		operations    []OperationDefinition
+		importSchemas []Schema
+		typeDefs      []TypeDefinition
+	)
+
+	if spec == nil || spec.Paths == nil {
+		return "", nil
 	}
 
-	xGoTypeImports, err := OperationImports(ops)
+	for _, requestPath := range SortedMapKeys(spec.Paths.Map()) {
+		pathItem := spec.Paths.Value(requestPath)
+		// These are parameters defined for all methods on a given path. They
+		// are shared by all methods.
+		globalParams, err := DescribeParameters(pathItem.Parameters, nil)
+		if err != nil {
+			return "", fmt.Errorf("error describing global parameters for %s: %s",
+				requestPath, err)
+		}
+
+		// Each path can have a number of operations, POST, GET, OPTIONS, etc.
+		pathOps := pathItem.Operations()
+		for _, method := range SortedMapKeys(pathOps) {
+			var (
+				headerDef     *TypeDefinition
+				queryDef      *TypeDefinition
+				pathParamsDef *TypeDefinition
+			)
+
+			op := pathOps[method]
+			operationID, err := createOperationID(method, requestPath, op.OperationID)
+			if err != nil {
+				return "", fmt.Errorf("error creating operation ID: %w", err)
+			}
+
+			// These are parameters defined for the specific path method that we're iterating over.
+			localParams, err := DescribeParameters(op.Parameters, []string{op.OperationID + "Params"})
+			if err != nil {
+				return "", fmt.Errorf("error describing global parameters for %s/%s: %s",
+					method, requestPath, err)
+			}
+			// All the parameters required by a handler are the union of the
+			// global parameters and the local parameters.
+			allParams, err := CombineOperationParameters(globalParams, localParams)
+			if err != nil {
+				return "", err
+			}
+			for _, param := range allParams {
+				importSchemas = append(importSchemas, param.Schema)
+			}
+
+			// Order the path parameters to match the order as specified in
+			// the path, not in the swagger spec, and validate that the parameter
+			// names match, as downstream code depends on that.
+			pathParams := FilterParameterDefinitionByType(allParams, "path")
+			pathParams, err = SortParamsByPath(requestPath, pathParams)
+			if err != nil {
+				return "", err
+			}
+			pathDefs, pathSchemas := generateParamsTypes(pathParams, operationID+"Path")
+			if len(pathDefs) > 0 {
+				pathParamsDef = &pathDefs[0]
+			}
+			typeDefs = append(typeDefs, pathDefs...)
+			importSchemas = append(importSchemas, pathSchemas...)
+
+			queryParams := FilterParameterDefinitionByType(allParams, "query")
+			queryDefs, querySchemas := generateParamsTypes(queryParams, operationID+"Query")
+			if len(queryDefs) > 0 {
+				queryDef = &queryDefs[0]
+			}
+			typeDefs = append(typeDefs, queryDefs...)
+			importSchemas = append(importSchemas, querySchemas...)
+
+			headerParams := FilterParameterDefinitionByType(allParams, "header")
+			headerDefs, headerSchemas := generateParamsTypes(headerParams, operationID+"Headers")
+			if len(headerDefs) > 0 {
+				headerDef = &headerDefs[0]
+			}
+			typeDefs = append(typeDefs, headerDefs...)
+			importSchemas = append(importSchemas, headerSchemas...)
+
+			// Process Request Body
+			bodyDefinition, bodyTypeDef, err := createBodyDefinition(op.OperationID, op.RequestBody)
+			if err != nil {
+				return "", fmt.Errorf("error generating body definitions: %w", err)
+			}
+			if bodyTypeDef != nil {
+				typeDefs = append(typeDefs, *bodyTypeDef)
+				importSchemas = append(importSchemas, bodyTypeDef.Schema)
+			}
+			if bodyDefinition != nil {
+				typeDefs = append(typeDefs, bodyDefinition.Schema.AdditionalTypes...)
+			}
+
+			// Process Responses
+			responseDef, responseTypes, err := getOperationResponses(op.OperationID, op.Responses.Map())
+			if err != nil {
+				return "", fmt.Errorf("error getting operation responses: %w", err)
+			}
+			typeDefs = append(typeDefs, responseTypes...)
+			for _, responseType := range responseTypes {
+				importSchemas = append(importSchemas, responseType.Schema)
+			}
+
+			opDef := OperationDefinition{
+				ID:          operationID,
+				Summary:     op.Summary,
+				Description: op.Description,
+				Method:      method,
+				Path:        requestPath,
+				PathParams:  pathParamsDef,
+				Header:      headerDef,
+				Query:       queryDef,
+				Response:    *responseDef,
+				Body:        bodyDefinition,
+			}
+
+			if op.RequestBody != nil {
+				opDef.BodyRequired = op.RequestBody.Value.Required
+			}
+
+			operations = append(operations, opDef)
+		}
+	}
+
+	// Process Components
+	componentDefs, err := collectComponentDefinitions(spec)
 	if err != nil {
-		return "", fmt.Errorf("error getting operation imports: %w", err)
+		return "", fmt.Errorf("error collecting component definitions: %s", err)
+	}
+	typeDefs = append(typeDefs, componentDefs...)
+
+	// Collect Schemas from components
+	for _, componentDef := range componentDefs {
+		importSchemas = append(importSchemas, componentDef.Schema)
+	}
+
+	// Collect Imports
+	imprts := map[string]goImport{}
+	for _, schema := range importSchemas {
+		importRes, err := collectSchemaImports(schema)
+		if err != nil {
+			return "", fmt.Errorf("error getting schema imports: %w", err)
+		}
+		MergeImports(imprts, importRes)
+	}
+
+	typeDefs, err = checkDuplicates(typeDefs)
+	if err != nil {
+		return "", fmt.Errorf("error checking for duplicate type definitions: %w", err)
+	}
+
+	enums, typeDefs := filterOutEnums(typeDefs)
+
+	groupedTypeDefs := make(map[SpecLocation][]TypeDefinition)
+	var (
+		additionalTypes          []TypeDefinition
+		unionTypes               []TypeDefinition
+		unionWithAdditionalTypes []TypeDefinition
+	)
+
+	for _, td := range typeDefs {
+		if _, found := groupedTypeDefs[td.SpecLocation]; !found {
+			groupedTypeDefs[td.SpecLocation] = []TypeDefinition{}
+		}
+
+		collected := false
+		if td.Schema.HasAdditionalProperties {
+			additionalTypes = append(additionalTypes, td)
+			collected = true
+		}
+
+		if len(td.Schema.UnionElements) != 0 {
+			td.SpecLocation = SpecLocationUnion
+			unionTypes = append(unionTypes, td)
+			collected = true
+		} else if td.SpecLocation == SpecLocationUnion {
+			unionTypes = append(unionTypes, td)
+			collected = true
+		}
+
+		if len(additionalTypes) != 0 && len(unionTypes) != 0 {
+			unionWithAdditionalTypes = append(unionWithAdditionalTypes, td)
+			collected = true
+		}
+
+		if !collected {
+			groupedTypeDefs[td.SpecLocation] = append(groupedTypeDefs[td.SpecLocation], td)
+		}
+	}
+
+	parseCtx := &ParseContext{
+		Operations:               operations,
+		TypeDefinitions:          groupedTypeDefs,
+		Enums:                    enums,
+		UnionTypes:               unionTypes,
+		AdditionalTypes:          additionalTypes,
+		UnionWithAdditionalTypes: unionWithAdditionalTypes,
+		Imports:                  importMap(imprts).GoImports(),
 	}
 
 	var typeDefinitions, constantDefinitions string
 
-	parser, err := NewParser(cfg, nil)
+	parser, err := NewParser(cfg, parseCtx)
 	if err != nil {
 		return "", fmt.Errorf("error creating parser: %w", err)
 	}
 
-	typeDefinitions, err = GenerateTypeDefinitions(parser.tpl, spec, ops)
-	if err != nil {
-		return "", fmt.Errorf("error generating type definitions: %w", err)
-	}
-
-	imprts, err := GetTypeDefinitionsImports(spec)
-	if err != nil {
-		return "", fmt.Errorf("error getting type definition imports: %w", err)
-	}
-	MergeImports(xGoTypeImports, imprts)
-
 	// temporary pass parser.tpl
-	clientOut, err := GenerateClient(parser.tpl, ops)
+	clientOut, err := GenerateClient(parser.tpl, operations)
 	if err != nil {
 		return "", fmt.Errorf("error generating client: %w", err)
 	}
 
 	var clientWithResponsesOut string
-	clientWithResponsesOut, err = GenerateClientWithResponses(parser.tpl, ops)
+	clientWithResponsesOut, err = GenerateClientWithResponses(parser.tpl, operations)
 	if err != nil {
 		return "", fmt.Errorf("error generating client with responses: %w", err)
 	}
@@ -80,7 +256,7 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 	var buf bytes.Buffer
 	w := bufio.NewWriter(&buf)
 
-	externalImports := importMap(xGoTypeImports).GoImports()
+	externalImports := importMap(imprts).GoImports()
 	importsOut, err := GenerateImports(
 		parser.tpl,
 		externalImports,
@@ -129,314 +305,48 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 	return string(outBytes), nil
 }
 
-func GenerateTypeDefinitions(t *template.Template, swagger *openapi3.T, ops []OperationDefinition) (string, error) {
-	var allTypes []TypeDefinition
-	if swagger.Components != nil {
-		schemaTypes, err := GenerateTypesForSchemas(swagger.Components.Schemas)
-		if err != nil {
-			return "", fmt.Errorf("error generating Go types for component schemas: %w", err)
-		}
-
-		paramTypes, err := GenerateTypesForParameters(swagger.Components.Parameters)
-		if err != nil {
-			return "", fmt.Errorf("error generating Go types for component parameters: %w", err)
-		}
-		allTypes = append(schemaTypes, paramTypes...)
-
-		responseTypes, err := GenerateTypesForResponses(swagger.Components.Responses)
-		if err != nil {
-			return "", fmt.Errorf("error generating Go types for component responses: %w", err)
-		}
-		allTypes = append(allTypes, responseTypes...)
-
-		bodyTypes, err := GenerateTypesForRequestBodies(swagger.Components.RequestBodies)
-		if err != nil {
-			return "", fmt.Errorf("error generating Go types for component request bodies: %w", err)
-		}
-		allTypes = append(allTypes, bodyTypes...)
+// collectComponentDefinitions collects all the components from the model and returns them as a list of TypeDefinition.
+func collectComponentDefinitions(model *openapi3.T) ([]TypeDefinition, error) {
+	if model.Components == nil {
+		return nil, nil
 	}
 
-	// Go through all operations, and add their types to allTypes, so that we can
-	// scan all of them for enums. Operation definitions are handled differently
-	// from the rest, so let's keep track of enumTypes separately, which will contain
-	// all types needed to be scanned for enums, which includes those within operations.
-	enumTypes := allTypes
-	for _, op := range ops {
-		enumTypes = append(enumTypes, op.TypeDefinitions...)
-	}
-
-	operationsOut, err := GenerateTypesForOperations(t, ops)
+	var typeDefs []TypeDefinition
+	schemaTypes, err := GenerateTypesForSchemas(model.Components.Schemas)
 	if err != nil {
-		return "", fmt.Errorf("error generating Go types for component request bodies: %w", err)
+		return nil, fmt.Errorf("error generating Go types for component schemas: %w", err)
 	}
 
-	enumsOut, err := GenerateEnums(t, enumTypes)
+	paramTypes, err := GenerateTypesForParameters(model.Components.Parameters)
 	if err != nil {
-		return "", fmt.Errorf("error generating code for type enums: %w", err)
+		return nil, fmt.Errorf("error generating Go types for component parameters: %w", err)
 	}
+	typeDefs = append(schemaTypes, paramTypes...)
 
-	typesOut, err := GenerateTypes(t, allTypes)
+	responseTypes, err := GenerateTypesForResponses(model.Components.Responses)
 	if err != nil {
-		return "", fmt.Errorf("error generating code for type definitions: %w", err)
+		return nil, fmt.Errorf("error generating Go types for component responses: %w", err)
 	}
+	typeDefs = append(typeDefs, responseTypes...)
 
-	allOfBoilerplate, err := GenerateAdditionalPropertyBoilerplate(t, allTypes)
+	bodyTypes, err := GenerateTypesForRequestBodies(model.Components.RequestBodies)
 	if err != nil {
-		return "", fmt.Errorf("error generating allOf boilerplate: %w", err)
+		return nil, fmt.Errorf("error generating Go types for component request bodies: %w", err)
 	}
+	typeDefs = append(typeDefs, bodyTypes...)
 
-	unionBoilerplate, err := GenerateUnionBoilerplate(t, allTypes)
-	if err != nil {
-		return "", fmt.Errorf("error generating union boilerplate: %w", err)
-	}
-
-	unionAndAdditionalBoilerplate, err := GenerateUnionAndAdditionalProopertiesBoilerplate(t, allTypes)
-	if err != nil {
-		return "", fmt.Errorf("error generating boilerplate for union types with additionalProperties: %w", err)
-	}
-
-	typeDefinitions := strings.Join([]string{enumsOut, typesOut, operationsOut, allOfBoilerplate, unionBoilerplate, unionAndAdditionalBoilerplate}, "")
-	return typeDefinitions, nil
-}
-
-// GenerateTypes passes a bunch of types to the template engine, and buffers
-// its output into a string.
-func GenerateTypes(t *template.Template, types []TypeDefinition) (string, error) {
-	ts, err := checkDuplicates(types)
-	if err != nil {
-		return "", err
-	}
-
-	context := struct {
-		Types []TypeDefinition
-	}{
-		Types: ts,
-	}
-
-	return GenerateTemplates([]string{"typedef.tmpl"}, t, context)
-}
-
-func GenerateEnums(t *template.Template, types []TypeDefinition) (string, error) {
-	enums := []EnumDefinition{}
-
-	// Keep track of which enums we've generated
-	m := map[string]bool{}
-
-	// These are all types defined globally
-	for _, tp := range types {
-		if found := m[tp.TypeName]; found {
-			continue
-		}
-
-		m[tp.TypeName] = true
-
-		if len(tp.Schema.EnumValues) > 0 {
-			wrapper := ""
-			if tp.Schema.GoType == "string" {
-				wrapper = `"`
-			}
-			enums = append(enums, EnumDefinition{
-				Schema:         tp.Schema,
-				TypeName:       tp.TypeName,
-				ValueWrapper:   wrapper,
-				PrefixTypeName: true,
-			})
-		}
-	}
-
-	// Now, go through all the enums, and figure out if we have conflicts with
-	// any others.
-	for i := range enums {
-		// Look through all other enums not compared so far. Make sure we don't
-		// compare against self.
-		e1 := enums[i]
-		for j := i + 1; j < len(enums); j++ {
-			e2 := enums[j]
-
-			for e1key := range e1.GetValues() {
-				_, found := e2.GetValues()[e1key]
-				if found {
-					e1.PrefixTypeName = true
-					e2.PrefixTypeName = true
-					enums[i] = e1
-					enums[j] = e2
-					break
-				}
-			}
-		}
-
-		// now see if this enum conflicts with any global type names.
-		for _, tp := range types {
-			// Skip over enums, since we've handled those above.
-			if len(tp.Schema.EnumValues) > 0 {
-				continue
-			}
-			_, found := e1.Schema.EnumValues[tp.TypeName]
-			if found {
-				e1.PrefixTypeName = true
-				enums[i] = e1
-			}
-		}
-
-		// Another edge case is that an enum value can conflict with its own
-		// type name.
-		_, found := e1.GetValues()[e1.TypeName]
-		if found {
-			e1.PrefixTypeName = true
-			enums[i] = e1
-		}
-	}
-
-	// Now see if enums conflict with any non-enum typenames
-
-	return GenerateTemplates([]string{"constants.tmpl"}, t, Constants{EnumDefinitions: enums})
+	return typeDefs, nil
 }
 
 // GenerateImports generates our import statements and package definition.
 func GenerateImports(t *template.Template, externalImports []string, packageName string) (string, error) {
-	// Read build version for incorporating into generated files
-	// Unit tests have ok=false, so we'll just use "unknown" for the
-	// version if we can't read this.
-
-	modulePath := "unknown module path"
-	moduleVersion := "unknown version"
-	if bi, ok := debug.ReadBuildInfo(); ok {
-		if bi.Main.Path != "" {
-			modulePath = bi.Main.Path
-		}
-		if bi.Main.Version != "" {
-			moduleVersion = bi.Main.Version
-		}
-	}
-
 	context := struct {
 		ExternalImports []string
 		PackageName     string
-		ModuleName      string
-		Version         string
 	}{
 		ExternalImports: externalImports,
 		PackageName:     packageName,
-		ModuleName:      modulePath,
-		Version:         moduleVersion,
 	}
 
 	return GenerateTemplates([]string{"imports.tmpl"}, t, context)
-}
-
-// GenerateAdditionalPropertyBoilerplate generates all the glue code which provides
-// the API for interacting with additional properties and JSON-ification
-func GenerateAdditionalPropertyBoilerplate(t *template.Template, typeDefs []TypeDefinition) (string, error) {
-	var filteredTypes []TypeDefinition
-
-	m := map[string]bool{}
-
-	for _, t := range typeDefs {
-		if found := m[t.TypeName]; found {
-			continue
-		}
-
-		m[t.TypeName] = true
-
-		if t.Schema.HasAdditionalProperties {
-			filteredTypes = append(filteredTypes, t)
-		}
-	}
-
-	context := struct {
-		Types []TypeDefinition
-	}{
-		Types: filteredTypes,
-	}
-
-	return GenerateTemplates([]string{"additional-properties.tmpl"}, t, context)
-}
-
-func GenerateUnionBoilerplate(t *template.Template, typeDefs []TypeDefinition) (string, error) {
-	var filteredTypes []TypeDefinition
-	for _, t := range typeDefs {
-		if len(t.Schema.UnionElements) != 0 {
-			filteredTypes = append(filteredTypes, t)
-		}
-	}
-
-	if len(filteredTypes) == 0 {
-		return "", nil
-	}
-
-	context := struct {
-		Types []TypeDefinition
-	}{
-		Types: filteredTypes,
-	}
-
-	return GenerateTemplates([]string{"union.tmpl"}, t, context)
-}
-
-func GenerateUnionAndAdditionalProopertiesBoilerplate(t *template.Template, typeDefs []TypeDefinition) (string, error) {
-	var filteredTypes []TypeDefinition
-	for _, t := range typeDefs {
-		if len(t.Schema.UnionElements) != 0 && t.Schema.HasAdditionalProperties {
-			filteredTypes = append(filteredTypes, t)
-		}
-	}
-
-	if len(filteredTypes) == 0 {
-		return "", nil
-	}
-	context := struct {
-		Types []TypeDefinition
-	}{
-		Types: filteredTypes,
-	}
-
-	return GenerateTemplates([]string{"union-and-additional-properties.tmpl"}, t, context)
-}
-
-// GetUserTemplateText attempts to retrieve the template text from a passed string or file..
-func GetUserTemplateText(inputData string) (template string, err error) {
-	// if the input data is more than one line, assume its a template and return that data.
-	if strings.Contains(inputData, "\n") {
-		return inputData, nil
-	}
-
-	// load data from file
-	data, err := os.ReadFile(inputData)
-	// return data if found and loaded
-	if err == nil {
-		return string(data), nil
-	}
-
-	// check for non "not found" errors
-	if !os.IsNotExist(err) {
-		return "", fmt.Errorf("failed to open file %s: %w", inputData, err)
-	}
-
-	return string(data), nil
-}
-
-// LoadTemplates loads all of our template files into a text/template. The
-// path of template is relative to the templates directory.
-func LoadTemplates(src embed.FS, t *template.Template) error {
-	return fs.WalkDir(src, "templates", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return fmt.Errorf("error walking directory %s: %w", path, err)
-		}
-		if d.IsDir() {
-			return nil
-		}
-
-		buf, err := src.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("error reading file '%s': %w", path, err)
-		}
-
-		templateName := strings.TrimPrefix(path, "templates/")
-		tmpl := t.New(templateName)
-		_, err = tmpl.Parse(string(buf))
-		if err != nil {
-			return fmt.Errorf("parsing template '%s': %w", path, err)
-		}
-		return nil
-	})
 }
