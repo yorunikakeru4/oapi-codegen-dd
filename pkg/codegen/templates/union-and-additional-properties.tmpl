@@ -1,12 +1,14 @@
+{{ template "header" $ }}
+
 {{range .Types}}
 
 {{$addType := .Schema.AdditionalPropertiesType.TypeDecl}}
-{{$typeName := .TypeName -}}
+{{$typeName := .Name -}}
 {{$discriminator := .Schema.Discriminator}}
 {{$properties := .Schema.Properties -}}
 
-// Override default JSON handling for {{.TypeName}} to handle AdditionalProperties and union
-func (a *{{.TypeName}}) UnmarshalJSON(b []byte) error {
+// Override default JSON handling for {{.Name}} to handle AdditionalProperties and union
+func (a *{{.Name}}) UnmarshalJSON(b []byte) error {
     err := a.union.UnmarshalJSON(b)
     if err != nil {
         return err
@@ -18,7 +20,7 @@ func (a *{{.TypeName}}) UnmarshalJSON(b []byte) error {
 	}
 {{range .Schema.Properties}}
     if raw, found := object["{{.JsonFieldName}}"]; found {
-        err = json.Unmarshal(raw, &a.{{.GoFieldName}})
+        err = json.Unmarshal(raw, &a.{{.GoName}})
         if err != nil {
             return fmt.Errorf("error reading '{{.JsonFieldName}}': %w", err)
         }
@@ -39,8 +41,8 @@ func (a *{{.TypeName}}) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Override default JSON handling for {{.TypeName}} to handle AdditionalProperties and union
-func (a {{.TypeName}}) MarshalJSON() ([]byte, error) {
+// Override default JSON handling for {{.Name}} to handle AdditionalProperties and union
+func (a {{.Name}}) MarshalJSON() ([]byte, error) {
     var err error
     b, err := a.union.MarshalJSON()
     if err != nil {
@@ -54,8 +56,8 @@ func (a {{.TypeName}}) MarshalJSON() ([]byte, error) {
         }
     }
 {{range .Schema.Properties}}
-{{if not .Required}}if a.{{.GoFieldName}} != nil { {{end}}
-    object["{{.JsonFieldName}}"], err = json.Marshal(a.{{.GoFieldName}})
+{{if not .Required}}if a.{{.GoName}} != nil { {{end}}
+    object["{{.JsonFieldName}}"], err = json.Marshal(a.{{.GoName}})
     if err != nil {
         return nil, fmt.Errorf("error marshaling '{{.JsonFieldName}}': %w", err)
     }

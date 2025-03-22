@@ -570,7 +570,7 @@ func typeNamePrefix(name string) (prefix string) {
 	return
 }
 
-// SchemaNameToTypeName converts a Schema name to a valid Go type name. It converts to camel case, and makes sure the name is
+// SchemaNameToTypeName converts a GoSchema name to a valid Go type name. It converts to camel case, and makes sure the name is
 // valid in Go
 func SchemaNameToTypeName(name string) string {
 	return typeNamePrefix(name) + nameNormalizer(name)

@@ -163,7 +163,7 @@ func genResponseUnmarshal(op *OperationDefinition) string {
 			"}\n"+
 			"response.%s = &dest",
 			typeDefinition.Schema.TypeDecl(),
-			typeDefinition.TypeName)
+			typeDefinition.Name)
 
 		caseKey, caseClause := buildUnmarshalCaseStrict(typeDefinition, caseAction, typeDefinition.ContentTypeName)
 		handledCaseClauses[caseKey] = caseClause

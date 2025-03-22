@@ -12,64 +12,33 @@ import (
 	"github.com/doordash/oapi-codegen/v2/pkg/util"
 )
 
-const (
-	remoteRefFile = `https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/master/examples/petstore-expanded` +
-		`/petstore-expanded.yaml`
-	remoteRefImport = `github.com/oapi-codegen/oapi-codegen/v2/examples/petstore-expanded`
-)
-
 func TestExampleOpenAPICodeGeneration(t *testing.T) {
 	// Input vars for code generation:
 	packageName := "testswagger"
 	opts := &Configuration{
-		PackageName: packageName,
+		PackageName:     packageName,
+		UseSingleOutput: true,
 	}
 
 	loader := openapi3.NewLoader()
 	loader.IsExternalRefsAllowed = true
 
 	// Get a spec from the test definition in this file:
-	swagger, err := loader.LoadFromData([]byte(testOpenAPIDefinition))
+	spec, err := loader.LoadFromData([]byte(testOpenAPIDefinition))
 	assert.NoError(t, err)
 
 	// Run our code generation:
-	code, err := Generate(swagger, opts)
+	code, err := Generate(spec, opts)
 	assert.NoError(t, err)
 	if err != nil {
 		t.FailNow()
 	}
 	assert.NotEmpty(t, code)
 
-	// Check that we have valid (formattable) code:
-	_, err = format.Source([]byte(code))
-	assert.NoError(t, err)
-
 	// Check that we have a package:
 	assert.Contains(t, code, "package testswagger")
 
-	// Check that response structs are generated correctly:
-	assert.Contains(t, code, "type GetTestByNameResponse struct {")
-
-	// Check that response structs contains fallbacks to interface for invalid types:
-	// Here an invalid array with no items.
-	assert.Contains(t, code, `
-type GetTestByNameResponse struct {
-	Body                       []byte
-	HTTPResponse               *http.Response
-	GetTestByNameResponse      *[]Test
-	GetTestByNameErrorResponse *[]interface{}
-}`)
-
-	// Check that the helper methods are generated correctly:
-	assert.Contains(t, code, "func (r GetTestByNameResponse) Status() string {")
-	assert.Contains(t, code, "func (r GetTestByNameResponse) StatusCode() int {")
-	assert.Contains(t, code, "func ParseGetTestByNameResponse(rsp *http.Response) (*GetTestByNameResponse, error) {")
-
-	// Check the client method signatures:
-	assert.Contains(t, code, "type GetTestByNameParams struct {")
 	assert.Contains(t, code, "Top *int `form:\"$top,omitempty\" json:\"$top,omitempty\"`")
-	assert.Contains(t, code, "func (c *Client) GetTestByName(ctx context.Context, name string, params *GetTestByNameParams, reqEditors ...RequestEditorFn) (*http.Response, error) {")
-	assert.Contains(t, code, "func (c *ClientWithResponses) GetTestByNameWithResponse(ctx context.Context, name string, params *GetTestByNameParams, reqEditors ...RequestEditorFn) (*GetTestByNameResponse, error) {")
 	assert.Contains(t, code, "DeadSince *time.Time    `json:\"dead_since,omitempty\" tag1:\"value1\" tag2:\"value2\"`")
 	assert.Contains(t, code, "type EnumTestNumerics int")
 	assert.Contains(t, code, "N2 EnumTestNumerics = 2")

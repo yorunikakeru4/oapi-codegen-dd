@@ -26,12 +26,20 @@ type Parser struct {
 	cfg *Configuration
 }
 
+type EnumContext struct {
+	Enums      []EnumDefinition
+	Imports    []string
+	Config     *Configuration
+	WithHeader bool
+}
+
 // TplTypeContext is the context passed to templates to generate code for type definitions.
 type TplTypeContext struct {
 	Types        []TypeDefinition
 	Imports      []string
 	SpecLocation string
 	Config       *Configuration
+	WithHeader   bool
 }
 
 // NewParser creates a new Parser with the provided ParseConfig and ParseContext.
@@ -68,12 +76,22 @@ func NewParser(cfg *Configuration, ctx *ParseContext) (*Parser, error) {
 func (p *Parser) Parse() (map[string]string, error) {
 	typesOut := make(map[string]string)
 
+	useSingleOutput := p.cfg.UseSingleOutput
+	withHeader := true
 	if len(p.ctx.Enums) > 0 {
-		out, err := p.ParseTemplates([]string{"enums.tmpl"}, p.ctx)
+		out, err := p.ParseTemplates([]string{"enums.tmpl"}, EnumContext{
+			Enums:      p.ctx.Enums,
+			Imports:    p.ctx.Imports,
+			Config:     p.cfg,
+			WithHeader: true,
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for type enums: %w", err)
 		}
 		typesOut["enums"] = FormatCode(out)
+		if useSingleOutput {
+			withHeader = false
+		}
 	}
 
 	for sl, tds := range p.ctx.TypeDefinitions {
@@ -85,23 +103,32 @@ func (p *Parser) Parse() (map[string]string, error) {
 			SpecLocation: string(sl),
 			Imports:      p.ctx.Imports,
 			Config:       p.cfg,
+			WithHeader:   withHeader,
 		}
 		out, err := p.ParseTemplates([]string{"types.tmpl"}, typesCtx)
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for %s type definitions: %w", sl, err)
 		}
 		typesOut[getSpecLocationOutName(sl)] = FormatCode(out)
+		if useSingleOutput {
+			withHeader = false
+		}
 	}
 
 	if len(p.ctx.AdditionalTypes) > 0 {
 		out, err := p.ParseTemplates([]string{"additional-properties.tmpl"}, &TplTypeContext{
-			Types:   p.ctx.AdditionalTypes,
-			Imports: p.ctx.Imports,
+			Types:      p.ctx.AdditionalTypes,
+			Imports:    p.ctx.Imports,
+			Config:     p.cfg,
+			WithHeader: withHeader,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for additional properties: %w", err)
 		}
 		typesOut["additional"] = FormatCode(out)
+		if useSingleOutput {
+			withHeader = false
+		}
 	}
 
 	if len(p.ctx.UnionTypes) > 0 {
@@ -109,11 +136,16 @@ func (p *Parser) Parse() (map[string]string, error) {
 			Types:        p.ctx.UnionTypes,
 			SpecLocation: "union",
 			Imports:      p.ctx.Imports,
+			Config:       p.cfg,
+			WithHeader:   withHeader,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for union types: %w", err)
 		}
 		typesOut["unions"] = FormatCode(out)
+		if useSingleOutput {
+			withHeader = false
+		}
 	}
 
 	if len(p.ctx.UnionWithAdditionalTypes) > 0 {
@@ -121,11 +153,16 @@ func (p *Parser) Parse() (map[string]string, error) {
 			Types:        p.ctx.UnionWithAdditionalTypes,
 			SpecLocation: "union_with_additional",
 			Imports:      p.ctx.Imports,
+			Config:       p.cfg,
+			WithHeader:   withHeader,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for union types with additional properties: %w", err)
 		}
 		typesOut["unions_with_additional"] = FormatCode(out)
+		if useSingleOutput {
+			withHeader = false
+		}
 	}
 
 	return typesOut, nil

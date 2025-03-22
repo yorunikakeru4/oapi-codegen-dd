@@ -1,0 +1,33 @@
+{{ template "header" $ }}
+
+{{ $isParam := or (eq .SpecLocation "path") (eq .SpecLocation "query") (eq .SpecLocation "header") (eq .SpecLocation "body") }}
+{{ $loc := str .SpecLocation }}
+{{ if $isParam }}
+var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructEnabled())
+{{ end -}}
+
+{{ $config := .Config }}
+{{- range .Types}}{{ $td := . }}
+{{ toGoComment .Schema.Description .Name }}
+type {{.Name}} {{if .IsAlias}}={{end}} {{.Schema.TypeDecl}}
+
+{{ if $isParam }}
+{{ if not .IsAlias }}
+{{ $alias := .SpecLocation | fst | lower }}
+func ({{$alias}} {{.Name}}) Validate() error {
+    return {{.SpecLocation}}TypesValidate.Struct({{$alias}})
+}
+{{ end }}
+{{ end -}}
+
+{{ if and (eq $loc "response") (hasSuffix .Name "ErrorResponse") }}
+{{ $alias := .SpecLocation | fst | lower }}
+{{ if not .IsAlias }}
+{{ $alias := .SpecLocation | fst | lower }}
+func ({{$alias}} {{.Name}}) Error() string {
+    {{ $td.GetErrorResponse $config.ErrorMapping $alias }}
+}
+{{ end }}
+{{ end }}
+
+{{ end }}

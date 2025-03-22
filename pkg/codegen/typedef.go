@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 type SpecLocation string
@@ -18,14 +19,14 @@ const (
 )
 
 // TypeDefinition describes a Go type definition in generated code.
-// TypeName is the name of the type in the schema, eg, type <...> Person.
+// Name is the name of the type in the schema, eg, type <...> Person.
 // JsonName is the name of the corresponding JSON description, as it will sometimes
 // differ due to invalid characters.
-// Schema is the Schema object used to populate the type description.
+// GoSchema is the GoSchema object used to populate the type description.
 type TypeDefinition struct {
-	TypeName     string
+	Name         string
 	JsonName     string
-	Schema       Schema
+	Schema       GoSchema
 	SpecLocation SpecLocation
 }
 
@@ -33,12 +34,76 @@ func (t TypeDefinition) IsAlias() bool {
 	return t.Schema.DefineViaAlias
 }
 
+func (t TypeDefinition) IsOptional() bool {
+	return !t.Schema.Constraints.Required
+}
+
+// GetErrorResponse generates a Go code snippet that returns an error response
+// based on the predefined spec error path.
+func (t TypeDefinition) GetErrorResponse(errTypes map[string]string, alias string) string {
+	unknownRes := `return "unknown error"`
+	if errTypes == nil || errTypes[t.JsonName] == "" {
+		return unknownRes
+	}
+
+	path := errTypes[t.JsonName]
+
+	var callPath []keyValue[string, Property]
+	schema := t.Schema
+	for _, part := range strings.Split(path, ".") {
+		for _, prop := range schema.Properties {
+			if prop.JsonFieldName == part {
+				goName := prop.GoName // schema.PropertyReference[prop.JsonFieldName]
+				schema = prop.Schema
+				callPath = append(callPath, keyValue[string, Property]{goName, prop})
+				// next part
+				break
+			}
+		}
+	}
+
+	if len(callPath) == 0 {
+		return unknownRes
+	}
+
+	var res []string
+	fstPair := callPath[0]
+	goName, prop := fstPair.key, fstPair.value
+	res = append(res, fmt.Sprintf("res := %s.%s", alias, goName))
+	if prop.Constraints.Nullable {
+		res = append(res, fmt.Sprintf("if res == nil { return nil }"))
+	}
+
+	last := 0
+	ix := 0
+	isStringType := false
+	for _, pair := range callPath[1:] {
+		name, p := pair.key, pair.value
+		res = append(res, fmt.Sprintf("res%d := res.%s", ix, name))
+		if p.Constraints.Nullable {
+			res = append(res, fmt.Sprintf("if res%d == nil { return nil }", ix))
+			res = append(res, fmt.Sprintf("res%d = *res%d", ix+1, ix))
+			ix += 1
+		}
+		isStringType = p.Schema.GoType == "string"
+		last = ix
+	}
+
+	if !isStringType {
+		return unknownRes
+	}
+
+	res = append(res, fmt.Sprintf("return res%d", last))
+
+	return strings.Join(res, "\n")
+}
+
 func checkDuplicates(types []TypeDefinition) ([]TypeDefinition, error) {
 	m := map[string]TypeDefinition{}
 	var ts []TypeDefinition
 
 	for _, typ := range types {
-		if other, found := m[typ.TypeName]; found {
+		if other, found := m[typ.Name]; found {
 			// If type names collide, we need to see if they refer to the same
 			// exact type definition, in which case, we can de-dupe.
 			// If they don't match, we error out.
@@ -47,10 +112,10 @@ func checkDuplicates(types []TypeDefinition) ([]TypeDefinition, error) {
 			}
 			// We want to create an error when we try to define the same type twice.
 			return nil, fmt.Errorf("duplicate typename '%s' detected, can't auto-rename, "+
-				"please use x-go-name to specify your own name for one of them", typ.TypeName)
+				"please use x-go-name to specify your own name for one of them", typ.Name)
 		}
 
-		m[typ.TypeName] = typ
+		m[typ.Name] = typ
 
 		ts = append(ts, typ)
 	}
@@ -62,8 +127,8 @@ func checkDuplicates(types []TypeDefinition) ([]TypeDefinition, error) {
 // not every field is considered. We only want to know if they are fundamentally
 // the same type.
 func TypeDefinitionsEquivalent(t1, t2 TypeDefinition) bool {
-	if t1.TypeName != t2.TypeName {
+	if t1.Name != t2.Name {
 		return false
 	}
-	return reflect.DeepEqual(t1.Schema.OAPISchema, t2.Schema.OAPISchema)
+	return reflect.DeepEqual(t1.Schema.OpenAPISchema, t2.Schema.OpenAPISchema)
 }

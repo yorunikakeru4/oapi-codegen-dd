@@ -14,7 +14,7 @@ type ParameterDefinition struct {
 	In        string // Where the parameter is defined - path, header, cookie, query
 	Required  bool   // Is this a required parameter?
 	Spec      *openapi3.Parameter
-	Schema    Schema
+	Schema    GoSchema
 }
 
 // TypeDef is here as an adapter after a large refactoring so that I don't
@@ -28,7 +28,7 @@ func (pd ParameterDefinition) TypeDef() string {
 // JsonTag generates the JSON annotation to map GoType to json type name. If Parameter
 // Foo is marshaled to json as "foo", this will create the annotation
 // 'json:"foo"'
-func (pd *ParameterDefinition) JsonTag() string {
+func (pd ParameterDefinition) JsonTag() string {
 	if pd.Required {
 		return fmt.Sprintf("`json:\"%s\"`", pd.ParamName)
 	} else {
@@ -36,7 +36,7 @@ func (pd *ParameterDefinition) JsonTag() string {
 	}
 }
 
-func (pd *ParameterDefinition) IsJson() bool {
+func (pd ParameterDefinition) IsJson() bool {
 	p := pd.Spec
 	if len(p.Content) == 1 {
 		for k := range p.Content {
@@ -48,7 +48,7 @@ func (pd *ParameterDefinition) IsJson() bool {
 	return false
 }
 
-func (pd *ParameterDefinition) IsPassThrough() bool {
+func (pd ParameterDefinition) IsPassThrough() bool {
 	p := pd.Spec
 	if len(p.Content) > 1 {
 		return true
@@ -59,12 +59,12 @@ func (pd *ParameterDefinition) IsPassThrough() bool {
 	return false
 }
 
-func (pd *ParameterDefinition) IsStyled() bool {
+func (pd ParameterDefinition) IsStyled() bool {
 	p := pd.Spec
 	return p.Schema != nil
 }
 
-func (pd *ParameterDefinition) Style() string {
+func (pd ParameterDefinition) Style() string {
 	style := pd.Spec.Style
 	if style == "" {
 		in := pd.Spec.In
@@ -80,7 +80,7 @@ func (pd *ParameterDefinition) Style() string {
 	return style
 }
 
-func (pd *ParameterDefinition) Explode() bool {
+func (pd ParameterDefinition) Explode() bool {
 	if pd.Spec.Explode == nil {
 		in := pd.Spec.In
 		switch in {
@@ -200,7 +200,7 @@ func CombineOperationParameters(globalParams []ParameterDefinition, localParams 
 }
 
 // generateParamsTypes defines the schema for a parameters definition object.
-func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([]TypeDefinition, []Schema) {
+func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([]TypeDefinition, []GoSchema) {
 	if len(objectParams) == 0 {
 		return nil, nil
 	}
@@ -208,7 +208,7 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([
 
 	var typeDefs []TypeDefinition
 	var properties []Property
-	var imports []Schema
+	var imports []GoSchema
 
 	for _, param := range objectParams {
 		pSchema := param.Schema
@@ -217,7 +217,7 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([
 			pSchema.RefType = propRefName
 
 			typeDefs = append(typeDefs, TypeDefinition{
-				TypeName:     propRefName,
+				Name:         propRefName,
 				Schema:       param.Schema,
 				SpecLocation: specLocation,
 			})
@@ -236,17 +236,53 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([
 		imports = append(imports, pSchema)
 	}
 
-	s := Schema{
+	s := GoSchema{
 		Properties: properties,
 	}
 	fields := GenFieldsFromProperties(properties)
 	s.GoType = s.createGoStruct(fields)
 
 	td := TypeDefinition{
-		TypeName:     typeName,
+		Name:         typeName,
 		Schema:       s,
 		SpecLocation: specLocation,
 	}
 
 	return append(typeDefs, td), imports
+}
+
+// This constructs a Go type for a parameter, looking at either the schema or
+// the content, whichever is available
+func paramToGoType(param *openapi3.Parameter, path []string) (GoSchema, error) {
+	if param.Content == nil && param.Schema == nil {
+		return GoSchema{}, fmt.Errorf("parameter '%s' has no schema or content", param.Name)
+	}
+
+	// We can process the schema through the generic schema processor
+	if param.Schema != nil {
+		return GenerateGoSchema(param.Schema, path)
+	}
+
+	// At this point, we have a content type. We know how to deal with
+	// application/json, but if multiple formats are present, we can't do anything,
+	// so we'll return the parameter as a string, not bothering to decode it.
+	if len(param.Content) > 1 {
+		return GoSchema{
+			GoType:      "string",
+			Description: StringToGoComment(param.Description),
+		}, nil
+	}
+
+	// Otherwise, look for application/json in there
+	mt, found := param.Content["application/json"]
+	if !found {
+		// If we don't have json, it's a string
+		return GoSchema{
+			GoType:      "string",
+			Description: StringToGoComment(param.Description),
+		}, nil
+	}
+
+	// For json, we go through the standard schema mechanism
+	return GenerateGoSchema(mt.Schema, path)
 }

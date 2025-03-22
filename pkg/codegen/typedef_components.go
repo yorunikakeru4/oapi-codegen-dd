@@ -2,14 +2,15 @@ package codegen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/doordash/oapi-codegen/v2/pkg/util"
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
-// GenerateTypesForSchemas generates type definitions for any custom types defined in the
+// getComponentsSchemas generates type definitions for any custom types defined in the
 // components/schemas section of the Swagger spec.
-func GenerateTypesForSchemas(schemas map[string]*openapi3.SchemaRef) ([]TypeDefinition, error) {
+func getComponentsSchemas(schemas map[string]*openapi3.SchemaRef) ([]TypeDefinition, error) {
 	types := make([]TypeDefinition, 0)
 	// We're going to define Go types for every object under components/schemas
 	for _, schemaName := range SortedSchemaKeys(schemas) {
@@ -17,7 +18,7 @@ func GenerateTypesForSchemas(schemas map[string]*openapi3.SchemaRef) ([]TypeDefi
 
 		goSchema, err := GenerateGoSchema(schemaRef, []string{schemaName})
 		if err != nil {
-			return nil, fmt.Errorf("error converting Schema %s to Go type: %w", schemaName, err)
+			return nil, fmt.Errorf("error converting GoSchema %s to Go type: %w", schemaName, err)
 		}
 
 		goTypeName, err := renameSchema(schemaName, schemaRef)
@@ -26,9 +27,10 @@ func GenerateTypesForSchemas(schemas map[string]*openapi3.SchemaRef) ([]TypeDefi
 		}
 
 		types = append(types, TypeDefinition{
-			JsonName: schemaName,
-			TypeName: goTypeName,
-			Schema:   goSchema,
+			JsonName:     schemaName,
+			Name:         goTypeName,
+			Schema:       goSchema,
+			SpecLocation: SpecLocationSchema,
 		})
 
 		types = append(types, goSchema.AdditionalTypes...)
@@ -36,9 +38,9 @@ func GenerateTypesForSchemas(schemas map[string]*openapi3.SchemaRef) ([]TypeDefi
 	return types, nil
 }
 
-// GenerateTypesForParameters generates type definitions for any custom types defined in the
+// getComponentParameters generates type definitions for any custom types defined in the
 // components/parameters section of the Swagger spec.
-func GenerateTypesForParameters(params map[string]*openapi3.ParameterRef) ([]TypeDefinition, error) {
+func getComponentParameters(params map[string]*openapi3.ParameterRef) ([]TypeDefinition, error) {
 	var types []TypeDefinition
 	for _, paramName := range SortedMapKeys(params) {
 		paramOrRef := params[paramName]
@@ -54,9 +56,10 @@ func GenerateTypesForParameters(params map[string]*openapi3.ParameterRef) ([]Typ
 		}
 
 		typeDef := TypeDefinition{
-			JsonName: paramName,
-			Schema:   goType,
-			TypeName: goTypeName,
+			JsonName:     paramName,
+			Schema:       goType,
+			Name:         goTypeName,
+			SpecLocation: SpecLocation(strings.ToLower(paramOrRef.Value.In)),
 		}
 
 		if paramOrRef.Ref != "" {
@@ -65,7 +68,7 @@ func GenerateTypesForParameters(params map[string]*openapi3.ParameterRef) ([]Typ
 			if err != nil {
 				return nil, fmt.Errorf("error generating Go type for (%s) in parameter %s: %w", paramOrRef.Ref, paramName, err)
 			}
-			typeDef.TypeName = SchemaNameToTypeName(refType)
+			typeDef.Name = SchemaNameToTypeName(refType)
 		}
 
 		types = append(types, typeDef)
@@ -73,9 +76,9 @@ func GenerateTypesForParameters(params map[string]*openapi3.ParameterRef) ([]Typ
 	return types, nil
 }
 
-// GenerateTypesForRequestBodies generates type definitions for any custom types defined in the
+// getComponentsRequestBodies generates type definitions for any custom types defined in the
 // components/requestBodies section of the Swagger spec.
-func GenerateTypesForRequestBodies(bodies map[string]*openapi3.RequestBodyRef) ([]TypeDefinition, error) {
+func getComponentsRequestBodies(bodies map[string]*openapi3.RequestBodyRef) ([]TypeDefinition, error) {
 	var types []TypeDefinition
 
 	for _, requestBodyName := range SortedMapKeys(bodies) {
@@ -100,9 +103,10 @@ func GenerateTypesForRequestBodies(bodies map[string]*openapi3.RequestBodyRef) (
 			}
 
 			typeDef := TypeDefinition{
-				JsonName: requestBodyName,
-				Schema:   goType,
-				TypeName: goTypeName,
+				JsonName:     requestBodyName,
+				Schema:       goType,
+				Name:         goTypeName,
+				SpecLocation: SpecLocationBody,
 			}
 
 			if requestBodyRef.Ref != "" {
@@ -111,7 +115,7 @@ func GenerateTypesForRequestBodies(bodies map[string]*openapi3.RequestBodyRef) (
 				if err != nil {
 					return nil, fmt.Errorf("error generating Go type for (%s) in body %s: %w", requestBodyRef.Ref, requestBodyName, err)
 				}
-				typeDef.TypeName = SchemaNameToTypeName(refType)
+				typeDef.Name = SchemaNameToTypeName(refType)
 			}
 			types = append(types, typeDef)
 		}
@@ -119,9 +123,9 @@ func GenerateTypesForRequestBodies(bodies map[string]*openapi3.RequestBodyRef) (
 	return types, nil
 }
 
-// GenerateTypesForResponses generates type definitions for any custom types defined in the
+// getContentResponses generates type definitions for any custom types defined in the
 // components/responses section of the Swagger spec.
-func GenerateTypesForResponses(responses openapi3.ResponseBodies) ([]TypeDefinition, error) {
+func getContentResponses(responses openapi3.ResponseBodies) ([]TypeDefinition, error) {
 	var types []TypeDefinition
 
 	for _, responseName := range SortedMapKeys(responses) {
@@ -157,9 +161,10 @@ func GenerateTypesForResponses(responses openapi3.ResponseBodies) ([]TypeDefinit
 			}
 
 			typeDef := TypeDefinition{
-				JsonName: responseName,
-				Schema:   goType,
-				TypeName: goTypeName,
+				JsonName:     responseName,
+				Schema:       goType,
+				Name:         goTypeName,
+				SpecLocation: SpecLocationResponse,
 			}
 
 			if responseOrRef.Ref != "" {
@@ -168,11 +173,11 @@ func GenerateTypesForResponses(responses openapi3.ResponseBodies) ([]TypeDefinit
 				if err != nil {
 					return nil, fmt.Errorf("error generating Go type for (%s) in parameter %s: %w", responseOrRef.Ref, responseName, err)
 				}
-				typeDef.TypeName = SchemaNameToTypeName(refType)
+				typeDef.Name = SchemaNameToTypeName(refType)
 			}
 
 			if jsonCount > 1 {
-				typeDef.TypeName = typeDef.TypeName + mediaTypeToCamelCase(mediaType)
+				typeDef.Name = typeDef.Name + mediaTypeToCamelCase(mediaType)
 			}
 
 			types = append(types, typeDef)

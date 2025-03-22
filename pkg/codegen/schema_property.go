@@ -58,7 +58,7 @@ type Property struct {
 	GoName        string
 	Description   string
 	JsonFieldName string
-	Schema        Schema
+	Schema        GoSchema
 	Required      bool
 	Nullable      bool
 	ReadOnly      bool

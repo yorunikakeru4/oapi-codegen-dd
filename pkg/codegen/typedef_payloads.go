@@ -11,7 +11,7 @@ import (
 // RequestBodyDefinition describes a request body.
 // Name is the name of the body.
 // Required is whether the body is required.
-// Schema is the GoSchema object describing the body.
+// GoSchema is the GoSchema object describing the body.
 // NameTag is the tag used to generate the type name,
 // i.e. JSON, in which case we will produce "JSONBody".
 // ContentType is the content type of the body.
@@ -20,7 +20,7 @@ import (
 type RequestBodyDefinition struct {
 	Name        string
 	Required    bool
-	Schema      Schema
+	Schema      GoSchema
 	NameTag     string
 	ContentType string
 	Default     bool
@@ -30,8 +30,8 @@ type RequestBodyDefinition struct {
 // TypeDef returns the Go type definition for a request body
 func (r RequestBodyDefinition) TypeDef(opID string) TypeDefinition {
 	return TypeDefinition{
-		TypeName: fmt.Sprintf("%s%sRequestBody", opID, r.NameTag),
-		Schema:   r.Schema,
+		Name:   fmt.Sprintf("%s%sRequestBody", opID, r.NameTag),
+		Schema: r.Schema,
 	}
 }
 
@@ -76,6 +76,10 @@ func (r RequestBodyDefinition) IsFixedContentType() bool {
 	return !strings.Contains(r.ContentType, "*")
 }
 
+func (r RequestBodyDefinition) IsOptional() bool {
+	return !r.Schema.Constraints.Required
+}
+
 type RequestBodyEncoding struct {
 	ContentType string
 	Style       string
@@ -105,6 +109,7 @@ func createBodyDefinition(operationID string, bodyOrRef *openapi3.RequestBodyRef
 	content := body.Content[targetContentType]
 	var tag string
 	var defaultBody bool
+	required := body.Required
 
 	switch {
 	case targetContentType == "application/json":
@@ -154,13 +159,15 @@ func createBodyDefinition(operationID string, bodyOrRef *openapi3.RequestBodyRef
 		}
 
 		td = TypeDefinition{
-			TypeName:     bodyTypeName,
+			Name:         bodyTypeName,
 			Schema:       bodySchema,
 			SpecLocation: SpecLocationBody,
 		}
 		// The body schema now is a reference to a type
 		bodySchema.RefType = bodyTypeName
 	}
+
+	bodySchema.Constraints.Required = required
 
 	bd := &RequestBodyDefinition{
 		Name:        bodyTypeName,

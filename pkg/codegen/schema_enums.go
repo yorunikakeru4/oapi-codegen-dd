@@ -9,20 +9,17 @@ import (
 )
 
 // EnumDefinition holds type information for enum
+// Schema is the scheme of a type which has a list of enum values, eg, the
+// "container" of the enum.
+// Name is the name of the enum's type, usually aliased from something.
+// ValueWrapper wraps the value. It's used to conditionally apply quotes
+// around strings.
+// PrefixTypeName determines if the enum value is prefixed with its TypeName.
 type EnumDefinition struct {
-	// Schema is the scheme of a type which has a list of enum values, eg, the
-	// "container" of the enum.
-	Schema Schema
-	// TypeName is the name of the enum's type, usually aliased from something.
-	TypeName string
-	// ValueWrapper wraps the value. It's used to conditionally apply quotes
-	// around strings.
-	ValueWrapper string
-	// PrefixTypeName determines if the enum value is prefixed with its TypeName.
-	// This is set to true when this enum conflicts with another in terms of
-	// TypeNames or when explicitly requested via the
-	// `compatibility.always-prefix-enum-values` option.
+	Name           string
+	ValueWrapper   string
 	PrefixTypeName bool
+	Schema         GoSchema
 }
 
 // GetValues generates enum names in a way to minimize global conflicts
@@ -34,16 +31,16 @@ func (e *EnumDefinition) GetValues() map[string]string {
 	// If we do have conflicts, we will prefix the enum's typename to the values.
 	newValues := make(map[string]string, len(e.Schema.EnumValues))
 	for k, v := range e.Schema.EnumValues {
-		newName := e.TypeName + UppercaseFirstCharacter(k)
+		newName := e.Name + UppercaseFirstCharacter(k)
 		newValues[newName] = v
 	}
 	return newValues
 }
 
-func createEnumsSchema(schema *openapi3.Schema, path []string) (Schema, error) {
+func createEnumsSchema(schema *openapi3.Schema, path []string) (GoSchema, error) {
 	outSchema, err := oapiSchemaToGoType(schema, path)
 	if err != nil {
-		return Schema{}, nil
+		return GoSchema{}, nil
 	}
 
 	// Enums need to be typed, so that the values aren't interchangeable,
@@ -52,7 +49,7 @@ func createEnumsSchema(schema *openapi3.Schema, path []string) (Schema, error) {
 	outSchema.DefineViaAlias = false
 
 	if err != nil {
-		return Schema{}, fmt.Errorf("error resolving primitive type: %w", err)
+		return GoSchema{}, fmt.Errorf("error resolving primitive type: %w", err)
 	}
 	enumValues := make([]string, len(schema.Enum))
 	for i, enumValue := range schema.Enum {
@@ -69,7 +66,7 @@ func createEnumsSchema(schema *openapi3.Schema, path []string) (Schema, error) {
 		}
 	}
 
-	sanitizedValues := SanitizeEnumNames(enumNames, enumValues)
+	sanitizedValues := sanitizeEnumNames(enumNames, enumValues)
 	outSchema.EnumValues = make(map[string]string, len(sanitizedValues))
 
 	for k, v := range sanitizedValues {
@@ -90,7 +87,7 @@ func createEnumsSchema(schema *openapi3.Schema, path []string) (Schema, error) {
 		}
 
 		typeDef := TypeDefinition{
-			TypeName: typeName,
+			Name:     typeName,
 			JsonName: strings.Join(path, "."),
 			Schema:   outSchema,
 		}
@@ -101,9 +98,9 @@ func createEnumsSchema(schema *openapi3.Schema, path []string) (Schema, error) {
 	return outSchema, nil
 }
 
-// SanitizeEnumNames fixes illegal chars in the enum names
+// sanitizeEnumNames fixes illegal chars in the enum names
 // and removes duplicates
-func SanitizeEnumNames(enumNames, enumValues []string) map[string]string {
+func sanitizeEnumNames(enumNames, enumValues []string) map[string]string {
 	dupCheck := make(map[string]int, len(enumValues))
 	deDup := make([][]string, 0, len(enumValues))
 
@@ -145,7 +142,7 @@ func filterOutEnums(types []TypeDefinition) ([]EnumDefinition, []TypeDefinition)
 
 	// These are all types defined globally
 	for _, td := range types {
-		if found := m[td.TypeName]; found {
+		if found := m[td.Name]; found {
 			continue
 		}
 
@@ -170,7 +167,7 @@ func filterOutEnums(types []TypeDefinition) ([]EnumDefinition, []TypeDefinition)
 
 			enums = append(enums, EnumDefinition{
 				Schema:         p.Schema,
-				TypeName:       name,
+				Name:           name,
 				ValueWrapper:   wrapper,
 				PrefixTypeName: true,
 			})
@@ -184,11 +181,11 @@ func filterOutEnums(types []TypeDefinition) ([]EnumDefinition, []TypeDefinition)
 			}
 			enums = append(enums, EnumDefinition{
 				Schema:         td.Schema,
-				TypeName:       td.TypeName,
+				Name:           td.Name,
 				ValueWrapper:   wrapper,
 				PrefixTypeName: true,
 			})
-			m[td.TypeName] = true
+			m[td.Name] = true
 		} else {
 			rest = append(rest, td)
 		}
@@ -220,7 +217,7 @@ func filterOutEnums(types []TypeDefinition) ([]EnumDefinition, []TypeDefinition)
 			if len(tp.Schema.EnumValues) > 0 {
 				continue
 			}
-			_, found := e1.Schema.EnumValues[tp.TypeName]
+			_, found := e1.Schema.EnumValues[tp.Name]
 			if found {
 				e1.PrefixTypeName = true
 				enums[i] = e1
@@ -228,7 +225,7 @@ func filterOutEnums(types []TypeDefinition) ([]EnumDefinition, []TypeDefinition)
 		}
 
 		// Another edge case is that an enum value can conflict with its own type name.
-		_, found := e1.GetValues()[e1.TypeName]
+		_, found := e1.GetValues()[e1.Name]
 		if found {
 			e1.PrefixTypeName = true
 			enums[i] = e1

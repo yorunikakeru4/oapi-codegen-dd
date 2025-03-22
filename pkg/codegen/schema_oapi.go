@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -9,16 +10,20 @@ import (
 
 // oapiSchemaToGoType converts an OpenApi schema into a Go type definition for
 // all non-object types.
-func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (Schema, error) {
+func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error) {
 	f := schema.Format
 	t := schema.Type
+	constraints := getSchemaConstraints(schema, ConstraintsContext{
+		name:       "",
+		hasNilType: schema.Nullable,
+	})
 
 	if t.Is("array") {
 		// For arrays, we'll get the type of the Items and throw a
 		// [] in front of it.
 		arrayType, err := GenerateGoSchema(schema.Items, path)
 		if err != nil {
-			return Schema{}, fmt.Errorf("error generating type for array: %w", err)
+			return GoSchema{}, fmt.Errorf("error generating type for array: %w", err)
 		}
 		if (arrayType.HasAdditionalProperties || len(arrayType.UnionElements) != 0) && arrayType.RefType == "" {
 			// If we have items which have additional properties or union values,
@@ -28,7 +33,7 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (Schema, error) 
 			typeName := PathToTypeName(append(path, "Item"))
 
 			typeDef := TypeDefinition{
-				TypeName: typeName,
+				Name:     typeName,
 				JsonName: strings.Join(append(path, "Item"), "."),
 				Schema:   arrayType,
 			}
@@ -36,98 +41,189 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (Schema, error) 
 
 			arrayType.RefType = typeName
 		}
-		outSchema := Schema{}
-		outSchema.ArrayType = &arrayType
-		outSchema.GoType = "[]" + arrayType.TypeDecl()
-		outSchema.AdditionalTypes = arrayType.AdditionalTypes
-		outSchema.Properties = arrayType.Properties
-		outSchema.DefineViaAlias = true
+
+		defineViaAlias := true
 		if disableTypeAliasesForArray {
-			outSchema.DefineViaAlias = false
+			defineViaAlias = false
 		}
-		return outSchema, nil
+
+		return GoSchema{
+			GoType:          "[]" + arrayType.TypeDecl(),
+			ArrayType:       &arrayType,
+			AdditionalTypes: arrayType.AdditionalTypes,
+			Properties:      arrayType.Properties,
+			DefineViaAlias:  defineViaAlias,
+			Description:     schema.Description,
+			OpenAPISchema:   schema,
+			Constraints:     constraints,
+		}, nil
 	}
 
 	if t.Is("integer") {
-		outSchema := Schema{}
 		// We default to int if format doesn't ask for something else.
-		if f == "int64" {
-			outSchema.GoType = "int64"
-		} else if f == "int32" {
-			outSchema.GoType = "int32"
-		} else if f == "int16" {
-			outSchema.GoType = "int16"
-		} else if f == "int8" {
-			outSchema.GoType = "int8"
-		} else if f == "int" {
-			outSchema.GoType = "int"
-		} else if f == "uint64" {
-			outSchema.GoType = "uint64"
-		} else if f == "uint32" {
-			outSchema.GoType = "uint32"
-		} else if f == "uint16" {
-			outSchema.GoType = "uint16"
-		} else if f == "uint8" {
-			outSchema.GoType = "uint8"
-		} else if f == "uint" {
-			outSchema.GoType = "uint"
-		} else {
-			outSchema.GoType = "int"
+		goType := "int"
+		switch f {
+		case "int64":
+			goType = "int64"
+		case "int32":
+			goType = "int32"
+		case "int16":
+			goType = "int16"
+		case "int8":
+			goType = "int8"
+		case "uint64":
+			goType = "uint64"
+		case "uint32":
+			goType = "uint32"
+		case "uint16":
+			goType = "uint16"
+		case "uint8":
+			goType = "uint8"
+		case "uint":
+			goType = "uint"
 		}
-		outSchema.DefineViaAlias = true
-		return outSchema, nil
+
+		return GoSchema{
+			GoType:         goType,
+			DefineViaAlias: true,
+			Description:    schema.Description,
+			OpenAPISchema:  schema,
+			Constraints:    constraints,
+		}, nil
 	}
 
 	if t.Is("number") {
-		outSchema := Schema{}
 		// We default to float for "number"
-		if f == "double" {
-			outSchema.GoType = "float64"
-		} else if f == "float" || f == "" {
-			outSchema.GoType = "float32"
-		} else {
-			return Schema{}, fmt.Errorf("invalid number format: %s", f)
+		goType := "float32"
+		switch f {
+		case "double":
+			goType = "float64"
+		case "float":
+			goType = "float32"
+		case "":
+			goType = "float32"
+		default:
+			return GoSchema{}, fmt.Errorf("invalid number format: %s", f)
 		}
-		outSchema.DefineViaAlias = true
-		return outSchema, nil
+
+		return GoSchema{
+			GoType:         goType,
+			DefineViaAlias: true,
+			Description:    schema.Description,
+			OpenAPISchema:  schema,
+			Constraints:    constraints,
+		}, nil
 	}
 
 	if t.Is("boolean") {
 		if f != "" {
-			return Schema{}, fmt.Errorf("invalid format (%s) for boolean", f)
+			return GoSchema{}, fmt.Errorf("invalid format (%s) for boolean", f)
 		}
-		outSchema := Schema{}
-		outSchema.GoType = "bool"
-		outSchema.DefineViaAlias = true
-		return outSchema, nil
+		return GoSchema{
+			GoType:         "bool",
+			DefineViaAlias: true,
+			Description:    schema.Description,
+			OpenAPISchema:  schema,
+			Constraints:    constraints,
+		}, nil
 	}
 
 	if t.Is("string") {
-		outSchema := Schema{}
 		// Special case string formats here.
+		// All unrecognized formats are simply a regular string.
+		goType := "string"
+		skipOptionalPointer := false
 		switch f {
 		case "byte":
-			outSchema.GoType = "[]byte"
+			goType = "[]byte"
 		case "email":
-			outSchema.GoType = "openapi_types.Email"
+			goType = "oapi_codegen.Email"
 		case "date":
-			outSchema.GoType = "openapi_types.Date"
+			goType = "oapi_codegen.Date"
 		case "date-time":
-			outSchema.GoType = "time.Time"
+			goType = "time.Time"
 		case "json":
-			outSchema.GoType = "json.RawMessage"
-			outSchema.SkipOptionalPointer = true
-		case "uuid":
-			outSchema.GoType = "openapi_types.UUID"
+			goType = "runtime.RawMessage"
+			skipOptionalPointer = true
 		case "binary":
-			outSchema.GoType = "openapi_types.File"
-		default:
-			// All unrecognized formats are simply a regular string.
-			outSchema.GoType = "string"
+			goType = "oapi_codegen.File"
+		case "uuid":
+			goType = "uuid.UUID"
 		}
-		outSchema.DefineViaAlias = true
-		return outSchema, nil
+		return GoSchema{
+			GoType:              goType,
+			DefineViaAlias:      true,
+			SkipOptionalPointer: skipOptionalPointer,
+			Description:         schema.Description,
+			OpenAPISchema:       schema,
+			Constraints:         constraints,
+		}, nil
 	}
 
-	return Schema{}, fmt.Errorf("unhandled Schema type: %v", t)
+	return GoSchema{}, fmt.Errorf("unhandled GoSchema type: %v", t)
+}
+
+func getSchemaConstraints(schema *openapi3.Schema, opts ConstraintsContext) Constraints {
+	if schema == nil {
+		return Constraints{}
+	}
+
+	name := opts.name
+	hasNilType := opts.hasNilType
+
+	required := opts.required
+	if !required && name != "" {
+		required = slices.Contains(schema.Required, name)
+	}
+
+	nullable := false
+	if hasNilType {
+		nullable = true
+	} else if schema.Nullable {
+		nullable = schema.Nullable
+	}
+	if required && nullable {
+		nullable = false
+	}
+
+	readOnly := false
+	if schema.ReadOnly {
+		readOnly = schema.ReadOnly
+	}
+
+	writeOnly := false
+	if schema.WriteOnly {
+		writeOnly = schema.WriteOnly
+	}
+
+	minValue := float64(0)
+	if schema.Min != nil {
+		minValue = *schema.Min
+	}
+
+	maxValue := float64(0)
+	if schema.Max != nil {
+		maxValue = *schema.Max
+	}
+
+	minLength := int64(0)
+	if schema.MinLength != 0 {
+		minLength = int64(schema.MinLength)
+	}
+
+	maxLength := int64(0)
+	if schema.MaxLength != nil {
+		maxLength = int64(*schema.MaxLength)
+	}
+
+	return Constraints{
+		Nullable:  nullable,
+		Required:  required,
+		ReadOnly:  readOnly,
+		WriteOnly: writeOnly,
+		Min:       minValue,
+		Max:       maxValue,
+		MinLength: minLength,
+		MaxLength: maxLength,
+	}
 }

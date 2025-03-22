@@ -45,7 +45,7 @@ func (r ResponseDefinition) IsRef() bool {
 }
 
 // ResponseContentDefinition describes Operation response.
-// Schema is the schema describing this content.
+// GoSchema is the schema describing this content.
 // ContentType is the content type corresponding to the body, eg, application/json.
 // NameTag is the tag for the type name, such as JSON, in which case we will produce "Response200JSONContent".
 // ResponseName is the name of the response.
@@ -53,7 +53,7 @@ func (r ResponseDefinition) IsRef() bool {
 // Ref is the reference to the response.
 // IsSuccess is true if the response is a success response.
 type ResponseContentDefinition struct {
-	Schema      Schema
+	Schema      GoSchema
 	ContentType string
 	NameTag     string
 
@@ -66,8 +66,8 @@ type ResponseContentDefinition struct {
 // TypeDef returns the Go type definition for a request body
 func (r ResponseContentDefinition) TypeDef(opID string, statusCode int) *TypeDefinition {
 	return &TypeDefinition{
-		TypeName: fmt.Sprintf("%s%v%sResponse", opID, statusCode, r.NameTagOrContentType()),
-		Schema:   r.Schema,
+		Name:   fmt.Sprintf("%s%v%sResponse", opID, statusCode, r.NameTagOrContentType()),
+		Schema: r.Schema,
 	}
 }
 
@@ -98,7 +98,7 @@ func (r ResponseContentDefinition) IsJSON() bool {
 type ResponseHeaderDefinition struct {
 	Name   string
 	GoName string
-	Schema Schema
+	Schema GoSchema
 }
 
 func getOperationResponses(operationID string, responses map[string]*openapi3.ResponseRef) (*ResponseDefinition, []TypeDefinition, error) {
@@ -195,7 +195,7 @@ func getOperationResponses(operationID string, responses map[string]*openapi3.Re
 			contentSchema.RefType = refType
 
 			td := TypeDefinition{
-				TypeName:     responseTypeName,
+				Name:         responseTypeName,
 				Schema:       contentSchema,
 				SpecLocation: SpecLocationResponse,
 			}

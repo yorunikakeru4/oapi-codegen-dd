@@ -41,18 +41,18 @@ func (im importMap) GoImports() []string {
 	return goImports
 }
 
-func collectSchemaImports(s Schema) (map[string]goImport, error) {
+func collectSchemaImports(s GoSchema) (map[string]goImport, error) {
 	res := map[string]goImport{}
 
 	for _, p := range s.Properties {
-		imprts, err := GoSchemaImports(p.Schema.OAPISchema)
+		imprts, err := GoSchemaImports(p.Schema.OpenAPISchema)
 		if err != nil {
 			return nil, err
 		}
 		MergeImports(res, imprts)
 	}
 
-	imprts, err := GoSchemaImports(s.OAPISchema)
+	imprts, err := GoSchemaImports(s.OpenAPISchema)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func GoSchemaImports(schema *openapi3.Schema) (map[string]goImport, error) {
 			}
 			MergeImports(res, imprts)
 		}
-	} else if t.Is("array") {
+	} else if t.Is("array") && schema.Items != nil {
 		imprts, err := GoSchemaImports(schema.Items.Value)
 		if err != nil {
 			return nil, err

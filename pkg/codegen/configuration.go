@@ -23,8 +23,9 @@ const (
 //	The key is the spec error type name
 //	and the value is the dotted json path to the string result.
 type Configuration struct {
-	PackageName string `yaml:"package"`
-	SkipPrune   bool   `yaml:"skip-prune,omitempty"`
+	PackageName     string `yaml:"package"`
+	SkipPrune       bool   `yaml:"skip-prune,omitempty"`
+	UseSingleOutput bool   `yaml:"use-single-output,omitempty"`
 
 	Filter        FilterConfig      `yaml:"filter,omitempty"`
 	UserTemplates map[string]string `yaml:"user-templates,omitempty"`

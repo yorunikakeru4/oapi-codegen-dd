@@ -15,11 +15,7 @@
 package codegen
 
 import (
-	"bufio"
-	"bytes"
-	"fmt"
 	"strings"
-	"text/template"
 )
 
 // OperationDefinition describes an Operation.
@@ -51,8 +47,8 @@ type OperationDefinition struct {
 }
 
 // RequiresParamObject indicates If we have parameters other than path parameters, they're bundled into an
-// object. Returns true if we have any of those. This is used from the template
-// engine.
+// object. Returns true if we have any of those.
+// This is used from the template engine.
 func (o OperationDefinition) RequiresParamObject() bool {
 	return o.Query != nil || o.Header != nil
 }
@@ -107,35 +103,4 @@ func createOperationID(method, path, initial string) (string, error) {
 	}
 
 	return nameNormalizer(res), nil
-}
-
-// GenerateClient uses the template engine to generate the function which registers our wrappers
-// as Echo path handlers.
-func GenerateClient(t *template.Template, ops []OperationDefinition) (string, error) {
-	return GenerateTemplates([]string{"client.tmpl"}, t, ops)
-}
-
-// GenerateClientWithResponses generates a client which extends the basic client which does response
-// unmarshaling.
-func GenerateClientWithResponses(t *template.Template, ops []OperationDefinition) (string, error) {
-	return GenerateTemplates([]string{"client-with-responses.tmpl"}, t, ops)
-}
-
-// GenerateTemplates used to generate templates
-func GenerateTemplates(templates []string, t *template.Template, ops interface{}) (string, error) {
-	var generatedTemplates []string
-	for _, tmpl := range templates {
-		var buf bytes.Buffer
-		w := bufio.NewWriter(&buf)
-
-		if err := t.ExecuteTemplate(w, tmpl, ops); err != nil {
-			return "", fmt.Errorf("error generating %s: %s", tmpl, err)
-		}
-		if err := w.Flush(); err != nil {
-			return "", fmt.Errorf("error flushing output buffer for %s: %s", tmpl, err)
-		}
-		generatedTemplates = append(generatedTemplates, buf.String())
-	}
-
-	return strings.Join(generatedTemplates, "\n"), nil
 }

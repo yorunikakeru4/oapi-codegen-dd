@@ -1,8 +1,0 @@
-{{range $Enum := .EnumDefinitions}}
-// Defines values for {{$Enum.TypeName}}.
-const (
-{{range $name, $value := $Enum.GetValues}}
-  {{$name}} {{$Enum.TypeName}} = {{$Enum.ValueWrapper}}{{$value}}{{$Enum.ValueWrapper -}}
-{{end}}
-)
-{{end}}

@@ -1,54 +1,96 @@
-// Copyright 2019 DeepMap, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package codegen
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"text/template"
+	"os"
 
 	"github.com/getkin/kin-openapi/openapi3"
-	"golang.org/x/tools/imports"
 )
+
+// ParseContext holds the OpenAPI models.
+type ParseContext struct {
+	Operations               []OperationDefinition
+	TypeDefinitions          map[SpecLocation][]TypeDefinition
+	Enums                    []EnumDefinition
+	UnionTypes               []TypeDefinition
+	AdditionalTypes          []TypeDefinition
+	UnionWithAdditionalTypes []TypeDefinition
+	Imports                  []string
+}
+
+// CreateParseContext creates a ParseContext from an OpenAPI file and a ParseConfig.
+func CreateParseContext(file string, cfg *Configuration) (*ParseContext, []error) {
+	if cfg == nil {
+		cfg = NewDefaultConfiguration()
+	}
+
+	contents, err := os.ReadFile(file)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	doc, err := openapi3.NewLoader().LoadFromData(contents)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	res, err := createParseContextFromDocument(doc, cfg)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	return res, nil
+}
 
 // Generate uses the Go templating engine to generate all of our server wrappers from
 // the descriptions we've built up above from the schema objects.
 func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
-	spec, err := filterDocument(spec, cfg)
+	parseCtx, err := createParseContextFromDocument(spec, cfg)
 	if err != nil {
-		return "", fmt.Errorf("error filtering document: %w", err)
+		return "", fmt.Errorf("error creating parse context: %w", err)
+	}
+
+	parser, err := NewParser(cfg, parseCtx)
+	if err != nil {
+		return "", fmt.Errorf("error creating parser: %w", err)
+	}
+
+	codes, err := parser.Parse()
+	if err != nil {
+		return "", fmt.Errorf("error parsing: %w", err)
+	}
+
+	res := ""
+	for _, code := range codes {
+		res += code + "\n"
+	}
+
+	return FormatCode(res), nil
+}
+
+func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*ParseContext, error) {
+	doc, err := filterDocument(doc, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("error filtering document: %w", err)
 	}
 
 	var (
 		operations    []OperationDefinition
-		importSchemas []Schema
+		importSchemas []GoSchema
 		typeDefs      []TypeDefinition
 	)
 
-	if spec == nil || spec.Paths == nil {
-		return "", nil
+	if doc == nil || doc.Paths == nil {
+		return nil, nil
 	}
 
-	for _, requestPath := range SortedMapKeys(spec.Paths.Map()) {
-		pathItem := spec.Paths.Value(requestPath)
+	for _, requestPath := range SortedMapKeys(doc.Paths.Map()) {
+		pathItem := doc.Paths.Value(requestPath)
 		// These are parameters defined for all methods on a given path. They
 		// are shared by all methods.
 		globalParams, err := DescribeParameters(pathItem.Parameters, nil)
 		if err != nil {
-			return "", fmt.Errorf("error describing global parameters for %s: %s",
+			return nil, fmt.Errorf("error describing global parameters for %s: %s",
 				requestPath, err)
 		}
 
@@ -64,32 +106,32 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 			op := pathOps[method]
 			operationID, err := createOperationID(method, requestPath, op.OperationID)
 			if err != nil {
-				return "", fmt.Errorf("error creating operation ID: %w", err)
+				return nil, fmt.Errorf("error creating operation ID: %w", err)
 			}
 
 			// These are parameters defined for the specific path method that we're iterating over.
 			localParams, err := DescribeParameters(op.Parameters, []string{op.OperationID + "Params"})
 			if err != nil {
-				return "", fmt.Errorf("error describing global parameters for %s/%s: %s",
+				return nil, fmt.Errorf("error describing global parameters for %s/%s: %s",
 					method, requestPath, err)
 			}
 			// All the parameters required by a handler are the union of the
 			// global parameters and the local parameters.
 			allParams, err := CombineOperationParameters(globalParams, localParams)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			for _, param := range allParams {
 				importSchemas = append(importSchemas, param.Schema)
 			}
 
 			// Order the path parameters to match the order as specified in
-			// the path, not in the swagger spec, and validate that the parameter
+			// the path, not in the openapi spec, and validate that the parameter
 			// names match, as downstream code depends on that.
 			pathParams := FilterParameterDefinitionByType(allParams, "path")
 			pathParams, err = SortParamsByPath(requestPath, pathParams)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			pathDefs, pathSchemas := generateParamsTypes(pathParams, operationID+"Path")
 			if len(pathDefs) > 0 {
@@ -117,7 +159,7 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 			// Process Request Body
 			bodyDefinition, bodyTypeDef, err := createBodyDefinition(op.OperationID, op.RequestBody)
 			if err != nil {
-				return "", fmt.Errorf("error generating body definitions: %w", err)
+				return nil, fmt.Errorf("error generating body definitions: %w", err)
 			}
 			if bodyTypeDef != nil {
 				typeDefs = append(typeDefs, *bodyTypeDef)
@@ -130,7 +172,7 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 			// Process Responses
 			responseDef, responseTypes, err := getOperationResponses(op.OperationID, op.Responses.Map())
 			if err != nil {
-				return "", fmt.Errorf("error getting operation responses: %w", err)
+				return nil, fmt.Errorf("error getting operation responses: %w", err)
 			}
 			typeDefs = append(typeDefs, responseTypes...)
 			for _, responseType := range responseTypes {
@@ -159,9 +201,9 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 	}
 
 	// Process Components
-	componentDefs, err := collectComponentDefinitions(spec)
+	componentDefs, err := collectComponentDefinitions(doc)
 	if err != nil {
-		return "", fmt.Errorf("error collecting component definitions: %s", err)
+		return nil, fmt.Errorf("error collecting component definitions: %s", err)
 	}
 	typeDefs = append(typeDefs, componentDefs...)
 
@@ -175,14 +217,14 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 	for _, schema := range importSchemas {
 		importRes, err := collectSchemaImports(schema)
 		if err != nil {
-			return "", fmt.Errorf("error getting schema imports: %w", err)
+			return nil, fmt.Errorf("error getting schema imports: %w", err)
 		}
 		MergeImports(imprts, importRes)
 	}
 
 	typeDefs, err = checkDuplicates(typeDefs)
 	if err != nil {
-		return "", fmt.Errorf("error checking for duplicate type definitions: %w", err)
+		return nil, fmt.Errorf("error checking for duplicate type definitions: %w", err)
 	}
 
 	enums, typeDefs := filterOutEnums(typeDefs)
@@ -224,7 +266,7 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 		}
 	}
 
-	parseCtx := &ParseContext{
+	return &ParseContext{
 		Operations:               operations,
 		TypeDefinitions:          groupedTypeDefs,
 		Enums:                    enums,
@@ -232,77 +274,7 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 		AdditionalTypes:          additionalTypes,
 		UnionWithAdditionalTypes: unionWithAdditionalTypes,
 		Imports:                  importMap(imprts).GoImports(),
-	}
-
-	var typeDefinitions, constantDefinitions string
-
-	parser, err := NewParser(cfg, parseCtx)
-	if err != nil {
-		return "", fmt.Errorf("error creating parser: %w", err)
-	}
-
-	// temporary pass parser.tpl
-	clientOut, err := GenerateClient(parser.tpl, operations)
-	if err != nil {
-		return "", fmt.Errorf("error generating client: %w", err)
-	}
-
-	var clientWithResponsesOut string
-	clientWithResponsesOut, err = GenerateClientWithResponses(parser.tpl, operations)
-	if err != nil {
-		return "", fmt.Errorf("error generating client with responses: %w", err)
-	}
-
-	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
-
-	externalImports := importMap(imprts).GoImports()
-	importsOut, err := GenerateImports(
-		parser.tpl,
-		externalImports,
-		cfg.PackageName,
-	)
-	if err != nil {
-		return "", fmt.Errorf("error generating imports: %w", err)
-	}
-
-	_, err = w.WriteString(importsOut)
-	if err != nil {
-		return "", fmt.Errorf("error writing imports: %w", err)
-	}
-
-	_, err = w.WriteString(constantDefinitions)
-	if err != nil {
-		return "", fmt.Errorf("error writing constants: %w", err)
-	}
-
-	_, err = w.WriteString(typeDefinitions)
-	if err != nil {
-		return "", fmt.Errorf("error writing type definitions: %w", err)
-	}
-
-	_, err = w.WriteString(clientOut)
-	if err != nil {
-		return "", fmt.Errorf("error writing client: %w", err)
-	}
-	_, err = w.WriteString(clientWithResponsesOut)
-	if err != nil {
-		return "", fmt.Errorf("error writing client: %w", err)
-	}
-
-	err = w.Flush()
-	if err != nil {
-		return "", fmt.Errorf("error flushing output buffer: %w", err)
-	}
-
-	// remove any byte-order-marks which break Go-Code
-	goCode := sanitizeCode(buf.String())
-
-	outBytes, err := imports.Process(cfg.PackageName+".go", []byte(goCode), nil)
-	if err != nil {
-		return "", fmt.Errorf("error formatting Go code %s: %w", goCode, err)
-	}
-	return string(outBytes), nil
+	}, nil
 }
 
 // collectComponentDefinitions collects all the components from the model and returns them as a list of TypeDefinition.
@@ -312,41 +284,28 @@ func collectComponentDefinitions(model *openapi3.T) ([]TypeDefinition, error) {
 	}
 
 	var typeDefs []TypeDefinition
-	schemaTypes, err := GenerateTypesForSchemas(model.Components.Schemas)
+	schemaTypes, err := getComponentsSchemas(model.Components.Schemas)
 	if err != nil {
 		return nil, fmt.Errorf("error generating Go types for component schemas: %w", err)
 	}
 
-	paramTypes, err := GenerateTypesForParameters(model.Components.Parameters)
+	paramTypes, err := getComponentParameters(model.Components.Parameters)
 	if err != nil {
 		return nil, fmt.Errorf("error generating Go types for component parameters: %w", err)
 	}
 	typeDefs = append(schemaTypes, paramTypes...)
 
-	responseTypes, err := GenerateTypesForResponses(model.Components.Responses)
+	responseTypes, err := getContentResponses(model.Components.Responses)
 	if err != nil {
 		return nil, fmt.Errorf("error generating Go types for component responses: %w", err)
 	}
 	typeDefs = append(typeDefs, responseTypes...)
 
-	bodyTypes, err := GenerateTypesForRequestBodies(model.Components.RequestBodies)
+	bodyTypes, err := getComponentsRequestBodies(model.Components.RequestBodies)
 	if err != nil {
 		return nil, fmt.Errorf("error generating Go types for component request bodies: %w", err)
 	}
 	typeDefs = append(typeDefs, bodyTypes...)
 
 	return typeDefs, nil
-}
-
-// GenerateImports generates our import statements and package definition.
-func GenerateImports(t *template.Template, externalImports []string, packageName string) (string, error) {
-	context := struct {
-		ExternalImports []string
-		PackageName     string
-	}{
-		ExternalImports: externalImports,
-		PackageName:     packageName,
-	}
-
-	return GenerateTemplates([]string{"imports.tmpl"}, t, context)
 }
