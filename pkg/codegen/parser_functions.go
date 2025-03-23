@@ -26,22 +26,6 @@ const (
 // TemplateFunctions is passed to the template engine, and we can call each
 // function here by keyName from the template code.
 var TemplateFunctions = template.FuncMap{
-	// previous
-	"genParamTypes":              genParamTypes,
-	"genParamNames":              genParamNames,
-	"genParamFmtString":          ReplacePathParamsWithStr,
-	"ucFirstWithPkgName":         UppercaseFirstCharacterWithPkgName,
-	"camelCase":                  ToCamelCase,
-	"genResponsePayload":         genResponsePayload,
-	"genResponseTypeName":        genResponseTypeName,
-	"genResponseUnmarshal":       genResponseUnmarshal,
-	"getResponseTypeDefinitions": getResponseTypeDefinitions,
-	"toStringArray":              toStringArray,
-	"title":                      titleCaser.String,
-	"stripNewLines":              stripNewLines,
-	"sanitizeGoIdentity":         SanitizeGoIdentity,
-
-	// new
 	"genTypeName": nameNormalizer,
 	"lcFirst":     lowercaseFirstCharacter,
 	"ucFirst":     uppercaseFirstCharacter,

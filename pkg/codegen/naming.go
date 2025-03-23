@@ -33,12 +33,12 @@ var (
 	predeclaredSet map[string]struct{}
 	separatorSet   map[rune]struct{}
 	nameNormalizer = ToCamelCaseWithInitialism
-	initialismMap  = makeInitialismsMap(initialismsList)
+	initialismMap  = makeInitialismsMap(initialismList)
 )
 
 var camelCaseMatchParts = regexp.MustCompile(`[\p{Lu}\d]+([\p{Ll}\d]+|$)`)
 
-var initialismsList = []string{
+var initialismList = []string{
 	"ACL", "API", "ASCII", "CPU", "CSS", "DNS", "EOF", "GUID", "HTML", "HTTP", "HTTPS", "ID", "IP", "JSON",
 	"QPS", "RAM", "RPC", "SLA", "SMTP", "SQL", "SSH", "TCP", "TLS", "TTL", "UDP", "UI", "GID", "UID", "UUID",
 	"URI", "URL", "UTF8", "VM", "XML", "XMPP", "XSRF", "XSS", "SIP", "RTP", "AMQP", "DB", "TS",
@@ -118,38 +118,9 @@ func UppercaseFirstCharacter(str string) string {
 	return string(runes)
 }
 
-// Uppercase the first character in a identifier with pkg name. This assumes UTF-8, so we have
-// to be careful with unicode, don't treat it as a byte array.
-func UppercaseFirstCharacterWithPkgName(str string) string {
-	if str == "" {
-		return ""
-	}
-
-	segs := strings.Split(str, ".")
-	var prefix string
-	if len(segs) == 2 {
-		prefix = segs[0] + "."
-		str = segs[1]
-	}
-	runes := []rune(str)
-	runes[0] = unicode.ToUpper(runes[0])
-	return prefix + string(runes)
-}
-
-// LowercaseFirstCharacter Lowercases the first character in a string. This assumes UTF-8, so we have
-// to be careful with unicode, don't treat it as a byte array.
-func LowercaseFirstCharacter(str string) string {
-	if str == "" {
-		return ""
-	}
-	runes := []rune(str)
-	runes[0] = unicode.ToLower(runes[0])
-	return string(runes)
-}
-
-// Lowercase the first upper characters in a string for case of abbreviation.
+// lowercase the first upper characters in a string for case of abbreviation.
 // This assumes UTF-8, so we have to be careful with unicode, don't treat it as a byte array.
-func LowercaseFirstCharacters(str string) string {
+func lowercaseFirstCharacters(str string) string {
 	if str == "" {
 		return ""
 	}
@@ -242,7 +213,7 @@ func ToCamelCaseWithInitialisms(s string) string {
 }
 
 func makeInitialismsMap(additionalInitialisms []string) map[string]string {
-	l := append(initialismsList, additionalInitialisms...)
+	l := append(initialismList, additionalInitialisms...)
 
 	m := make(map[string]string, len(l))
 	for i := range l {

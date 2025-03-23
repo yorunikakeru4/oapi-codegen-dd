@@ -95,7 +95,7 @@ func (pd ParameterDefinition) Explode() bool {
 }
 
 func (pd ParameterDefinition) GoVariableName() string {
-	name := LowercaseFirstCharacters(pd.GoName())
+	name := lowercaseFirstCharacters(pd.GoName())
 	if IsGoKeyword(name) {
 		name = "p" + UppercaseFirstCharacter(name)
 	}
