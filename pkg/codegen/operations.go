@@ -26,7 +26,8 @@ type OperationDefinition struct {
 	Query       *TypeDefinition
 
 	TypeDefinitions []TypeDefinition
-	BodyRequired    bool
+	// TODO: check if can be removed
+	BodyRequired bool
 
 	Body     *RequestBodyDefinition
 	Response ResponseDefinition

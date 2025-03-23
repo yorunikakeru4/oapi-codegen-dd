@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 // RequestBodyDefinition describes a request body.
@@ -23,7 +23,7 @@ type RequestBodyDefinition struct {
 	NameTag     string
 	ContentType string
 	Default     bool
-	Encoding    map[string]RequestBodyEncoding
+	Encoding    map[string]*RequestBodyEncoding
 }
 
 // TypeDef returns the Go type definition for a request body
@@ -34,51 +34,11 @@ func (r RequestBodyDefinition) TypeDef(opID string) TypeDefinition {
 	}
 }
 
-// CustomType returns whether the body is a custom inline type, or pre-defined. This is
-// poorly named, but it's here for compatibility reasons post-refactoring
-// TODO: clean up the templates code, it can be simpler.
-func (r RequestBodyDefinition) CustomType() bool {
-	return r.Schema.RefType == ""
-}
-
-// Suffix is needed when we're generating multiple functions which relate to request bodies,
-// this generates the suffix. Such as Operation DoFoo would be suffixed with
-// DoFooWithXMLBody.
-func (r RequestBodyDefinition) Suffix() string {
-	// The default response is never suffixed.
-	if r.Default {
-		return ""
-	}
-	return "With" + r.NameTag + "Body"
-}
-
-// IsSupportedByClient returns true if we support this content type for client. Otherwise only generic method will ge generated
-func (r RequestBodyDefinition) IsSupportedByClient() bool {
-	return r.IsJSON() || r.NameTag == "Formdata" || r.NameTag == "Text"
-}
-
-// IsJSON returns whether this is a JSON media type, for instance:
-// - application/json
-// - application/vnd.api+json
-// - application/*+json
-func (r RequestBodyDefinition) IsJSON() bool {
-	return isMediaTypeJson(r.ContentType)
-}
-
-// IsSupported returns true if we support this content type for server. Otherwise io.Reader will be generated
-func (r RequestBodyDefinition) IsSupported() bool {
-	return r.NameTag != ""
-}
-
-// IsFixedContentType returns true if content type has fixed content type, i.e. contains no "*" symbol
-func (r RequestBodyDefinition) IsFixedContentType() bool {
-	return !strings.Contains(r.ContentType, "*")
-}
-
 func (r RequestBodyDefinition) IsOptional() bool {
 	return !r.Schema.Constraints.Required
 }
 
+// RequestBodyEncoding describes the encoding options for a request body.
 type RequestBodyEncoding struct {
 	ContentType string
 	Style       string
@@ -87,46 +47,50 @@ type RequestBodyEncoding struct {
 
 // createBodyDefinition turns the OpenAPI body definitions into a list of our body definitions
 // which will be used for code generation.
-func createBodyDefinition(operationID string, bodyOrRef *openapi3.RequestBodyRef) (*RequestBodyDefinition, *TypeDefinition, error) {
-	if bodyOrRef == nil {
+func createBodyDefinition(operationID string, body *v3high.RequestBody) (*RequestBodyDefinition, *TypeDefinition, error) {
+	if body == nil {
 		return nil, nil, nil
 	}
 
 	td := TypeDefinition{}
 
-	body := bodyOrRef.Value
-	var targetContentType string
-	for _, contentType := range sortedMapKeys(body.Content) {
-		if contentType == "application/json" {
-			targetContentType = contentType
-			break
-		}
-		targetContentType = contentType
+	required := false
+	if body.Required != nil {
+		required = *body.Required
 	}
 
-	content := body.Content[targetContentType]
+	pair := body.Content.First()
+	if pair == nil {
+		return nil, nil, nil
+	}
+
+	contentType, content := pair.Key(), pair.Value()
+
+	schemaProxy := content.Schema
+
 	var tag string
 	var defaultBody bool
-	required := body.Required
 
 	switch {
-	case targetContentType == "application/json":
+	case contentType == "application/json":
 		tag = "JSON"
 		defaultBody = true
-	case isMediaTypeJson(targetContentType):
-		tag = mediaTypeToCamelCase(targetContentType)
-	case strings.HasPrefix(targetContentType, "multipart/"):
+	case isMediaTypeJson(contentType):
+		tag = mediaTypeToCamelCase(contentType)
+	case strings.HasPrefix(contentType, "multipart/"):
 		tag = "Multipart"
-	case targetContentType == "application/x-www-form-urlencoded":
+	case contentType == "application/x-www-form-urlencoded":
 		tag = "Formdata"
-	case targetContentType == "text/plain":
+	case contentType == "text/plain":
 		tag = "Text"
 	default:
 		return nil, nil, nil
 	}
 
 	bodyTypeName := operationID + "Body"
-	bodySchema, err := GenerateGoSchema(content.Schema, []string{bodyTypeName})
+	ref := schemaProxy.GoLow().GetReference()
+
+	bodySchema, err := GenerateGoSchema(schemaProxy, ref, []string{bodyTypeName})
 	if err != nil {
 		return nil, nil, fmt.Errorf("error generating request body definition: %w", err)
 	}
@@ -135,7 +99,7 @@ func createBodyDefinition(operationID string, bodyOrRef *openapi3.RequestBodyRef
 	// type under #/components, we'll define a type for it, so
 	// that we have an easy-to-use type for marshaling.
 	if bodySchema.RefType == "" {
-		if targetContentType == "application/x-www-form-urlencoded" {
+		if contentType == "application/x-www-form-urlencoded" {
 			// Apply the appropriate structure tag if the request
 			// schema was defined under the operations' section.
 			for i := range bodySchema.Properties {
@@ -160,18 +124,22 @@ func createBodyDefinition(operationID string, bodyOrRef *openapi3.RequestBodyRef
 
 	bd := &RequestBodyDefinition{
 		Name:        bodyTypeName,
-		Required:    body.Required,
+		Required:    required,
 		Schema:      bodySchema,
 		NameTag:     tag,
-		ContentType: targetContentType,
+		ContentType: contentType,
 		Default:     defaultBody,
 	}
 
-	if len(content.Encoding) != 0 {
-		bd.Encoding = make(map[string]RequestBodyEncoding)
-		for k, v := range content.Encoding {
-			encoding := RequestBodyEncoding{ContentType: v.ContentType, Style: v.Style, Explode: v.Explode}
-			bd.Encoding[k] = encoding
+	if content.Encoding.Len() != 0 {
+		bd.Encoding = make(map[string]*RequestBodyEncoding)
+		for k, v := range content.Encoding.FromOldest() {
+			enc := &RequestBodyEncoding{
+				ContentType: v.ContentType,
+				Style:       v.Style,
+				Explode:     v.Explode,
+			}
+			bd.Encoding[k] = enc
 		}
 	}
 

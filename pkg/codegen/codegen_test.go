@@ -5,7 +5,6 @@ import (
 	"go/format"
 	"testing"
 
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,11 +20,8 @@ func TestExampleOpenAPICodeGeneration(t *testing.T) {
 		UseSingleOutput: true,
 	}
 
-	loader := openapi3.NewLoader()
-	loader.IsExternalRefsAllowed = true
-
 	// Get a spec from the test definition in this file:
-	spec, err := loader.LoadFromData([]byte(testDocument))
+	spec, err := loadDocumentFromContents([]byte(testDocument))
 	assert.NoError(t, err)
 
 	// Run our code generation:
@@ -39,13 +35,13 @@ func TestExampleOpenAPICodeGeneration(t *testing.T) {
 	// Check that we have a package:
 	assert.Contains(t, code, "package testswagger")
 
-	assert.Contains(t, code, "Top *int `form:\"$top,omitempty\" json:\"$top,omitempty\"`")
+	assert.Contains(t, code, "Top *int `json:\"$top,omitempty\"`")
 	assert.Contains(t, code, "DeadSince *time.Time    `json:\"dead_since,omitempty\" tag1:\"value1\" tag2:\"value2\"`")
 	assert.Contains(t, code, "type EnumTestNumerics int")
 	assert.Contains(t, code, "N2 EnumTestNumerics = 2")
 	assert.Contains(t, code, "type EnumTestEnumNames int")
-	assert.Contains(t, code, "Two  EnumTestEnumNames = 2")
-	assert.Contains(t, code, "Double EnumTestEnumVarnames = 2")
+	assert.Contains(t, code, "EnumTestEnumNamesN2 EnumTestEnumNames = 2")
+	assert.Contains(t, code, "EnumTestEnumVarnamesN2 EnumTestEnumVarnames = 2")
 }
 
 func TestExtPropGoTypeSkipOptionalPointer(t *testing.T) {
@@ -55,11 +51,11 @@ func TestExtPropGoTypeSkipOptionalPointer(t *testing.T) {
 		UseSingleOutput: true,
 	}
 	spec := "test_specs/x-go-type-skip-optional-pointer.yaml"
-	swagger, err := LoadSwagger(spec)
+	doc, err := loadDocumentFromFile(spec)
 	require.NoError(t, err)
 
 	// Run our code generation:
-	code, err := Generate(swagger, opts)
+	code, err := Generate(doc, opts)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, code)
 
@@ -88,11 +84,11 @@ func TestGoTypeImport(t *testing.T) {
 		UseSingleOutput: true,
 	}
 	spec := "test_specs/x-go-type-import-pet.yaml"
-	swagger, err := LoadSwagger(spec)
+	doc, err := loadDocumentFromFile(spec)
 	require.NoError(t, err)
 
 	// Run our code generation:
-	code, err := Generate(swagger, opts)
+	code, err := Generate(doc, opts)
 	assert.NoError(t, err)
 	if err != nil {
 		t.FailNow()

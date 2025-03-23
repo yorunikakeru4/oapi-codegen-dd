@@ -2,6 +2,10 @@ package codegen
 
 import (
 	"fmt"
+	"strconv"
+
+	"github.com/pb33f/libopenapi/orderedmap"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -22,10 +26,9 @@ const (
 	extEnumVarNames      = "x-enum-varnames"
 	extEnumNames         = "x-enumNames"
 	extDeprecationReason = "x-deprecated-reason"
-	extOrder             = "x-order"
 )
 
-func extString(extPropValue interface{}) (string, error) {
+func extString(extPropValue any) (string, error) {
 	str, ok := extPropValue.(string)
 	if !ok {
 		return "", fmt.Errorf("failed to convert type: %T", extPropValue)
@@ -33,23 +36,25 @@ func extString(extPropValue interface{}) (string, error) {
 	return str, nil
 }
 
-func extTypeName(extPropValue interface{}) (string, error) {
-	return extString(extPropValue)
-}
-
-func extParsePropGoTypeSkipOptionalPointer(extPropValue interface{}) (bool, error) {
-	goTypeSkipOptionalPointer, ok := extPropValue.(bool)
-	if !ok {
-		return false, fmt.Errorf("failed to convert type: %T", extPropValue)
+func extParsePropGoTypeSkipOptionalPointer(value any) (bool, error) {
+	switch v := value.(type) {
+	case bool:
+		return v, nil
+	case string:
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return false, fmt.Errorf("failed to convert type: %T", value)
+		}
+		return b, nil
 	}
-	return goTypeSkipOptionalPointer, nil
+	return false, fmt.Errorf("failed to convert type: %T", value)
 }
 
-func extParseGoFieldName(extPropValue interface{}) (string, error) {
+func extParseGoFieldName(extPropValue any) (string, error) {
 	return extString(extPropValue)
 }
 
-func extParseOmitEmpty(extPropValue interface{}) (bool, error) {
+func extParseOmitEmpty(extPropValue any) (bool, error) {
 	omitEmpty, ok := extPropValue.(bool)
 	if !ok {
 		return false, fmt.Errorf("failed to convert type: %T", extPropValue)
@@ -57,11 +62,12 @@ func extParseOmitEmpty(extPropValue interface{}) (bool, error) {
 	return omitEmpty, nil
 }
 
-func extExtraTags(extPropValue interface{}) (map[string]string, error) {
-	tagsI, ok := extPropValue.(map[string]interface{})
+func extExtraTags(extPropValue any) (map[string]string, error) {
+	tagsI, ok := extPropValue.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("failed to convert type: %T", extPropValue)
 	}
+
 	tags := make(map[string]string, len(tagsI))
 	for k, v := range tagsI {
 		vs, ok := v.(string)
@@ -99,4 +105,42 @@ func extParseEnumVarNames(extPropValue interface{}) ([]string, error) {
 
 func extParseDeprecationReason(extPropValue interface{}) (string, error) {
 	return extString(extPropValue)
+}
+
+func extractExtensions(schemaExtensions *orderedmap.Map[string, *yaml.Node]) map[string]any {
+	if schemaExtensions == nil || schemaExtensions.Len() == 0 {
+		return nil
+	}
+
+	res := make(map[string]any)
+
+	for extType, node := range schemaExtensions.FromOldest() {
+		res[extType] = make(map[string]any)
+		if node.Kind == yaml.ScalarNode {
+			res[extType] = node.Value
+			continue
+		}
+
+		if node.Kind != yaml.MappingNode {
+			continue
+		}
+
+		var k string
+		inner := make(map[string]any)
+		for i, n := range node.Content {
+			if i%2 == 0 {
+				k = n.Value
+			} else {
+				if k == "" {
+					continue
+				}
+				v := n.Value
+				println(v)
+				inner[k] = v
+				k = ""
+			}
+		}
+		res[extType] = inner
+	}
+	return res
 }

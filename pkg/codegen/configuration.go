@@ -67,6 +67,10 @@ type FilterParamsConfig struct {
 	OperationIDs []string
 }
 
+func (f FilterParamsConfig) isEmpty() bool {
+	return len(f.Paths) == 0 && len(f.Tags) == 0 && len(f.OperationIDs) == 0
+}
+
 // NewDefaultConfiguration creates a new default Configuration.
 func NewDefaultConfiguration() *Configuration {
 	return &Configuration{

@@ -2,7 +2,7 @@ package codegen
 
 import (
 	"fmt"
-	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -124,11 +124,20 @@ func checkDuplicates(types []TypeDefinition) ([]TypeDefinition, error) {
 }
 
 // typeDefinitionsEquivalent checks for equality between two type definitions, but
-// not every field is considered. We only want to know if they are fundamentally
-// the same type.
+// not every field is considered.
+// We only want to know if they are fundamentally the same type.
 func typeDefinitionsEquivalent(t1, t2 TypeDefinition) bool {
-	if t1.Name != t2.Name {
-		return false
+	if equal := t1.Name == t2.Name &&
+		t1.Schema.TypeDecl() == t2.Schema.TypeDecl() &&
+		slices.Equal(t1.Schema.UnionElements, t2.Schema.UnionElements) &&
+		slices.Equal(t1.Schema.OpenAPISchema.Enum, t2.Schema.OpenAPISchema.Enum); equal {
+		return true
 	}
-	return reflect.DeepEqual(t1.Schema.OpenAPISchema, t2.Schema.OpenAPISchema)
+
+	for ix, prop := range t1.Schema.Properties {
+		if !prop.IsEqual(t2.Schema.Properties[ix]) {
+			return false
+		}
+	}
+	return true
 }

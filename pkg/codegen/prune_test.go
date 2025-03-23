@@ -3,145 +3,178 @@ package codegen
 import (
 	"testing"
 
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFindReferences(t *testing.T) {
 	t.Run("unfiltered", func(t *testing.T) {
-		swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
+		doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
 
-		refs := findComponentRefs(swagger)
+		model, _ := doc.BuildV3Model()
+
+		refs := findComponentRefs(&model.Model)
 		assert.Len(t, refs, 14)
 	})
+
 	t.Run("only cat", func(t *testing.T) {
-		swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
+		doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
-		opts := &Configuration{
-			Filter: FilterConfig{
-				Include: FilterParamsConfig{
-					Tags: []string{"cat"},
-				},
+
+		model, _ := doc.BuildV3Model()
+		m := &model.Model
+
+		cfg := FilterConfig{
+			Include: FilterParamsConfig{
+				Tags: []string{"cat"},
 			},
 		}
 
-		filterOperationsByTag(swagger, opts)
+		filterOperations(m, cfg)
 
-		refs := findComponentRefs(swagger)
+		_, doc2, _, errs := doc.RenderAndReload()
+		assert.Nil(t, errs)
+		m2, _ := doc2.BuildV3Model()
+
+		refs := findComponentRefs(&m2.Model)
 		assert.Len(t, refs, 7)
 	})
+
 	t.Run("only dog", func(t *testing.T) {
-		swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
+		doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
 
-		opts := &Configuration{
-			Filter: FilterConfig{
-				Include: FilterParamsConfig{
-					Tags: []string{"dog"},
-				},
+		model, _ := doc.BuildV3Model()
+
+		cfg := FilterConfig{
+			Include: FilterParamsConfig{
+				Tags: []string{"dog"},
 			},
 		}
 
-		filterOperationsByTag(swagger, opts)
+		filterOperations(&model.Model, cfg)
 
-		refs := findComponentRefs(swagger)
+		_, doc2, _, errs := doc.RenderAndReload()
+		assert.Nil(t, errs)
+		m2, _ := doc2.BuildV3Model()
+
+		refs := findComponentRefs(&m2.Model)
 		assert.Len(t, refs, 7)
 	})
 }
 
 func TestFilterOnlyCat(t *testing.T) {
 	// Get a spec from the test definition in this file:
-	swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
+	doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
 	assert.NoError(t, err)
 
-	opts := &Configuration{
-		Filter: FilterConfig{
-			Include: FilterParamsConfig{
-				Tags: []string{"cat"},
-			},
+	model, _ := doc.BuildV3Model()
+
+	cfg := FilterConfig{
+		Include: FilterParamsConfig{
+			Tags: []string{"cat"},
 		},
 	}
 
-	refs := findComponentRefs(swagger)
+	refs := findComponentRefs(&model.Model)
 	assert.Len(t, refs, 14)
+	assert.Equal(t, 5, model.Model.Components.Schemas.Len())
 
-	assert.Len(t, swagger.Components.Schemas, 5)
+	filterOperations(&model.Model, cfg)
 
-	filterOperationsByTag(swagger, opts)
+	_, doc2, _, errs := doc.RenderAndReload()
+	assert.Nil(t, errs)
+	m2, _ := doc2.BuildV3Model()
 
-	refs = findComponentRefs(swagger)
+	refs = findComponentRefs(&m2.Model)
 	assert.Len(t, refs, 7)
 
-	assert.NotEmpty(t, swagger.Paths.Value("/cat"), "/cat path should still be in spec")
-	assert.NotEmpty(t, swagger.Paths.Value("/cat").Get, "GET /cat operation should still be in spec")
-	assert.Empty(t, swagger.Paths.Value("/dog").Get, "GET /dog should have been removed from spec")
+	assert.NotEmpty(t, m2.Model.Paths.PathItems.GetOrZero("/cat"), "/cat path should still be in spec")
+	assert.NotEmpty(t, m2.Model.Paths.PathItems.GetOrZero("/cat").Get, "GET /cat operation should still be in spec")
+	assert.Empty(t, m2.Model.Paths.PathItems.GetOrZero("/dog").Get, "GET /dog should have been removed from spec")
 
-	pruneUnusedComponents(swagger)
+	doc, err = pruneSchema(doc2)
+	assert.Nil(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, _ = doc.BuildV3Model()
 
-	assert.Len(t, swagger.Components.Schemas, 3)
+	assert.Equal(t, 3, model.Model.Components.Schemas.Len())
 }
 
 func TestFilterOnlyDog(t *testing.T) {
 	// Get a spec from the test definition in this file:
-	swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneSpecTestFixture))
+	doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
 	assert.NoError(t, err)
 
-	opts := &Configuration{
-		Filter: FilterConfig{
-			Include: FilterParamsConfig{
-				Tags: []string{"dog"},
-			},
+	model, _ := doc.BuildV3Model()
+	m := &model.Model
+
+	cfg := FilterConfig{
+		Include: FilterParamsConfig{
+			Tags: []string{"dog"},
 		},
 	}
 
-	refs := findComponentRefs(swagger)
+	refs := findComponentRefs(m)
 	assert.Len(t, refs, 14)
 
-	filterOperationsByTag(swagger, opts)
+	filterOperations(m, cfg)
 
-	refs = findComponentRefs(swagger)
+	_, doc2, _, errs := doc.RenderAndReload()
+	assert.Nil(t, errs)
+	m2, _ := doc2.BuildV3Model()
+
+	refs = findComponentRefs(&m2.Model)
 	assert.Len(t, refs, 7)
 
-	assert.Len(t, swagger.Components.Schemas, 5)
+	assert.Equal(t, 5, m2.Model.Components.Schemas.Len())
 
-	assert.NotEmpty(t, swagger.Paths.Value("/dog"))
-	assert.NotEmpty(t, swagger.Paths.Value("/dog").Get)
-	assert.Empty(t, swagger.Paths.Value("/cat").Get)
+	assert.NotEmpty(t, m2.Model.Paths.PathItems.GetOrZero("/dog"))
+	assert.NotEmpty(t, m2.Model.Paths.PathItems.GetOrZero("/dog").Get)
+	assert.Empty(t, m2.Model.Paths.PathItems.GetOrZero("/cat").Get)
 
-	pruneUnusedComponents(swagger)
+	doc3, _ := pruneSchema(doc2)
+	assert.Nil(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m3, _ := doc3.BuildV3Model()
 
-	assert.Len(t, swagger.Components.Schemas, 3)
+	assert.Equal(t, 3, m3.Model.Components.Schemas.Len())
 }
 
 func TestPruningUnusedComponents(t *testing.T) {
 	// Get a spec from the test definition in this file:
-	swagger, err := openapi3.NewLoader().LoadFromData([]byte(pruneComprehensiveTestFixture))
+	doc, err := loadDocumentFromContents([]byte(pruneComprehensiveTestFixture))
 	assert.NoError(t, err)
 
-	assert.Len(t, swagger.Components.Schemas, 8)
-	assert.Len(t, swagger.Components.Parameters, 1)
-	assert.Len(t, swagger.Components.SecuritySchemes, 2)
-	assert.Len(t, swagger.Components.RequestBodies, 1)
-	assert.Len(t, swagger.Components.Responses, 2)
-	assert.Len(t, swagger.Components.Headers, 3)
-	assert.Len(t, swagger.Components.Examples, 1)
-	assert.Len(t, swagger.Components.Links, 1)
-	assert.Len(t, swagger.Components.Callbacks, 1)
+	model, _ := doc.BuildV3Model()
+	m := &model.Model
 
-	pruneUnusedComponents(swagger)
+	assert.Equal(t, 8, m.Components.Schemas.Len())
+	assert.Equal(t, 1, m.Components.Parameters.Len())
+	assert.Equal(t, 2, m.Components.SecuritySchemes.Len())
+	assert.Equal(t, 1, m.Components.RequestBodies.Len())
+	assert.Equal(t, 2, m.Components.Responses.Len())
+	assert.Equal(t, 3, m.Components.Headers.Len())
+	assert.Equal(t, 1, m.Components.Examples.Len())
+	assert.Equal(t, 1, m.Components.Links.Len())
+	assert.Equal(t, 1, m.Components.Callbacks.Len())
 
-	assert.Len(t, swagger.Components.Schemas, 0)
-	assert.Len(t, swagger.Components.Parameters, 0)
-	// securitySchemes are an exception. definitions in securitySchemes
-	// are referenced directly by name. and not by $ref
-	assert.Len(t, swagger.Components.SecuritySchemes, 2)
-	assert.Len(t, swagger.Components.RequestBodies, 0)
-	assert.Len(t, swagger.Components.Responses, 0)
-	assert.Len(t, swagger.Components.Headers, 0)
-	assert.Len(t, swagger.Components.Examples, 0)
-	assert.Len(t, swagger.Components.Links, 0)
-	assert.Len(t, swagger.Components.Callbacks, 0)
+	doc, _ = pruneSchema(doc)
+	model, _ = doc.BuildV3Model()
+	m = &model.Model
+
+	assert.Equal(t, 0, m.Components.Schemas.Len())
+	assert.Equal(t, 0, m.Components.Parameters.Len())
+	assert.Equal(t, 0, m.Components.RequestBodies.Len())
+	assert.Equal(t, 0, m.Components.Responses.Len())
+	assert.Equal(t, 0, m.Components.Headers.Len())
+	assert.Equal(t, 0, m.Components.Examples.Len())
+	assert.Equal(t, 0, m.Components.Links.Len())
+	assert.Equal(t, 0, m.Components.Callbacks.Len())
 }
 
 const pruneComprehensiveTestFixture = `

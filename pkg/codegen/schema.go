@@ -2,10 +2,10 @@ package codegen
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 // GoSchema describes an OpenAPI schema, with lots of helper fields to use in the templating engine.
@@ -40,7 +40,7 @@ type GoSchema struct {
 	Discriminator *Discriminator
 
 	DefineViaAlias bool
-	OpenAPISchema  *openapi3.Schema
+	OpenAPISchema  *base.Schema
 }
 
 func (s GoSchema) IsRef() bool {
@@ -59,6 +59,10 @@ func (s GoSchema) TypeDecl() string {
 		return s.RefType
 	}
 	return s.GoType
+}
+
+func (s GoSchema) IsZero() bool {
+	return s.TypeDecl() == ""
 }
 
 // AddProperty adds a new property to the current GoSchema, and returns an error
@@ -119,29 +123,27 @@ func (d *Discriminator) PropertyName() string {
 	return schemaNameToTypeName(d.Property)
 }
 
-func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (GoSchema, error) {
-	// Add a fallback value in case the sref is nil.
+func GenerateGoSchema(schemaProxy *base.SchemaProxy, ref string, path []string) (GoSchema, error) {
+	// Add a fallback value in case the schemaProxy is nil.
 	// i.e. the parent schema defines a type:array, but the array has
 	// no items defined. Therefore, we have at least valid Go-Code.
-	if sref == nil {
+	if schemaProxy == nil {
 		return GoSchema{GoType: "any"}, nil
 	}
 
-	schema := sref.Value
+	schema := schemaProxy.Schema()
 
-	// If Ref is set on the SchemaRef, it means that this type is actually a reference to
-	// another type. We're not de-referencing, so simply use the referenced type.
-	if sref.Ref != "" {
-		// Convert the reference path to Go type
-		refType, err := refPathToGoType(sref.Ref)
+	// use the referenced type:
+	// properties will be picked up from the referenced schema later.
+	if ref != "" {
+		refType, err := refPathToGoType(ref)
 		if err != nil {
-			return GoSchema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s",
-				sref.Ref, err)
+			return GoSchema{}, fmt.Errorf("error turning reference (%s) into a Go type: %s", schemaProxy.GetReference(), err)
 		}
 		return GoSchema{
 			GoType:         refType,
-			Description:    schema.Description,
 			DefineViaAlias: true,
+			Description:    schema.Description,
 			OpenAPISchema:  schema,
 		}, nil
 	}
@@ -151,10 +153,6 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (GoSchema, error)
 		OpenAPISchema: schema,
 	}
 
-	// AllOf is interesting, and useful. It's the union of a number of other
-	// schemas. A common usage is to create a union of an object with an ID,
-	// so that in a RESTful paradigm, the Create operation can return
-	// (object, id), so that other operations can refer to (id)
 	if schema.AllOf != nil {
 		mergedSchema, err := mergeSchemas(schema.AllOf, path)
 		if err != nil {
@@ -166,8 +164,8 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (GoSchema, error)
 
 	// Check x-go-type, which will completely override the definition of this
 	// schema with the provided type.
-	if extension, ok := schema.Extensions[extPropGoType]; ok {
-		typeName, err := extTypeName(extension)
+	if extension, ok := schema.Extensions.Get(extPropGoType); ok {
+		typeName, err := extString(extension.Value)
 		if err != nil {
 			return outSchema, fmt.Errorf("invalid value for %q: %w", extPropGoType, err)
 		}
@@ -179,8 +177,8 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (GoSchema, error)
 
 	// Check x-go-type-skip-optional-pointer, which will override if the type
 	// should be a pointer or not when the field is optional.
-	if extension, ok := schema.Extensions[extPropGoTypeSkipOptionalPointer]; ok {
-		skipOptionalPointer, err := extParsePropGoTypeSkipOptionalPointer(extension)
+	if extension, ok := schema.Extensions.Get(extPropGoTypeSkipOptionalPointer); ok {
+		skipOptionalPointer, err := extParsePropGoTypeSkipOptionalPointer(extension.Value)
 		if err != nil {
 			return outSchema, fmt.Errorf("invalid value for %q: %w", extPropGoTypeSkipOptionalPointer, err)
 		}
@@ -190,19 +188,19 @@ func GenerateGoSchema(sref *openapi3.SchemaRef, path []string) (GoSchema, error)
 	// GoSchema type and format, eg. string / binary
 	t := schema.Type
 	// Handle objects and empty schemas first as a special case
-	if t.Slice() == nil || t.Is("object") {
-		return createObjectSchema(schema, sref.Ref, path)
+	if t == nil || slices.Contains(t, "object") {
+		return createObjectSchema(schema, ref, path)
 	}
 
 	if len(schema.Enum) > 0 {
-		return createEnumsSchema(schema, path)
+		return createEnumsSchema(schema, ref, path)
 	}
 
-	res, err := oapiSchemaToGoType(schema, path)
+	outSchema, err := oapiSchemaToGoType(schema, ref, path)
 	if err != nil {
 		return GoSchema{}, fmt.Errorf("error resolving primitive type: %w", err)
 	}
-	return res, nil
+	return outSchema, nil
 }
 
 // SchemaDescriptor describes a GoSchema, a type definition.
@@ -225,59 +223,26 @@ func additionalPropertiesType(schema GoSchema) string {
 	if schema.AdditionalPropertiesType.RefType != "" {
 		addPropsType = schema.AdditionalPropertiesType.RefType
 	}
-	if schema.AdditionalPropertiesType.OpenAPISchema != nil && schema.AdditionalPropertiesType.OpenAPISchema.Nullable {
-		addPropsType = "*" + addPropsType
+	if schema.AdditionalPropertiesType.OpenAPISchema != nil {
+		nullablePtr := schema.AdditionalPropertiesType.OpenAPISchema.Nullable
+		if nullablePtr != nil && *nullablePtr {
+			addPropsType = "*" + addPropsType
+		}
 	}
 	return addPropsType
 }
 
-// sortedSchemaKeys returns the keys of the given SchemaRef dictionary in sorted
-// order, since Golang scrambles dictionary keys. This isn't a generic key sort, because
-// we support an extension to grant specific orders to schemas to help control output
-// ordering.
-func sortedSchemaKeys(dict map[string]*openapi3.SchemaRef) []string {
-	keys := make([]string, len(dict))
-	orders := make(map[string]int64, len(dict))
-	i := 0
-
-	for key, v := range dict {
-		keys[i], orders[key] = key, int64(len(dict))
-		i++
-
-		if order, ok := schemaXOrder(v); ok {
-			orders[key] = order
-		}
+func schemaHasAdditionalProperties(schema *base.Schema) bool {
+	if schema == nil || schema.AdditionalProperties == nil {
+		return false
 	}
 
-	sort.Slice(keys, func(i, j int) bool {
-		if i, j := orders[keys[i]], orders[keys[j]]; i != j {
-			return i < j
-		}
-		return keys[i] < keys[j]
-	})
-	return keys
-}
-
-func schemaXOrder(v *openapi3.SchemaRef) (int64, bool) {
-	if v == nil {
-		return 0, false
+	if schema.AdditionalProperties.IsA() && schema.AdditionalProperties.A != nil {
+		return true
 	}
 
-	// YAML parsing picks up the x-order as a float64
-	if order, ok := v.Extensions[extOrder].(float64); ok {
-		return int64(order), true
+	if schema.AdditionalProperties.IsB() && schema.AdditionalProperties.B {
+		return true
 	}
-
-	if v.Value == nil {
-		return 0, false
-	}
-
-	// if v.Value is set, then this is actually a `$ref`, and we should check if there's an x-order set on that
-
-	// YAML parsing picks up the x-order as a float64
-	if order, ok := v.Value.Extensions[extOrder].(float64); ok {
-		return int64(order), true
-	}
-
-	return 0, false
+	return false
 }

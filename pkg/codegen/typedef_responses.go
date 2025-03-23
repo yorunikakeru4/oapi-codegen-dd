@@ -5,22 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
-// ResponseTypeDefinition is an extension of TypeDefinition, specifically for
-// response unmarshaling in ClientWithResponses.
-type ResponseTypeDefinition struct {
-	TypeDefinition
-	// The content type name where this is used, eg, application/json
-	ContentTypeName string
-
-	// The type name of a response model.
-	ResponseName string
-
-	AdditionalTypeDefinitions []TypeDefinition
-}
-
+// ResponseDefinition describes a response.
 type ResponseDefinition struct {
 	StatusCode  string
 	Description string
@@ -30,17 +18,6 @@ type ResponseDefinition struct {
 	SuccessStatusCode int
 	Success           *ResponseContentDefinition
 	Error             *ResponseContentDefinition
-
-	// TODO: remove after migration
-	TypeDefinitions []ResponseTypeDefinition
-}
-
-func (r ResponseDefinition) GoName() string {
-	return schemaNameToTypeName(r.StatusCode)
-}
-
-func (r ResponseDefinition) IsRef() bool {
-	return r.Ref != ""
 }
 
 // ResponseContentDefinition describes Operation response.
@@ -62,45 +39,7 @@ type ResponseContentDefinition struct {
 	IsSuccess    bool
 }
 
-// TypeDef returns the Go type definition for a request body
-func (r ResponseContentDefinition) TypeDef(opID string, statusCode int) *TypeDefinition {
-	return &TypeDefinition{
-		Name:   fmt.Sprintf("%s%v%sResponse", opID, statusCode, r.NameTagOrContentType()),
-		Schema: r.Schema,
-	}
-}
-
-func (r ResponseContentDefinition) IsSupported() bool {
-	return r.NameTag != ""
-}
-
-// HasFixedContentType returns true if content type has fixed content type, i.e. contains no "*" symbol
-func (r ResponseContentDefinition) HasFixedContentType() bool {
-	return !strings.Contains(r.ContentType, "*")
-}
-
-func (r ResponseContentDefinition) NameTagOrContentType() string {
-	if r.NameTag != "" {
-		return r.NameTag
-	}
-	return schemaNameToTypeName(r.ContentType)
-}
-
-// IsJSON returns whether this is a JSON media type, for instance:
-// - application/json
-// - application/vnd.api+json
-// - application/*+json
-func (r ResponseContentDefinition) IsJSON() bool {
-	return isMediaTypeJson(r.ContentType)
-}
-
-type ResponseHeaderDefinition struct {
-	Name   string
-	GoName string
-	Schema GoSchema
-}
-
-func getOperationResponses(operationID string, responses map[string]*openapi3.ResponseRef) (*ResponseDefinition, []TypeDefinition, error) {
+func getOperationResponses(operationID string, responses *v3high.Responses) (*ResponseDefinition, []TypeDefinition, error) {
 	var (
 		successDefinition *ResponseContentDefinition
 		errorDefinition   *ResponseContentDefinition
@@ -108,24 +47,15 @@ func getOperationResponses(operationID string, responses map[string]*openapi3.Re
 	)
 
 	var typeDefinitions []TypeDefinition
-	var resTypeDefs []ResponseTypeDefinition
 
-	for _, statusCode := range sortedMapKeys(responses) {
-		responseOrRef := responses[statusCode]
-		if responseOrRef == nil {
+	// we just need success and error responses
+	for statusCode, response := range responses.Codes.FromOldest() {
+		if response == nil || response.Content == nil || response.Content.Len() == 0 {
 			continue
 		}
-		response := responseOrRef.Value
-
 		isSuccess := false
 		refType := ""
 		var err error
-		if responseOrRef.Ref != "" {
-			refType, err = refPathToGoType(responseOrRef.Ref)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error parsing ref %s: %w", responseOrRef.Ref, err)
-			}
-		}
 
 		status, err := strconv.Atoi(statusCode)
 		if err != nil {
@@ -141,7 +71,7 @@ func getOperationResponses(operationID string, responses map[string]*openapi3.Re
 		if status >= 200 && status < 300 {
 			isSuccess = true
 			successCode = status
-		} else if status >= 400 && status < 600 {
+		} else if status >= 300 && status < 600 {
 			isSuccess = false
 		} else {
 			continue
@@ -156,80 +86,91 @@ func getOperationResponses(operationID string, responses map[string]*openapi3.Re
 			continue
 		}
 
-		var responseContentDefinitions []ResponseContentDefinition
-
 		typeSuffix := "Response"
 		if !isSuccess {
 			typeSuffix = "ErrorResponse"
 		}
 
-		for _, contentType := range sortedMapKeys(response.Content) {
-			content := response.Content[contentType]
-			var tag string
-			switch {
-			case contentType == "application/json":
-				tag = "JSON"
-			case isMediaTypeJson(contentType):
-				tag = mediaTypeToCamelCase(contentType)
-			case contentType == "application/x-www-form-urlencoded":
-				tag = "Formdata"
-			case strings.HasPrefix(contentType, "multipart/"):
-				tag = "Multipart"
-			case contentType == "text/plain":
-				tag = "Text"
-			default:
-				rcd := ResponseContentDefinition{
-					ContentType: contentType,
-				}
-				responseContentDefinitions = append(responseContentDefinitions, rcd)
-				continue
+		var (
+			contentType string
+			content     *v3high.MediaType
+		)
+
+		if pair, ok := response.Content.Get("application/json"); ok {
+			contentType, content = "application/json", pair
+		} else {
+			if v := response.Content.First(); v != nil {
+				contentType, content = v.Key(), v.Value()
 			}
+		}
 
-			responseTypeName := operationID + typeSuffix
-			contentSchema, err := GenerateGoSchema(content.Schema, []string{responseTypeName})
-			if err != nil {
-				return nil, nil, fmt.Errorf("error generating request body definition: %w", err)
-			}
-
-			contentSchema.RefType = refType
-
-			td := TypeDefinition{
-				Name:         responseTypeName,
-				Schema:       contentSchema,
-				SpecLocation: SpecLocationResponse,
-			}
-
-			typeDefinitions = append(typeDefinitions, td)
-			typeDefinitions = append(typeDefinitions, contentSchema.AdditionalTypes...)
-
-			// TODO: remove after migration
-			resTypeDefs = append(resTypeDefs, ResponseTypeDefinition{
-				TypeDefinition:            td,
-				ContentTypeName:           contentType,
-				ResponseName:              responseTypeName,
-				AdditionalTypeDefinitions: contentSchema.AdditionalTypes,
-			})
-
-			description := ""
-			if response.Description != nil {
-				description = *response.Description
-			}
-
-			rcd := &ResponseContentDefinition{
-				ResponseName: responseTypeName,
-				IsSuccess:    isSuccess,
-				Description:  description,
-				Schema:       contentSchema,
-				Ref:          refType,
-				ContentType:  contentType,
-				NameTag:      tag,
-			}
-
+		if content == nil {
 			if isSuccess {
-				successDefinition = rcd
-			} else {
-				errorDefinition = rcd
+				successDefinition = &ResponseContentDefinition{
+					IsSuccess:   isSuccess,
+					Description: response.Description,
+				}
 			}
+			continue
+		}
+
+		ref := response.GoLow().GetReference()
+
+		contentSchema, err := GenerateGoSchema(content.Schema, ref, []string{operationID, typeSuffix})
+		if err != nil {
+			return nil, nil, fmt.Errorf("error generating request body definition: %w", err)
+		}
+		if contentSchema.IsZero() {
+			continue
+		}
+
+		if ref != "" {
+			// Convert the reference path to Go type
+			refType, err = refPathToGoType(ref)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error turning reference (%s) into a Go type: %w", ref, err)
+			}
+			contentSchema.RefType = refType
+		}
+
+		tag := ""
+		// TODO: check if needed
+		switch {
+		case contentType == "application/json":
+			tag = "JSON"
+		case isMediaTypeJson(contentType):
+			tag = mediaTypeToCamelCase(contentType)
+		case contentType == "application/x-www-form-urlencoded":
+			tag = "Formdata"
+		case strings.HasPrefix(contentType, "multipart/"):
+			tag = "Multipart"
+		case contentType == "text/plain":
+			tag = "Text"
+		}
+
+		responseName := operationID + typeSuffix
+		td := TypeDefinition{
+			Name:         responseName,
+			Schema:       contentSchema,
+			SpecLocation: SpecLocationResponse,
+		}
+		typeDefinitions = append(typeDefinitions, td)
+		typeDefinitions = append(typeDefinitions, contentSchema.AdditionalTypes...)
+
+		rcd := &ResponseContentDefinition{
+			ResponseName: responseName,
+			IsSuccess:    isSuccess,
+			Description:  response.Description,
+			Schema:       contentSchema,
+			Ref:          refType,
+			ContentType:  contentType,
+			NameTag:      tag,
+		}
+
+		if isSuccess {
+			successDefinition = rcd
+		} else {
+			errorDefinition = rcd
 		}
 	}
 
@@ -237,7 +178,6 @@ func getOperationResponses(operationID string, responses map[string]*openapi3.Re
 		SuccessStatusCode: successCode,
 		Success:           successDefinition,
 		Error:             errorDefinition,
-		TypeDefinitions:   resTypeDefs,
 	}
 
 	return res, typeDefinitions, nil

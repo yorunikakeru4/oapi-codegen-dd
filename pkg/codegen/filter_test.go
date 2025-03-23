@@ -3,7 +3,6 @@ package codegen
 import (
 	"testing"
 
-	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,11 +19,8 @@ func TestFilterOperationsByTag(t *testing.T) {
 			UseSingleOutput: true,
 		}
 
-		loader := openapi3.NewLoader()
-		loader.IsExternalRefsAllowed = true
-
 		// Get a spec from the test definition in this file:
-		doc, err := loader.LoadFromData([]byte(testDocument))
+		doc, err := loadDocumentFromContents([]byte(testDocument))
 		assert.NoError(t, err)
 
 		// Run our code generation:
@@ -45,11 +41,8 @@ func TestFilterOperationsByTag(t *testing.T) {
 			UseSingleOutput: true,
 		}
 
-		loader := openapi3.NewLoader()
-		loader.IsExternalRefsAllowed = true
-
 		// Get a spec from the test definition in this file:
-		doc, err := loader.LoadFromData([]byte(testDocument))
+		doc, err := loadDocumentFromContents([]byte(testDocument))
 		assert.NoError(t, err)
 
 		// Run our code generation:
@@ -62,6 +55,7 @@ func TestFilterOperationsByTag(t *testing.T) {
 
 func TestFilterOperationsByOperationID(t *testing.T) {
 	packageName := "testswagger"
+
 	t.Run("include operation ids", func(t *testing.T) {
 		opts := &Configuration{
 			PackageName: packageName,
@@ -73,10 +67,8 @@ func TestFilterOperationsByOperationID(t *testing.T) {
 			UseSingleOutput: true,
 		}
 
-		loader := openapi3.NewLoader()
-
 		// Get a spec from the test definition in this file:
-		doc, err := loader.LoadFromData([]byte(testDocument))
+		doc, err := loadDocumentFromContents([]byte(testDocument))
 		assert.NoError(t, err)
 
 		// Run our code generation:
@@ -96,11 +88,8 @@ func TestFilterOperationsByOperationID(t *testing.T) {
 			},
 		}
 
-		loader := openapi3.NewLoader()
-		loader.IsExternalRefsAllowed = true
-
 		// Get a spec from the test definition in this file:
-		doc, err := loader.LoadFromData([]byte(testDocument))
+		doc, err := loadDocumentFromContents([]byte(testDocument))
 		assert.NoError(t, err)
 
 		// Run our code generation:

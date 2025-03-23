@@ -2,9 +2,10 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 // goImport represents a go package to be imported in the generated code
@@ -45,14 +46,14 @@ func collectSchemaImports(s GoSchema) (map[string]goImport, error) {
 	res := map[string]goImport{}
 
 	for _, p := range s.Properties {
-		imprts, err := goSchemaImports(p.Schema.OpenAPISchema)
+		imprts, err := getOpenAPISchemaImports(p.Schema.OpenAPISchema)
 		if err != nil {
 			return nil, err
 		}
 		mergeImports(res, imprts)
 	}
 
-	imprts, err := goSchemaImports(s.OpenAPISchema)
+	imprts, err := getOpenAPISchemaImports(s.OpenAPISchema)
 	if err != nil {
 		return nil, err
 	}
@@ -60,16 +61,56 @@ func collectSchemaImports(s GoSchema) (map[string]goImport, error) {
 	return res, nil
 }
 
-func parseGoImportExtension(v *openapi3.Schema) (*goImport, error) {
-	if v.Extensions[extPropGoImport] == nil || v.Extensions[extPropGoType] == nil {
+func getOpenAPISchemaImports(schema *base.Schema) (map[string]goImport, error) {
+	res := map[string]goImport{}
+
+	if schema == nil || (schema.ParentProxy != nil && schema.ParentProxy.IsReference()) {
 		return nil, nil
 	}
 
-	goTypeImportExt := v.Extensions[extPropGoImport]
+	if gi, err := parseGoImportExtension(schema); err != nil {
+		return nil, err
+	} else {
+		if gi != nil {
+			res[gi.String()] = *gi
+		}
+	}
 
-	importI, ok := goTypeImportExt.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("failed to convert type: %T", goTypeImportExt)
+	t := schema.Type
+	if slices.Contains(t, "object") {
+		for _, v := range schema.Properties.FromOldest() {
+			imprts, err := getOpenAPISchemaImports(v.Schema())
+			if err != nil {
+				return nil, err
+			}
+			mergeImports(res, imprts)
+		}
+	} else if slices.Contains(t, "array") {
+		if schema.Items == nil {
+			return nil, nil
+		}
+		if schema.Items.IsA() && schema.Items.A != nil {
+			imprts, err := getOpenAPISchemaImports(schema.Items.A.Schema())
+			if err != nil {
+				return nil, err
+			}
+			mergeImports(res, imprts)
+		}
+	}
+
+	return res, nil
+}
+
+func parseGoImportExtension(v *base.Schema) (*goImport, error) {
+	if v.Extensions.Value(extPropGoImport) == nil || v.Extensions.Value(extPropGoType) == nil {
+		return nil, nil
+	}
+
+	importI := map[string]any{}
+	goTypeImportExt := v.Extensions.Value(extPropGoImport)
+	// TODO: check if this is correct
+	if err := goTypeImportExt.Decode(&importI); err != nil {
+		return nil, err
 	}
 
 	gi := goImport{}
@@ -91,39 +132,6 @@ func parseGoImportExtension(v *openapi3.Schema) (*goImport, error) {
 	}
 
 	return &gi, nil
-}
-
-func goSchemaImports(schema *openapi3.Schema) (map[string]goImport, error) {
-	res := map[string]goImport{}
-	if schema == nil {
-		return nil, nil
-	}
-
-	if gi, err := parseGoImportExtension(schema); err != nil {
-		return nil, err
-	} else {
-		if gi != nil {
-			res[gi.String()] = *gi
-		}
-	}
-
-	t := schema.Type
-	if t.Slice() == nil || t.Is("object") {
-		for _, v := range schema.Properties {
-			imprts, err := goSchemaImports(v.Value)
-			if err != nil {
-				return nil, err
-			}
-			mergeImports(res, imprts)
-		}
-	} else if t.Is("array") && schema.Items != nil {
-		imprts, err := goSchemaImports(schema.Items.Value)
-		if err != nil {
-			return nil, err
-		}
-		mergeImports(res, imprts)
-	}
-	return res, nil
 }
 
 func mergeImports(dst, src map[string]goImport) {

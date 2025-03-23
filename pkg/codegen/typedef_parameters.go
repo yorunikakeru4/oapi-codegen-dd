@@ -3,15 +3,24 @@ package codegen
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/iancoleman/strcase"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
+// ParameterDefinition is a struct that represents a parameter in an operation.
+// Name is the original json parameter name, eg param_name
+// In is where the parameter is defined - path, header, cookie, query
+// Required is whether the parameter is required
+// Spec is the parsed openapi3.Parameter object
+// GoSchema is the GoSchema object
 type ParameterDefinition struct {
-	ParamName string // The original json parameter name, eg param_name
-	In        string // Where the parameter is defined - path, header, cookie, query
-	Required  bool   // Is this a required parameter?
-	Spec      *openapi3.Parameter
+	ParamName string
+	In        string
+	Required  bool
+	Spec      *v3high.Parameter
 	Schema    GoSchema
 }
 
@@ -36,11 +45,9 @@ func (pd ParameterDefinition) JsonTag() string {
 
 func (pd ParameterDefinition) IsJson() bool {
 	p := pd.Spec
-	if len(p.Content) == 1 {
-		for k := range p.Content {
-			if isMediaTypeJson(k) {
-				return true
-			}
+	if p.Content.Len() == 1 {
+		if isMediaTypeJson(p.Content.First().Key()) {
+			return true
 		}
 	}
 	return false
@@ -48,10 +55,10 @@ func (pd ParameterDefinition) IsJson() bool {
 
 func (pd ParameterDefinition) IsPassThrough() bool {
 	p := pd.Spec
-	if len(p.Content) > 1 {
+	if p.Content.Len() > 1 {
 		return true
 	}
-	if len(p.Content) == 1 {
+	if p.Content.Len() == 1 {
 		return !pd.IsJson()
 	}
 	return false
@@ -60,22 +67,6 @@ func (pd ParameterDefinition) IsPassThrough() bool {
 func (pd ParameterDefinition) IsStyled() bool {
 	p := pd.Spec
 	return p.Schema != nil
-}
-
-func (pd ParameterDefinition) Style() string {
-	style := pd.Spec.Style
-	if style == "" {
-		in := pd.Spec.In
-		switch in {
-		case "path", "header":
-			return "simple"
-		case "query", "cookie":
-			return "form"
-		default:
-			panic("unknown parameter format")
-		}
-	}
-	return style
 }
 
 func (pd ParameterDefinition) Explode() bool {
@@ -93,9 +84,20 @@ func (pd ParameterDefinition) Explode() bool {
 	return *pd.Spec.Explode
 }
 
+func (pd ParameterDefinition) GoVariableName() string {
+	name := strcase.ToLowerCamel(pd.GoName())
+	if isGoKeyword(name) {
+		name = "p" + strcase.ToCamel(name)
+	}
+	if unicode.IsNumber([]rune(name)[0]) {
+		name = "n" + name
+	}
+	return name
+}
+
 func (pd ParameterDefinition) GoName() string {
 	goName := pd.ParamName
-	if extension, ok := pd.Spec.Extensions[extGoName]; ok {
+	if extension, ok := pd.Spec.Extensions.Get(extGoName); ok {
 		if extGoFieldName, err := extParseGoFieldName(extension); err == nil {
 			goName = extGoFieldName
 		}
@@ -118,36 +120,51 @@ func (p ParameterDefinitions) FindByName(name string) *ParameterDefinition {
 	return nil
 }
 
-// describeParameters walks the given parameters dictionary, and generates the above
+// describeOperationParameters walks the given parameters dictionary, and generates the above
 // descriptors into a flat list. This makes it a lot easier to traverse the
 // data in the template engine.
-func describeParameters(params openapi3.Parameters, path []string) ([]ParameterDefinition, error) {
+func describeOperationParameters(params []*v3high.Parameter, path []string) ([]ParameterDefinition, error) {
 	outParams := make([]ParameterDefinition, 0)
-	for _, paramOrRef := range params {
-		param := paramOrRef.Value
+	for _, param := range params {
+		schemaProxy := param.Schema
+		ref := ""
+		if schemaProxy != nil {
+			ref = schemaProxy.GoLow().GetReference()
+		}
 
-		goType, err := paramToGoType(param, append(path, param.Name))
+		inSuffix := "Param"
+		if param.In == "query" {
+			inSuffix = "Query"
+		} else if param.In == "path" {
+			inSuffix = "Path"
+		} else if param.In == "header" {
+			inSuffix = "Header"
+		}
+
+		goSchema, err := paramToGoType(param, append(path, inSuffix, param.Name))
 		if err != nil {
-			return nil, fmt.Errorf("error generating type for param (%s): %s",
-				param.Name, err)
+			return nil, fmt.Errorf("error generating type for param (%s): %s", param.Name, err)
+		}
+
+		required := false
+		if param.Required != nil {
+			required = *param.Required
 		}
 
 		pd := ParameterDefinition{
 			ParamName: param.Name,
 			In:        param.In,
-			Required:  param.Required,
+			Required:  required,
 			Spec:      param,
-			Schema:    goType,
+			Schema:    goSchema,
 		}
 
 		// If this is a reference to a predefined type, simply use the reference
-		// name as the type. $ref: "#/components/schemas/custom_type" becomes
-		// "CustomType".
-		if paramOrRef.Ref != "" {
-			goType, err := refPathToGoType(paramOrRef.Ref)
+		// name as the type. $ref: "#/components/schemas/custom_type" becomes "CustomType".
+		if ref != "" {
+			goType, err := refPathToGoType(ref)
 			if err != nil {
-				return nil, fmt.Errorf("error dereferencing (%s) for param (%s): %s",
-					paramOrRef.Ref, param.Name, err)
+				return nil, fmt.Errorf("error dereferencing (%s) for param (%s): %s", ref, param.Name, err)
 			}
 			pd.Schema.GoType = goType
 		}
@@ -211,16 +228,21 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([
 		}
 
 		typeDefs = append(typeDefs, pSchema.AdditionalTypes...)
-		exts := param.Spec.Extensions
+		exts := extractExtensions(param.Spec.Extensions)
+
+		oapiSchemaProxy := param.Spec.Schema
+		var oapiSchema *base.Schema
+		if oapiSchemaProxy != nil {
+			oapiSchema = oapiSchemaProxy.Schema()
+		}
 
 		properties = append(properties, Property{
 			GoName:        createPropertyGoFieldName(param.ParamName, exts),
 			Description:   param.Spec.Description,
 			JsonFieldName: param.ParamName,
 			Schema:        pSchema,
-			NeedsFormTag:  param.Style() == "form",
-			Extensions:    param.Spec.Extensions,
-			Constraints: getSchemaConstraints(param.Spec.Schema.Value, ConstraintsContext{
+			Extensions:    exts,
+			Constraints: getSchemaConstraints(oapiSchema, ConstraintsContext{
 				name:     param.ParamName,
 				required: param.Required,
 			}),
@@ -245,20 +267,22 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string) ([
 
 // This constructs a Go type for a parameter, looking at either the schema or
 // the content, whichever is available
-func paramToGoType(param *openapi3.Parameter, path []string) (GoSchema, error) {
+func paramToGoType(param *v3high.Parameter, path []string) (GoSchema, error) {
 	if param.Content == nil && param.Schema == nil {
 		return GoSchema{}, fmt.Errorf("parameter '%s' has no schema or content", param.Name)
 	}
 
+	ref := param.GoLow().GetReference()
+
 	// We can process the schema through the generic schema processor
 	if param.Schema != nil {
-		return GenerateGoSchema(param.Schema, path)
+		return GenerateGoSchema(param.Schema, ref, path)
 	}
 
 	// At this point, we have a content type. We know how to deal with
 	// application/json, but if multiple formats are present, we can't do anything,
 	// so we'll return the parameter as a string, not bothering to decode it.
-	if len(param.Content) > 1 {
+	if param.Content.Len() > 1 {
 		return GoSchema{
 			GoType:      "string",
 			Description: stringToGoComment(param.Description),
@@ -266,7 +290,7 @@ func paramToGoType(param *openapi3.Parameter, path []string) (GoSchema, error) {
 	}
 
 	// Otherwise, look for application/json in there
-	mt, found := param.Content["application/json"]
+	mediaType, found := param.Content.Get("application/json")
 	if !found {
 		// If we don't have json, it's a string
 		return GoSchema{
@@ -275,6 +299,7 @@ func paramToGoType(param *openapi3.Parameter, path []string) (GoSchema, error) {
 		}, nil
 	}
 
+	mediaRef := mediaType.GoLow().GetReference()
 	// For json, we go through the standard schema mechanism
-	return GenerateGoSchema(mt.Schema, path)
+	return GenerateGoSchema(mediaType.Schema, mediaRef, path)
 }

@@ -5,23 +5,27 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 // oapiSchemaToGoType converts an OpenApi schema into a Go type definition for
 // all non-object types.
-func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error) {
+func oapiSchemaToGoType(schema *base.Schema, ref string, path []string) (GoSchema, error) {
 	f := schema.Format
 	t := schema.Type
 	constraints := getSchemaConstraints(schema, ConstraintsContext{
 		name:       "",
-		hasNilType: schema.Nullable,
+		hasNilType: slices.Contains(t, "null"),
 	})
 
-	if t.Is("array") {
+	if slices.Contains(t, "array") {
 		// For arrays, we'll get the type of the Items and throw a
 		// [] in front of it.
-		arrayType, err := GenerateGoSchema(schema.Items, path)
+		var items *base.SchemaProxy
+		if schema != nil && schema.Items != nil && schema.Items.IsA() {
+			items = schema.Items.A
+		}
+		arrayType, err := GenerateGoSchema(items, ref, path)
 		if err != nil {
 			return GoSchema{}, fmt.Errorf("error generating type for array: %w", err)
 		}
@@ -38,7 +42,6 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error
 				Schema:   arrayType,
 			}
 			arrayType.AdditionalTypes = append(arrayType.AdditionalTypes, typeDef)
-
 			arrayType.RefType = typeName
 		}
 
@@ -59,7 +62,7 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error
 		}, nil
 	}
 
-	if t.Is("integer") {
+	if slices.Contains(t, "integer") {
 		// We default to int if format doesn't ask for something else.
 		goType := "int"
 		switch f {
@@ -92,7 +95,7 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error
 		}, nil
 	}
 
-	if t.Is("number") {
+	if slices.Contains(t, "number") {
 		// We default to float for "number"
 		goType := "float32"
 		switch f {
@@ -115,7 +118,7 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error
 		}, nil
 	}
 
-	if t.Is("boolean") {
+	if slices.Contains(t, "boolean") {
 		if f != "" {
 			return GoSchema{}, fmt.Errorf("invalid format (%s) for boolean", f)
 		}
@@ -128,7 +131,7 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error
 		}, nil
 	}
 
-	if t.Is("string") {
+	if slices.Contains(t, "string") {
 		// Special case string formats here.
 		// All unrecognized formats are simply a regular string.
 		goType := "string"
@@ -160,10 +163,14 @@ func oapiSchemaToGoType(schema *openapi3.Schema, path []string) (GoSchema, error
 		}, nil
 	}
 
+	if slices.Contains(t, "null") {
+		return GoSchema{}, nil
+	}
+
 	return GoSchema{}, fmt.Errorf("unhandled GoSchema type: %v", t)
 }
 
-func getSchemaConstraints(schema *openapi3.Schema, opts ConstraintsContext) Constraints {
+func getSchemaConstraints(schema *base.Schema, opts ConstraintsContext) Constraints {
 	if schema == nil {
 		return Constraints{}
 	}
@@ -179,8 +186,8 @@ func getSchemaConstraints(schema *openapi3.Schema, opts ConstraintsContext) Cons
 	nullable := false
 	if !required || hasNilType {
 		nullable = true
-	} else if schema.Nullable {
-		nullable = schema.Nullable
+	} else if schema.Nullable != nil {
+		nullable = *schema.Nullable
 	}
 
 	if required && nullable {
@@ -188,33 +195,33 @@ func getSchemaConstraints(schema *openapi3.Schema, opts ConstraintsContext) Cons
 	}
 
 	readOnly := false
-	if schema.ReadOnly {
-		readOnly = schema.ReadOnly
+	if schema.ReadOnly != nil {
+		readOnly = *schema.ReadOnly
 	}
 
 	writeOnly := false
-	if schema.WriteOnly {
-		writeOnly = schema.WriteOnly
+	if schema.WriteOnly != nil {
+		writeOnly = *schema.WriteOnly
 	}
 
 	minValue := float64(0)
-	if schema.Min != nil {
-		minValue = *schema.Min
+	if schema.Minimum != nil {
+		minValue = *schema.Minimum
 	}
 
 	maxValue := float64(0)
-	if schema.Max != nil {
-		maxValue = *schema.Max
+	if schema.Maximum != nil {
+		maxValue = *schema.Maximum
 	}
 
 	minLength := int64(0)
-	if schema.MinLength != 0 {
-		minLength = int64(schema.MinLength)
+	if schema.MinLength != nil {
+		minLength = *schema.MinLength
 	}
 
 	maxLength := int64(0)
 	if schema.MaxLength != nil {
-		maxLength = int64(*schema.MaxLength)
+		maxLength = *schema.MaxLength
 	}
 
 	return Constraints{

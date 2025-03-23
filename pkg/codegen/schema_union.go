@@ -1,11 +1,10 @@
 package codegen
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
 )
 
 // UnionElement describe union element, based on prefix externalRef\d+ and real ref name from external schema.
@@ -25,7 +24,9 @@ func (u UnionElement) Method() string {
 	return method
 }
 
-func generateUnion(outSchema *GoSchema, elements openapi3.SchemaRefs, discriminator *openapi3.Discriminator, path []string) error {
+func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminator, path []string) (GoSchema, error) {
+	outSchema := GoSchema{}
+
 	if discriminator != nil {
 		outSchema.Discriminator = &Discriminator{
 			Property: discriminator.PropertyName,
@@ -34,36 +35,48 @@ func generateUnion(outSchema *GoSchema, elements openapi3.SchemaRefs, discrimina
 	}
 
 	refToGoTypeMap := make(map[string]string)
+
 	for i, element := range elements {
+		if element == nil {
+			continue
+		}
 		elementPath := append(path, fmt.Sprint(i))
-		elementSchema, err := GenerateGoSchema(element, elementPath)
+		ref := element.GoLow().GetReference()
+		elementSchema, err := GenerateGoSchema(element, ref, elementPath)
 		if err != nil {
-			return err
+			return GoSchema{}, err
 		}
 
-		if element.Ref == "" {
+		if ref != "" {
+			refToGoTypeMap[ref] = elementSchema.GoType
+		}
+
+		if ref == "" {
 			elementName := schemaNameToTypeName(pathToTypeName(elementPath))
+
 			if elementSchema.TypeDecl() == elementName {
 				elementSchema.GoType = elementName
 			} else {
-				td := TypeDefinition{Schema: elementSchema, Name: elementName}
+				td := TypeDefinition{
+					Schema:       elementSchema,
+					Name:         elementName,
+					SpecLocation: SpecLocationUnion,
+				}
 				outSchema.AdditionalTypes = append(outSchema.AdditionalTypes, td)
 				elementSchema.GoType = td.Name
 			}
 			outSchema.AdditionalTypes = append(outSchema.AdditionalTypes, elementSchema.AdditionalTypes...)
-		} else {
-			refToGoTypeMap[element.Ref] = elementSchema.GoType
 		}
 
 		if discriminator != nil {
-			if len(discriminator.Mapping) != 0 && element.Ref == "" {
-				return errors.New("ambiguous discriminator.mapping: please replace inlined object with $ref")
+			if discriminator.Mapping.Len() != 0 && element.GetReference() == "" {
+				return GoSchema{}, ErrAmbiguousDiscriminatorMapping
 			}
 
 			// Explicit mapping.
 			var mapped bool
-			for k, v := range discriminator.Mapping {
-				if v == element.Ref {
+			for k, v := range discriminator.Mapping.FromOldest() {
+				if v == element.GetReference() {
 					outSchema.Discriminator.Mapping[k] = elementSchema.GoType
 					mapped = true
 					break
@@ -71,15 +84,15 @@ func generateUnion(outSchema *GoSchema, elements openapi3.SchemaRefs, discrimina
 			}
 			// Implicit mapping.
 			if !mapped {
-				outSchema.Discriminator.Mapping[refPathToObjName(element.Ref)] = elementSchema.GoType
+				outSchema.Discriminator.Mapping[refPathToObjName(element.GetReference())] = elementSchema.GoType
 			}
 		}
 		outSchema.UnionElements = append(outSchema.UnionElements, UnionElement(elementSchema.GoType))
 	}
 
 	if (outSchema.Discriminator != nil) && len(outSchema.Discriminator.Mapping) != len(elements) {
-		return errors.New("discriminator: not all schemas were mapped")
+		return GoSchema{}, ErrDiscriminatorNotAllMapped
 	}
 
-	return nil
+	return outSchema, nil
 }

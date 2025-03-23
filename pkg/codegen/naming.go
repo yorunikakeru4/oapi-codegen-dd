@@ -25,7 +25,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 var (
@@ -417,23 +418,6 @@ func schemaNameToTypeName(name string) string {
 	return typeNamePrefix(name) + nameNormalizer(name)
 }
 
-// According to the spec, additionalProperties may be true, false, or a
-// schema. If not present, true is implied. If it's a schema, true is implied.
-// If it's false, no additional properties are allowed. We're going to act a little
-// differently, in that if you want additionalProperties code to be generated,
-// you must specify an additionalProperties type
-// If additionalProperties it true/false, this field will be non-nil.
-func schemaHasAdditionalProperties(schema *openapi3.Schema) bool {
-	if schema.AdditionalProperties.Has != nil && *schema.AdditionalProperties.Has {
-		return true
-	}
-
-	if schema.AdditionalProperties.Schema != nil {
-		return true
-	}
-	return false
-}
-
 // pathToTypeName converts a path, like Object/field1/nestedField into a go
 // type name.
 func pathToTypeName(path []string) string {
@@ -509,15 +493,15 @@ func escapePathElements(path string) string {
 // and the definition of the schema. If the schema overrides the name via
 // x-go-name, the new name is returned, otherwise, the original name is
 // returned.
-func renameSchema(schemaName string, schemaRef *openapi3.SchemaRef) (string, error) {
+func renameSchema(schemaName string, schemaRef *base.SchemaProxy) (string, error) {
 	// References will not change type names.
-	if schemaRef.Ref != "" {
+	if schemaRef.IsReference() {
 		return schemaNameToTypeName(schemaName), nil
 	}
-	schema := schemaRef.Value
+	schema := schemaRef.Schema()
 
-	if extension, ok := schema.Extensions[extGoName]; ok {
-		typeName, err := extTypeName(extension)
+	if extension, ok := schema.Extensions.Get(extGoName); ok {
+		typeName, err := extString(extension)
 		if err != nil {
 			return "", fmt.Errorf("invalid value for %q: %w", extPropGoType, err)
 		}
@@ -526,16 +510,15 @@ func renameSchema(schemaName string, schemaRef *openapi3.SchemaRef) (string, err
 	return schemaNameToTypeName(schemaName), nil
 }
 
-// renameParameter generates the name for a parameter, taking x-go-name into
-// account
-func renameParameter(parameterName string, parameterRef *openapi3.ParameterRef) (string, error) {
-	if parameterRef.Ref != "" {
+// renameParameter generates the name for a parameter, taking x-go-name into account
+func renameParameter(parameterName string, parameterRef *v3.Parameter) (string, error) {
+	if parameterRef.Schema != nil && parameterRef.Schema.IsReference() {
 		return schemaNameToTypeName(parameterName), nil
 	}
-	parameter := parameterRef.Value
+	parameter := parameterRef
 
-	if extension, ok := parameter.Extensions[extGoName]; ok {
-		typeName, err := extTypeName(extension)
+	if extension, ok := parameter.Extensions.Get(extGoName); ok {
+		typeName, err := extString(extension)
 		if err != nil {
 			return "", fmt.Errorf("invalid value for %q: %w", extPropGoType, err)
 		}
@@ -546,14 +529,14 @@ func renameParameter(parameterName string, parameterRef *openapi3.ParameterRef) 
 
 // renameResponse generates the name for a parameter, taking x-go-name into
 // account
-func renameResponse(responseName string, responseRef *openapi3.ResponseRef) (string, error) {
-	if responseRef.Ref != "" {
+func renameResponse(responseName string, responseRef *base.SchemaProxy) (string, error) {
+	if responseRef.IsReference() {
 		return schemaNameToTypeName(responseName), nil
 	}
-	response := responseRef.Value
+	response := responseRef.Schema()
 
-	if extension, ok := response.Extensions[extGoName]; ok {
-		typeName, err := extTypeName(extension)
+	if extension, ok := response.Extensions.Get(extGoName); ok {
+		typeName, err := extString(extension)
 		if err != nil {
 			return "", fmt.Errorf("invalid value for %q: %w", extPropGoType, err)
 		}
@@ -564,29 +547,20 @@ func renameResponse(responseName string, responseRef *openapi3.ResponseRef) (str
 
 // renameRequestBody generates the name for a parameter, taking x-go-name into
 // account
-func renameRequestBody(requestBodyName string, requestBodyRef *openapi3.RequestBodyRef) (string, error) {
-	if requestBodyRef.Ref != "" {
+func renameRequestBody(requestBodyName string, requestBodyRef *base.SchemaProxy) (string, error) {
+	if requestBodyRef.IsReference() {
 		return schemaNameToTypeName(requestBodyName), nil
 	}
-	requestBody := requestBodyRef.Value
+	requestBody := requestBodyRef.Schema()
 
-	if extension, ok := requestBody.Extensions[extGoName]; ok {
-		typeName, err := extTypeName(extension)
+	if extension, ok := requestBody.Extensions.Get(extGoName); ok {
+		typeName, err := extString(extension)
 		if err != nil {
 			return "", fmt.Errorf("invalid value for %q: %w", extPropGoType, err)
 		}
 		return typeName, nil
 	}
 	return schemaNameToTypeName(requestBodyName), nil
-}
-
-// isAdditionalPropertiesExplicitFalse determines whether an openapi3.Schema is explicitly defined as `additionalProperties: false`
-func isAdditionalPropertiesExplicitFalse(s *openapi3.Schema) bool {
-	if s.AdditionalProperties.Has == nil {
-		return false
-	}
-
-	return *s.AdditionalProperties.Has == false //nolint:gosimple
 }
 
 func isMediaTypeJson(mediaType string) bool {

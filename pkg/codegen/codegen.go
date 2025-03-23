@@ -2,9 +2,9 @@ package codegen
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/getkin/kin-openapi/openapi3"
+	"github.com/pb33f/libopenapi"
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 // ParseContext holds the OpenAPI models.
@@ -18,34 +18,10 @@ type ParseContext struct {
 	Imports                  []string
 }
 
-// CreateParseContext creates a ParseContext from an OpenAPI file and a ParseConfig.
-func CreateParseContext(file string, cfg *Configuration) (*ParseContext, []error) {
-	if cfg == nil {
-		cfg = NewDefaultConfiguration()
-	}
-
-	contents, err := os.ReadFile(file)
-	if err != nil {
-		return nil, []error{err}
-	}
-
-	doc, err := openapi3.NewLoader().LoadFromData(contents)
-	if err != nil {
-		return nil, []error{err}
-	}
-
-	res, err := createParseContextFromDocument(doc, cfg)
-	if err != nil {
-		return nil, []error{err}
-	}
-
-	return res, nil
-}
-
 // Generate uses the Go templating engine to generate all of our server wrappers from
 // the descriptions we've built up above from the schema objects.
-func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
-	parseCtx, err := createParseContextFromDocument(spec, cfg)
+func Generate(doc libopenapi.Document, cfg *Configuration) (string, error) {
+	parseCtx, err := createParseContextFromDocument(doc, cfg)
 	if err != nil {
 		return "", fmt.Errorf("error creating parse context: %w", err)
 	}
@@ -64,11 +40,43 @@ func Generate(spec *openapi3.T, cfg *Configuration) (string, error) {
 	return FormatCode(codes["all"]), nil
 }
 
-func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*ParseContext, error) {
-	doc, err := filterDocument(doc, cfg)
+// CreateParseContext creates a ParseContext from an OpenAPI file and a ParseConfig.
+func CreateParseContext(file string, cfg *Configuration) (*ParseContext, []error) {
+	if cfg == nil {
+		cfg = NewDefaultConfiguration()
+	}
+
+	doc, err := loadDocumentFromFile(file)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	res, err := createParseContextFromDocument(doc, cfg)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	return res, nil
+}
+
+func createParseContextFromDocument(doc libopenapi.Document, cfg *Configuration) (*ParseContext, error) {
+	doc, err := filterOutDocument(doc, cfg.Filter)
 	if err != nil {
 		return nil, fmt.Errorf("error filtering document: %w", err)
 	}
+
+	if !cfg.SkipPrune {
+		doc, err = pruneSchema(doc)
+		if err != nil {
+			return nil, fmt.Errorf("error pruning unused components: %w", err)
+		}
+	}
+
+	builtModel, errs := doc.BuildV3Model()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+	model := &builtModel.Model
 
 	var (
 		operations    []OperationDefinition
@@ -76,41 +84,36 @@ func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*Parse
 		typeDefs      []TypeDefinition
 	)
 
-	if doc == nil || doc.Paths == nil {
+	if model == nil || model.Paths == nil {
 		return nil, nil
 	}
 
-	for _, requestPath := range sortedMapKeys(doc.Paths.Map()) {
-		pathItem := doc.Paths.Value(requestPath)
+	for path, pathItem := range model.Paths.PathItems.FromOldest() {
 		// These are parameters defined for all methods on a given path. They
 		// are shared by all methods.
-		globalParams, err := describeParameters(pathItem.Parameters, nil)
+		globalParams, err := describeOperationParameters(pathItem.Parameters, nil)
 		if err != nil {
-			return nil, fmt.Errorf("error describing global parameters for %s: %s",
-				requestPath, err)
+			return nil, fmt.Errorf("error describing global parameters for %s: %s", path, err)
 		}
 
-		// Each path can have a number of operations, POST, GET, OPTIONS, etc.
-		pathOps := pathItem.Operations()
-		for _, method := range sortedMapKeys(pathOps) {
+		for method, operation := range pathItem.GetOperations().FromOldest() {
 			var (
 				headerDef     *TypeDefinition
 				queryDef      *TypeDefinition
 				pathParamsDef *TypeDefinition
 			)
 
-			op := pathOps[method]
-			operationID, err := createOperationID(method, requestPath, op.OperationID)
+			operationID, err := createOperationID(method, path, operation.OperationId)
 			if err != nil {
 				return nil, fmt.Errorf("error creating operation ID: %w", err)
 			}
 
 			// These are parameters defined for the specific path method that we're iterating over.
-			localParams, err := describeParameters(op.Parameters, []string{op.OperationID + "Params"})
+			localParams, err := describeOperationParameters(operation.Parameters, []string{operationID})
 			if err != nil {
-				return nil, fmt.Errorf("error describing global parameters for %s/%s: %s",
-					method, requestPath, err)
+				return nil, fmt.Errorf("error describing local parameters for %s/%s: %s", method, path, err)
 			}
+
 			// All the parameters required by a handler are the union of the
 			// global parameters and the local parameters.
 			allParams, err := combineOperationParameters(globalParams, localParams)
@@ -124,12 +127,8 @@ func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*Parse
 			// Order the path parameters to match the order as specified in
 			// the path, not in the openapi spec, and validate that the parameter
 			// names match, as downstream code depends on that.
-			pathParams := filterParameterDefinitionByType(allParams, "path")
-			pathParams, err = sortParamsByPath(requestPath, pathParams)
-			if err != nil {
-				return nil, err
-			}
-			pathDefs, pathSchemas := generateParamsTypes(pathParams, operationID+"Path")
+			pathParameters := filterParameterDefinitionByType(allParams, "path")
+			pathDefs, pathSchemas := generateParamsTypes(pathParameters, operationID+"Path")
 			if len(pathDefs) > 0 {
 				pathParamsDef = &pathDefs[len(pathDefs)-1]
 				typeDefs = append(typeDefs, pathDefs...)
@@ -159,7 +158,7 @@ func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*Parse
 			}
 
 			// Process Request Body
-			bodyDefinition, bodyTypeDef, err := createBodyDefinition(operationID, op.RequestBody)
+			bodyDefinition, bodyTypeDef, err := createBodyDefinition(operationID, operation.RequestBody)
 			if err != nil {
 				return nil, fmt.Errorf("error generating body definitions: %w", err)
 			}
@@ -172,7 +171,7 @@ func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*Parse
 			}
 
 			// Process Responses
-			responseDef, responseTypes, err := getOperationResponses(operationID, op.Responses.Map())
+			responseDef, responseTypes, err := getOperationResponses(operationID, operation.Responses)
 			if err != nil {
 				return nil, fmt.Errorf("error getting operation responses: %w", err)
 			}
@@ -181,29 +180,23 @@ func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*Parse
 				importSchemas = append(importSchemas, responseType.Schema)
 			}
 
-			opDef := OperationDefinition{
+			operations = append(operations, OperationDefinition{
 				ID:          operationID,
-				Summary:     op.Summary,
-				Description: op.Description,
+				Summary:     operation.Summary,
+				Description: operation.Description,
 				Method:      method,
-				Path:        requestPath,
+				Path:        path,
 				PathParams:  pathParamsDef,
 				Header:      headerDef,
 				Query:       queryDef,
 				Response:    *responseDef,
 				Body:        bodyDefinition,
-			}
-
-			if op.RequestBody != nil {
-				opDef.BodyRequired = op.RequestBody.Value.Required
-			}
-
-			operations = append(operations, opDef)
+			})
 		}
 	}
 
 	// Process Components
-	componentDefs, err := collectComponentDefinitions(doc)
+	componentDefs, err := collectComponentDefinitions(model)
 	if err != nil {
 		return nil, fmt.Errorf("error collecting component definitions: %s", err)
 	}
@@ -279,34 +272,48 @@ func createParseContextFromDocument(doc *openapi3.T, cfg *Configuration) (*Parse
 }
 
 // collectComponentDefinitions collects all the components from the model and returns them as a list of TypeDefinition.
-func collectComponentDefinitions(model *openapi3.T) ([]TypeDefinition, error) {
+func collectComponentDefinitions(model *v3high.Document) ([]TypeDefinition, error) {
 	if model.Components == nil {
 		return nil, nil
 	}
 
 	var typeDefs []TypeDefinition
-	schemaTypes, err := getComponentsSchemas(model.Components.Schemas)
-	if err != nil {
-		return nil, fmt.Errorf("error generating Go types for component schemas: %w", err)
+
+	// Parameters
+	if model.Components.Parameters != nil {
+		res, err := getComponentParameters(model.Components.Parameters)
+		if err != nil {
+			return nil, err
+		}
+		typeDefs = append(typeDefs, res...)
 	}
 
-	paramTypes, err := getComponentParameters(model.Components.Parameters)
-	if err != nil {
-		return nil, fmt.Errorf("error generating Go types for component parameters: %w", err)
+	// Schemas
+	if model.Components.Schemas != nil {
+		schemas, err := getComponentsSchemas(model.Components.Schemas)
+		if err != nil {
+			return nil, fmt.Errorf("error getting components schemas: %w", err)
+		}
+		typeDefs = append(typeDefs, schemas...)
 	}
-	typeDefs = append(schemaTypes, paramTypes...)
 
-	responseTypes, err := getContentResponses(model.Components.Responses)
-	if err != nil {
-		return nil, fmt.Errorf("error generating Go types for component responses: %w", err)
+	// RequestBodies
+	if model.Components.RequestBodies != nil {
+		bodyTypes, err := getComponentsRequestBodies(model.Components.RequestBodies)
+		if err != nil {
+			return nil, fmt.Errorf("error getting components request bodies: %w", err)
+		}
+		typeDefs = append(typeDefs, bodyTypes...)
 	}
-	typeDefs = append(typeDefs, responseTypes...)
 
-	bodyTypes, err := getComponentsRequestBodies(model.Components.RequestBodies)
-	if err != nil {
-		return nil, fmt.Errorf("error generating Go types for component request bodies: %w", err)
+	// Responses
+	if model.Components.Responses != nil {
+		componentResponses, err := getContentResponses(model.Components.Responses)
+		if err != nil {
+			return nil, fmt.Errorf("error getting content responses: %w", err)
+		}
+		typeDefs = append(typeDefs, componentResponses...)
 	}
-	typeDefs = append(typeDefs, bodyTypes...)
 
 	return typeDefs, nil
 }
