@@ -104,8 +104,9 @@ func getOperationResponses(operationID string, responses *v3high.Responses) (*Re
 		if content == nil {
 			if isSuccess {
 				successDefinition = &ResponseContentDefinition{
-					IsSuccess:   isSuccess,
-					Description: response.Description,
+					IsSuccess:    isSuccess,
+					Description:  response.Description,
+					ResponseName: "struct{}",
 				}
 			}
 			continue

@@ -54,28 +54,11 @@ func (o OperationDefinition) SummaryAsComment() string {
 	return strings.Join(parts, "\n")
 }
 
-func (o OperationDefinition) HasSuccessResponse() bool {
-	return o.Response.SuccessStatusCode == http.StatusNoContent ||
-		(o.Response.Success != nil && o.Response.Success.ResponseName != "")
-}
-
 func (o OperationDefinition) GetSuccessResponse() string {
-	return o.Response.Success.ResponseName
-}
-
-func (o OperationDefinition) HasErrorResponse() bool {
-	return o.Response.Error != nil
-}
-
-func (o OperationDefinition) GetErrorResponse() string {
-	return o.Response.Error.ResponseName
-}
-
-func (o OperationDefinition) GetFunctionResponse() string {
-	if !o.HasSuccessResponse() {
-		return "error"
+	if o.Response.SuccessStatusCode == http.StatusNoContent {
+		return ""
 	}
-	return "(" + "*" + o.Response.Success.ResponseName + ", error)"
+	return o.Response.Success.ResponseName
 }
 
 func (o OperationDefinition) HasRequestOptions() bool {
