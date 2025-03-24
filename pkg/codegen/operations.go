@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"net/http"
 	"strings"
 )
 
@@ -54,7 +55,8 @@ func (o OperationDefinition) SummaryAsComment() string {
 }
 
 func (o OperationDefinition) HasSuccessResponse() bool {
-	return o.Response.Success != nil && o.Response.Success.ResponseName != ""
+	return o.Response.SuccessStatusCode == http.StatusNoContent ||
+		(o.Response.Success != nil && o.Response.Success.ResponseName != "")
 }
 
 func (o OperationDefinition) GetSuccessResponse() string {
