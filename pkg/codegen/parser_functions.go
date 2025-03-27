@@ -23,6 +23,7 @@ var TemplateFunctions = template.FuncMap{
 	"hasPrefix":   strings.HasPrefix,
 	"hasSuffix":   strings.HasSuffix,
 	"str":         str,
+	"dict":        dict,
 }
 
 // uppercaseFirstCharacter Uppercases the first character in a string.
@@ -81,4 +82,20 @@ func fst(v any) string {
 
 func str(v any) string {
 	return fmt.Sprintf("%v", v)
+}
+
+func dict(values ...any) (map[string]any, error) {
+	if len(values)%2 != 0 {
+		return nil, fmt.Errorf("invalid call to dict: uneven arguments")
+	}
+
+	d := make(map[string]any, len(values)/2)
+	for i := 0; i < len(values); i += 2 {
+		key, ok := values[i].(string)
+		if !ok {
+			return nil, fmt.Errorf("dict keys must be strings")
+		}
+		d[key] = values[i+1]
+	}
+	return d, nil
 }
