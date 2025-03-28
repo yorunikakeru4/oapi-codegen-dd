@@ -1,8 +1,5 @@
 # yaml-language-server: $schema=../../configuration-schema.json
 package: anyofallofoneof
-output: anyofallofoneof.gen.go
-generate:
-  models: true
-output-options:
-  # NOTE that this is only required for the `Unreferenced` type
-  skip-prune: true
+output: gen.go
+skip-prune: true
+use-single-output: true

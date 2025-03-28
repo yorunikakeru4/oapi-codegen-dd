@@ -18,12 +18,20 @@ type ParseContext struct {
 	Imports                  []string
 }
 
-// Generate uses the Go templating engine to generate all of our server wrappers from
-// the descriptions we've built up above from the schema objects.
-func Generate(doc libopenapi.Document, cfg Configuration) (string, error) {
-	parseCtx, err := createParseContextFromDocument(doc, cfg)
-	if err != nil {
-		return "", fmt.Errorf("error creating parse context: %w", err)
+type operationsCollection struct {
+	operations    []OperationDefinition
+	importSchemas []GoSchema
+	typeDefs      []TypeDefinition
+}
+
+// Generate creates Go code from an OpenAPI document and a configuration in single file output.
+func Generate(docContents []byte, cfg Configuration) (string, error) {
+	parseCtx, errs := CreateParseContext(docContents, cfg)
+	if errs != nil {
+		return "", fmt.Errorf("error creating parse context: %w", errs[0])
+	}
+	if parseCtx == nil {
+		return "", ErrEmptySchema
 	}
 
 	parser, err := NewParser(cfg, parseCtx)
@@ -85,9 +93,107 @@ func createParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 		typeDefs      []TypeDefinition
 	)
 
-	if model == nil || model.Paths == nil {
+	if model == nil {
 		return nil, nil
 	}
+
+	opColl, err := collectOperationDefinitions(model)
+	if err != nil {
+		return nil, fmt.Errorf("error collecting operation definitions: %w", err)
+	}
+
+	if opColl != nil {
+		operations = opColl.operations
+		importSchemas = opColl.importSchemas
+		typeDefs = opColl.typeDefs
+	}
+
+	// Process Components
+	componentDefs, err := collectComponentDefinitions(model)
+	if err != nil {
+		return nil, fmt.Errorf("error collecting component definitions: %s", err)
+	}
+	typeDefs = append(typeDefs, componentDefs...)
+
+	// Collect Schemas from components
+	for _, componentDef := range componentDefs {
+		importSchemas = append(importSchemas, componentDef.Schema)
+	}
+
+	// Collect Imports
+	imprts := map[string]goImport{}
+	for _, schema := range importSchemas {
+		importRes, err := collectSchemaImports(schema)
+		if err != nil {
+			return nil, fmt.Errorf("error getting schema imports: %w", err)
+		}
+		mergeImports(imprts, importRes)
+	}
+
+	typeDefs, err = checkDuplicates(typeDefs)
+	if err != nil {
+		return nil, fmt.Errorf("error checking for duplicate type definitions: %w", err)
+	}
+
+	enums, typeDefs := filterOutEnums(typeDefs)
+
+	groupedTypeDefs := make(map[SpecLocation][]TypeDefinition)
+	var (
+		additionalTypes          []TypeDefinition
+		unionTypes               []TypeDefinition
+		unionWithAdditionalTypes []TypeDefinition
+	)
+
+	for _, td := range typeDefs {
+		collected := false
+		if td.Schema.HasAdditionalProperties {
+			additionalTypes = append(additionalTypes, td)
+			collected = true
+		}
+
+		if len(td.Schema.UnionElements) != 0 {
+			td.SpecLocation = SpecLocationUnion
+			unionTypes = append(unionTypes, td)
+			collected = true
+		} else if td.SpecLocation == SpecLocationUnion {
+			unionTypes = append(unionTypes, td)
+			collected = true
+		}
+
+		if len(additionalTypes) != 0 && len(unionTypes) != 0 {
+			unionWithAdditionalTypes = append(unionWithAdditionalTypes, td)
+			collected = true
+		}
+
+		if !collected && td.Name != "" && td.SpecLocation != "" {
+			if _, found := groupedTypeDefs[td.SpecLocation]; !found {
+				groupedTypeDefs[td.SpecLocation] = []TypeDefinition{}
+			}
+			groupedTypeDefs[td.SpecLocation] = append(groupedTypeDefs[td.SpecLocation], td)
+		}
+	}
+
+	return &ParseContext{
+		Operations:               operations,
+		TypeDefinitions:          groupedTypeDefs,
+		Enums:                    enums,
+		UnionTypes:               unionTypes,
+		AdditionalTypes:          additionalTypes,
+		UnionWithAdditionalTypes: unionWithAdditionalTypes,
+		Imports:                  importMap(imprts).GoImports(),
+	}, nil
+}
+
+func collectOperationDefinitions(model *v3high.Document) (*operationsCollection, error) {
+	if model.Paths == nil {
+		return nil, nil
+	}
+
+	var (
+		operations    []OperationDefinition
+		importSchemas []GoSchema
+		typeDefs      []TypeDefinition
+	)
 
 	for path, pathItem := range model.Paths.PathItems.FromOldest() {
 		// These are parameters defined for all methods on a given path. They
@@ -196,79 +302,10 @@ func createParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 		}
 	}
 
-	// Process Components
-	componentDefs, err := collectComponentDefinitions(model)
-	if err != nil {
-		return nil, fmt.Errorf("error collecting component definitions: %s", err)
-	}
-	typeDefs = append(typeDefs, componentDefs...)
-
-	// Collect Schemas from components
-	for _, componentDef := range componentDefs {
-		importSchemas = append(importSchemas, componentDef.Schema)
-	}
-
-	// Collect Imports
-	imprts := map[string]goImport{}
-	for _, schema := range importSchemas {
-		importRes, err := collectSchemaImports(schema)
-		if err != nil {
-			return nil, fmt.Errorf("error getting schema imports: %w", err)
-		}
-		mergeImports(imprts, importRes)
-	}
-
-	typeDefs, err = checkDuplicates(typeDefs)
-	if err != nil {
-		return nil, fmt.Errorf("error checking for duplicate type definitions: %w", err)
-	}
-
-	enums, typeDefs := filterOutEnums(typeDefs)
-
-	groupedTypeDefs := make(map[SpecLocation][]TypeDefinition)
-	var (
-		additionalTypes          []TypeDefinition
-		unionTypes               []TypeDefinition
-		unionWithAdditionalTypes []TypeDefinition
-	)
-
-	for _, td := range typeDefs {
-		collected := false
-		if td.Schema.HasAdditionalProperties {
-			additionalTypes = append(additionalTypes, td)
-			collected = true
-		}
-
-		if len(td.Schema.UnionElements) != 0 {
-			td.SpecLocation = SpecLocationUnion
-			unionTypes = append(unionTypes, td)
-			collected = true
-		} else if td.SpecLocation == SpecLocationUnion {
-			unionTypes = append(unionTypes, td)
-			collected = true
-		}
-
-		if len(additionalTypes) != 0 && len(unionTypes) != 0 {
-			unionWithAdditionalTypes = append(unionWithAdditionalTypes, td)
-			collected = true
-		}
-
-		if !collected && td.Name != "" && td.SpecLocation != "" {
-			if _, found := groupedTypeDefs[td.SpecLocation]; !found {
-				groupedTypeDefs[td.SpecLocation] = []TypeDefinition{}
-			}
-			groupedTypeDefs[td.SpecLocation] = append(groupedTypeDefs[td.SpecLocation], td)
-		}
-	}
-
-	return &ParseContext{
-		Operations:               operations,
-		TypeDefinitions:          groupedTypeDefs,
-		Enums:                    enums,
-		UnionTypes:               unionTypes,
-		AdditionalTypes:          additionalTypes,
-		UnionWithAdditionalTypes: unionWithAdditionalTypes,
-		Imports:                  importMap(imprts).GoImports(),
+	return &operationsCollection{
+		operations:    operations,
+		importSchemas: importSchemas,
+		typeDefs:      typeDefs,
 	}, nil
 }
 

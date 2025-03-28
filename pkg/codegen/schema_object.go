@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
+	"gopkg.in/yaml.v3"
 )
 
 func createObjectSchema(schema *base.Schema, ref string, path []string) (GoSchema, error) {
@@ -16,6 +18,13 @@ func createObjectSchema(schema *base.Schema, ref string, path []string) (GoSchem
 		Constraints: getSchemaConstraints(schema, ConstraintsContext{
 			hasNilType: slices.Contains(schema.Type, "null"),
 		}),
+	}
+
+	var schemaExtensions *orderedmap.Map[string, *yaml.Node]
+	if schema != nil && schema.Extensions != nil {
+		schemaExtensions = schema.Extensions
+	} else {
+		schemaExtensions = orderedmap.New[string, *yaml.Node]()
 	}
 
 	if schema != nil &&
@@ -209,7 +218,7 @@ func createObjectSchema(schema *base.Schema, ref string, path []string) (GoSchem
 	// Check for x-go-type-name. It behaves much like x-go-type, however, it will
 	// create a type definition for the named type, and use the named type in place
 	// of this schema.
-	if extension, ok := schema.Extensions.Get(extGoTypeName); ok {
+	if extension, ok := schemaExtensions.Get(extGoTypeName); ok {
 		typeName, err := extString(extension.Value)
 		if err != nil {
 			return outSchema, fmt.Errorf("invalid value for %q: %w", extGoTypeName, err)

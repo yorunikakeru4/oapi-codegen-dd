@@ -13,6 +13,7 @@ import (
 func oapiSchemaToGoType(schema *base.Schema, ref string, path []string) (GoSchema, error) {
 	f := schema.Format
 	t := schema.Type
+
 	constraints := getSchemaConstraints(schema, ConstraintsContext{
 		name:       "",
 		hasNilType: slices.Contains(t, "null"),

@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 // mergeSchemas merges all the fields in the schemas supplied into one giant schema.
@@ -30,7 +31,10 @@ func mergeSchemas(allOf []*base.SchemaProxy, path []string) (GoSchema, error) {
 
 	// TODO: check if that's ok, previously panicked
 	schemaProxy := base.CreateSchemaProxy(schema)
-	ref := schemaProxy.GoLow().GetReference()
+	ref := ""
+	if low := schemaProxy.GoLow(); low != nil {
+		ref = low.GetReference()
+	}
 
 	return GenerateGoSchema(schemaProxy, ref, path)
 }
@@ -50,7 +54,24 @@ func mergeAllOf(allOf []*base.SchemaProxy) (*base.Schema, error) {
 // mergeOpenapiSchemas merges two openAPI schemas and returns the schema
 // all of whose fields are composed.
 func mergeOpenapiSchemas(s1, s2 *base.Schema, allOf bool) (*base.Schema, error) {
-	result := &base.Schema{}
+	result := &base.Schema{
+		// Properties: orderedmap.New[string, *base.SchemaProxy](),
+		// Extensions: orderedmap.New[string, *yaml.Node](),
+	}
+
+	t1 := getSchemaType(s1)
+	t2 := getSchemaType(s2)
+	if !slices.Equal(t1, t2) {
+		return nil, fmt.Errorf("can not merge incompatible types: %v, %v", s1.Type, s2.Type)
+	}
+
+	if t1 == nil && t2 == nil {
+		return nil, nil
+	} else if t1 == nil {
+		return s2, nil
+	} else if t2 == nil {
+		return s1, nil
+	}
 
 	for k, v := range s2.Extensions.FromOldest() {
 		// TODO: Check for collisions
@@ -78,11 +99,7 @@ func mergeOpenapiSchemas(s1, s2 *base.Schema, allOf bool) (*base.Schema, error) 
 	}
 
 	result.AllOf = append(s1.AllOf, s2.AllOf...)
-
-	if !slices.Equal(s1.Type, s2.Type) {
-		return nil, fmt.Errorf("can not merge incompatible types: %v, %v", s1.Type, s2.Type)
-	}
-	result.Type = s1.Type
+	result.Type = t1
 
 	if s1.Format != s2.Format {
 		return nil, ErrMergingSchemasWithDifferentFormats
@@ -139,10 +156,16 @@ func mergeOpenapiSchemas(s1, s2 *base.Schema, allOf bool) (*base.Schema, error) 
 
 	// We merge all properties
 	for k, v := range s1.Properties.FromOldest() {
+		if result.Properties == nil {
+			result.Properties = orderedmap.New[string, *base.SchemaProxy]()
+		}
 		result.Properties.Set(k, v)
 	}
 	for k, v := range s2.Properties.FromOldest() {
 		// TODO: detect conflicts
+		if result.Properties == nil {
+			result.Properties = orderedmap.New[string, *base.SchemaProxy]()
+		}
 		result.Properties.Set(k, v)
 	}
 
@@ -151,8 +174,8 @@ func mergeOpenapiSchemas(s1, s2 *base.Schema, allOf bool) (*base.Schema, error) 
 			A: nil,
 			B: false,
 		}
-	} else if s1.AdditionalProperties.IsA() && s1.AdditionalProperties.A != nil {
-		if s2.AdditionalProperties.A != nil {
+	} else if s1.AdditionalProperties != nil && s1.AdditionalProperties.IsA() && s1.AdditionalProperties.A != nil {
+		if s2.AdditionalProperties != nil && s2.AdditionalProperties.A != nil {
 			return nil, ErrMergingSchemasWithAdditionalProperties
 		} else {
 			result.AdditionalProperties = &base.DynamicValue[*base.SchemaProxy, bool]{
@@ -161,13 +184,14 @@ func mergeOpenapiSchemas(s1, s2 *base.Schema, allOf bool) (*base.Schema, error) 
 			}
 		}
 	} else {
-		if s2.AdditionalProperties.A != nil {
+		if s2.AdditionalProperties != nil && s2.AdditionalProperties.A != nil {
 			result.AdditionalProperties = &base.DynamicValue[*base.SchemaProxy, bool]{
 				A: s2.AdditionalProperties.A,
 				B: true,
 			}
 		} else {
-			if s1.AdditionalProperties.A != nil || s2.AdditionalProperties.A != nil {
+			if (s1.AdditionalProperties != nil && s1.AdditionalProperties.A != nil) ||
+				(s2.AdditionalProperties != nil && s2.AdditionalProperties.A != nil) {
 				result.AdditionalProperties = &base.DynamicValue[*base.SchemaProxy, bool]{
 					A: nil,
 					B: false,
@@ -191,4 +215,24 @@ func isAdditionalPropertiesExplicitFalse(s *base.Schema) bool {
 	}
 
 	return s.AdditionalProperties.IsB() == false
+}
+
+func getSchemaType(schema *base.Schema) []string {
+	if schema == nil {
+		return nil
+	}
+
+	if schema.Type != nil {
+		return schema.Type
+	}
+
+	if schema.Properties != nil {
+		return []string{"object"}
+	}
+
+	if schema.Items != nil {
+		return []string{"array"}
+	}
+
+	return nil
 }

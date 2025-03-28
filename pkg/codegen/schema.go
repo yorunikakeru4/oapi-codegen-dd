@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/pb33f/libopenapi/orderedmap"
+	"gopkg.in/yaml.v3"
 )
 
 // GoSchema describes an OpenAPI schema, with lots of helper fields to use in the templating engine.
@@ -162,9 +164,13 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, ref string, path []string) 
 		return mergedSchema, nil
 	}
 
+	extensions := schema.Extensions
+	if extensions == nil {
+		extensions = orderedmap.New[string, *yaml.Node]()
+	}
 	// Check x-go-type, which will completely override the definition of this
 	// schema with the provided type.
-	if extension, ok := schema.Extensions.Get(extPropGoType); ok {
+	if extension, ok := extensions.Get(extPropGoType); ok {
 		typeName, err := extString(extension.Value)
 		if err != nil {
 			return outSchema, fmt.Errorf("invalid value for %q: %w", extPropGoType, err)
@@ -177,7 +183,7 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, ref string, path []string) 
 
 	// Check x-go-type-skip-optional-pointer, which will override if the type
 	// should be a pointer or not when the field is optional.
-	if extension, ok := schema.Extensions.Get(extPropGoTypeSkipOptionalPointer); ok {
+	if extension, ok := extensions.Get(extPropGoTypeSkipOptionalPointer); ok {
 		skipOptionalPointer, err := extParsePropGoTypeSkipOptionalPointer(extension.Value)
 		if err != nil {
 			return outSchema, fmt.Errorf("invalid value for %q: %w", extPropGoTypeSkipOptionalPointer, err)

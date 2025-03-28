@@ -19,12 +19,8 @@ func TestFilterOperationsByTag(t *testing.T) {
 			UseSingleOutput: true,
 		}
 
-		// Get a spec from the test definition in this file:
-		doc, err := loadDocumentFromContents([]byte(testDocument))
-		assert.NoError(t, err)
-
 		// Run our code generation:
-		code, err := Generate(doc, cfg)
+		code, err := Generate([]byte(testDocument), cfg)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 		assert.Contains(t, code, `type CatDeadCause string`)
@@ -41,12 +37,8 @@ func TestFilterOperationsByTag(t *testing.T) {
 			UseSingleOutput: true,
 		}
 
-		// Get a spec from the test definition in this file:
-		doc, err := loadDocumentFromContents([]byte(testDocument))
-		assert.NoError(t, err)
-
 		// Run our code generation:
-		code, err := Generate(doc, opts)
+		code, err := Generate([]byte(testDocument), opts)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 		assert.NotContains(t, code, `"/cat"`)
@@ -67,12 +59,8 @@ func TestFilterOperationsByOperationID(t *testing.T) {
 			UseSingleOutput: true,
 		}
 
-		// Get a spec from the test definition in this file:
-		doc, err := loadDocumentFromContents([]byte(testDocument))
-		assert.NoError(t, err)
-
 		// Run our code generation:
-		code, err := Generate(doc, opts)
+		code, err := Generate([]byte(testDocument), opts)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 		assert.Contains(t, code, `type CatDeadCause string`)
@@ -88,12 +76,8 @@ func TestFilterOperationsByOperationID(t *testing.T) {
 			},
 		}
 
-		// Get a spec from the test definition in this file:
-		doc, err := loadDocumentFromContents([]byte(testDocument))
-		assert.NoError(t, err)
-
 		// Run our code generation:
-		code, err := Generate(doc, opts)
+		code, err := Generate([]byte(testDocument), opts)
 		assert.NoError(t, err)
 		assert.NotEmpty(t, code)
 		assert.NotContains(t, code, `"/cat"`)

@@ -19,4 +19,5 @@ var (
 	ErrMergingSchemasWithAdditionalProperties    = errors.New("merging two schemas with additional properties, this is unhandled")
 	ErrAmbiguousDiscriminatorMapping             = errors.New("ambiguous discriminator.mapping: please replace inlined object with $ref")
 	ErrDiscriminatorNotAllMapped                 = errors.New("discriminator: not all schemas were mapped")
+	ErrEmptySchema                               = errors.New("empty schema")
 )

@@ -21,12 +21,8 @@ func TestExampleOpenAPICodeGeneration(t *testing.T) {
 		UseSingleOutput: true,
 	}
 
-	// Get a spec from the test definition in this file:
-	spec, err := loadDocumentFromContents([]byte(testDocument))
-	assert.NoError(t, err)
-
 	// Run our code generation:
-	code, err := Generate(spec, cfg)
+	code, err := Generate([]byte(testDocument), cfg)
 	assert.NoError(t, err)
 	if err != nil {
 		t.FailNow()
@@ -52,11 +48,11 @@ func TestExtPropGoTypeSkipOptionalPointer(t *testing.T) {
 		UseSingleOutput: true,
 	}
 	spec := "test_specs/x-go-type-skip-optional-pointer.yaml"
-	doc, err := loadDocumentFromFile(spec)
+	docContents, err := os.ReadFile(spec)
 	require.NoError(t, err)
 
 	// Run our code generation:
-	code, err := Generate(doc, cfg)
+	code, err := Generate(docContents, cfg)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, code)
 
@@ -85,11 +81,11 @@ func TestGoTypeImport(t *testing.T) {
 		UseSingleOutput: true,
 	}
 	spec := "test_specs/x-go-type-import-pet.yaml"
-	doc, err := loadDocumentFromFile(spec)
+	docContents, err := os.ReadFile(spec)
 	require.NoError(t, err)
 
 	// Run our code generation:
-	code, err := Generate(doc, cfg)
+	code, err := Generate(docContents, cfg)
 	assert.NoError(t, err)
 	if err != nil {
 		t.FailNow()
