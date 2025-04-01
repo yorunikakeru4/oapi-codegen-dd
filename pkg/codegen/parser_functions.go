@@ -6,6 +6,8 @@ import (
 	"text/template"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/iancoleman/strcase"
 )
 
 // TemplateFunctions is passed to the template engine, and we can call each
@@ -16,6 +18,7 @@ var TemplateFunctions = template.FuncMap{
 	"ucFirst":     uppercaseFirstCharacter,
 	"caps":        strings.ToUpper,
 	"lower":       strings.ToLower,
+	"snake":       strcase.ToSnake,
 	"toGoComment": stringToGoCommentWithPrefix,
 	"ternary":     ternary,
 	"join":        join,
