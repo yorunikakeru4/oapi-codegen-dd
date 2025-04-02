@@ -23,7 +23,7 @@ import (
     "encoding/xml"
     "errors"
     "fmt"
-    "gopkg.in/yaml.v2"
+    "gopkg.in/yaml.v3"
     "io"
     "os"
     "mime"
@@ -33,6 +33,7 @@ import (
     "path"
     "strings"
     "time"
+    "log/slog"
 
     "github.com/doordash/oapi-codegen/v3/pkg/runtime"
     "github.com/google/uuid"
@@ -40,5 +41,8 @@ import (
     {{- range .Imports }}
         {{ . }}
     {{- end }}
+    {{- range .Config.AdditionalImports}}
+    {{.Alias -}} "{{.Package}}"
+    {{- end}}
 )
 {{- end -}}

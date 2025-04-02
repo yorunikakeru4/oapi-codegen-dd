@@ -1,0 +1,112 @@
+{{ template "header" $ }}
+
+var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
+
+{{range .Operations}}{{$op := .}}
+
+{{ if $op.HasRequestOptions }}
+// {{$op.ID | ucFirst}}RequestOptions is the options needed to make a request to {{$op.ID}}.
+type {{$op.ID | ucFirst}}RequestOptions struct {
+    {{ if $op.PathParams }}
+    PathParams *{{$op.PathParams.Name}}
+    {{end -}}
+
+    {{- if $op.Query -}}
+    Query *{{$op.Query.Name}}
+    {{ end -}}
+
+    {{- if $op.Body -}}
+    Body *{{$op.Body.Name}}
+    {{ end -}}
+
+    {{- if $op.Header -}}
+    Header *{{$op.Header.Name}}
+    {{ end -}}
+}
+
+// Validate validates all the fields in the options.
+// Use it if fields validation was not run.
+func (o *{{$op.ID | ucFirst}}RequestOptions) Validate() error {
+    {{- if $op.PathParams -}}
+    if err := clientOptionsValidate.Struct(o.PathParams); err != nil {
+        return fmt.Errorf("path params validation failed: %w", err)
+    }
+    {{ end -}}
+
+    {{- if $op.Query }}
+    if err := clientOptionsValidate.Struct(o.Query); err != nil {
+        return fmt.Errorf("query params validation failed: %w", err)
+    }
+    {{end -}}
+
+    {{- if $op.Body }}
+    if err := clientOptionsValidate.Struct(o.Body); err != nil {
+        return fmt.Errorf("body validation failed: %w", err)
+    }
+    {{end -}}
+
+    {{- if $op.Header }}
+    if err := clientOptionsValidate.Struct(o.Header); err != nil {
+        return fmt.Errorf("header params validation failed: %w", err)
+    }
+    {{end -}}
+
+    return nil
+}
+
+// GetPathParams returns the path params as a map.
+func (o *{{$op.ID | ucFirst}}RequestOptions) GetPathParams() (map[string]any, error) {
+    {{- if $op.PathParams -}}
+    return asMap[any](o.PathParams)
+    {{- else -}}
+    return nil, nil
+    {{- end}}
+}
+
+// GetQuery returns the query params as a map.
+func (o *{{$op.ID | ucFirst}}RequestOptions) GetQuery() (map[string]any, error) {
+    {{- if $op.Query -}}
+    return asMap[any](o.Query)
+    {{- else -}}
+    return nil, nil
+    {{- end}}
+}
+
+// GetBody returns the payload in any type that can be marshalled to JSON by the client.
+func (o *{{$op.ID | ucFirst}}RequestOptions) GetBody() any {
+    {{- if $op.Body -}}
+    return o.Body
+    {{- else -}}
+    return nil
+    {{- end}}
+}
+
+// GetHeader returns the headers as a map.
+func (o *{{$op.ID | ucFirst}}RequestOptions) GetHeader() (map[string]string, error) {
+    {{- if $op.Header -}}
+    return asMap[string](o.Header)
+    {{- else -}}
+    return nil, nil
+    {{- end}}
+}
+
+{{end}}
+
+{{end}}
+
+func asMap[V any](v any) (map[string]V, error) {
+    if v == nil {
+        return nil, nil
+    }
+    res, err := json.Marshal(v)
+    if err != nil {
+        return nil, err
+    }
+
+    var m map[string]V
+    err = json.Unmarshal(res, &m)
+    if err != nil {
+        return nil, err
+    }
+    return m, nil
+}

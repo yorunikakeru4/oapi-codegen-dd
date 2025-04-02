@@ -11,6 +11,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/iancoleman/strcase"
 	"golang.org/x/tools/imports"
 )
 
@@ -40,6 +41,14 @@ type TplTypeContext struct {
 	SpecLocation string
 	Config       Configuration
 	WithHeader   bool
+}
+
+// TplOperationsContext is the context passed to templates to generate client code.
+type TplOperationsContext struct {
+	Operations []OperationDefinition
+	Imports    []string
+	Config     Configuration
+	WithHeader bool
 }
 
 // NewParser creates a new Parser with the provided ParseConfig and ParseContext.
@@ -88,6 +97,22 @@ func (p *Parser) Parse() (map[string]string, error) {
 			return nil, fmt.Errorf("error generating code for header: %w", err)
 		}
 		typesOut["header"] = out
+	}
+
+	if len(p.ctx.Operations) > 0 {
+		opsCtx := &TplOperationsContext{
+			Operations: p.ctx.Operations,
+			Imports:    p.ctx.Imports,
+			Config:     p.cfg,
+			WithHeader: withHeader,
+		}
+		for _, tmpl := range []string{"client", "client-options"} {
+			out, err := p.ParseTemplates([]string{tmpl + ".tmpl"}, opsCtx)
+			if err != nil {
+				return nil, fmt.Errorf("error generating code for client: %w", err)
+			}
+			typesOut[strcase.ToSnake(tmpl)] = FormatCode(out)
+		}
 	}
 
 	if len(p.ctx.Enums) > 0 {

@@ -18,28 +18,7 @@ func filterOutDocument(doc libopenapi.Document, cfg FilterConfig) (libopenapi.Do
 		return nil, errs[0]
 	}
 
-	takePaths := cfg.Include.Paths
-	skipPaths := cfg.Exclude.Paths
-
-	for {
-		removed := 0
-		for path := range model.Model.Paths.PathItems.KeysFromOldest() {
-			if len(takePaths) > 0 && !slices.Contains(takePaths, path) {
-				model.Model.Paths.PathItems.Delete(path)
-				removed++
-				continue
-			}
-
-			if len(skipPaths) > 0 && slices.Contains(skipPaths, path) {
-				model.Model.Paths.PathItems.Delete(path)
-				removed++
-				continue
-			}
-		}
-		if removed == 0 {
-			break
-		}
-	}
+	filterOperations(&model.Model, cfg)
 
 	_, doc, _, errs = doc.RenderAndReload()
 	if errs != nil {
@@ -72,7 +51,7 @@ func filterOperations(model *v3high.Document, cfg FilterConfig) {
 				}
 			}
 
-			if !remove {
+			if !remove && len(cfg.Include.Tags) > 0 {
 				// Only include if it matches Include.Tags
 				includeMatch := false
 				for _, tag := range op.Tags {
@@ -115,6 +94,5 @@ func filterOperations(model *v3high.Document, cfg FilterConfig) {
 				}
 			}
 		}
-
 	}
 }

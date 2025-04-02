@@ -1,0 +1,243 @@
+{{ template "header" $ }}
+
+{{- define "httpRequestDoer" -}}
+// HttpRequestDoer performs HTTP requests.
+type HttpRequestDoer interface {
+Do(context context.Context, req *http.Request) *http.Response
+}
+{{- end -}}
+
+{{- define "logOutgoingRequest" -}}
+{{- end -}}
+
+{{- define "logReceivedResponse" -}}
+{{- end -}}
+
+// RequestEditorFn  is the function signature for the RequestEditor callback function
+type RequestEditorFn func(ctx context.Context, req *http.Request) error
+
+{{ template "httpRequestDoer" $ }}
+
+// Client is the client for the API implementing the Client interface.
+// baseURL is the base URL for the API.
+// httpClient is the HTTP client to use for making requests.
+// logger is the logger to use for logging.
+// requestEditors is a list of callbacks for modifying requests which are generated before sending over the network.
+type Client struct {
+    baseURL     string
+    httpClient  HttpRequestDoer
+    requestEditors []RequestEditorFn
+}
+
+// ClientOption allows setting custom parameters during construction.
+type ClientOption func(*Client) error
+
+// NewClient creates a new client, with reasonable defaults.
+func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
+    // create a client with sane default values
+    res := &Client{
+      baseURL: strings.TrimSuffix(baseURL, "/"),
+    }
+
+    // mutate client and add all optional params
+    for _, opt := range opts {
+        if err := opt(res); err != nil {
+            return nil, err
+        }
+    }
+
+    return res, nil
+}
+
+// WithHTTPClient allows overriding the default Doer, which is
+// automatically created using http.Client.
+func WithHTTPClient(doer HttpRequestDoer) ClientOption {
+    return func(c *Client) error {
+        c.httpClient = doer
+        return nil
+    }
+}
+
+// WithRequestEditorFn allows setting up a callback function, which will be
+// called right before sending the request. This can be used to mutate the request.
+func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
+    return func(c *Client) error {
+        c.requestEditors = append(c.requestEditors, fn)
+        return nil
+    }
+}
+
+// ClientInterface is the interface for the API client.
+type ClientInterface interface {
+    {{- range .Operations }}{{$op := .}}
+        {{ toGoComment $op.Summary $op.ID}}
+        {{$op.ID}}(ctx context.Context{{- if $op.HasRequestOptions }}, options *{{$op.ID | ucFirst}}RequestOptions{{end}}, reqEditors ...RequestEditorFn) (*{{$op.Response.Success.ResponseName}}, error)
+    {{ end }}
+}
+
+
+{{range .Operations}}{{$op := .}}
+{{ toGoComment $op.Summary $op.ID}}
+func (c *Client) {{$op.ID}}(ctx context.Context{{ if $op.HasRequestOptions }}, options *{{$op.ID | ucFirst}}RequestOptions{{end}}, reqEditors ...RequestEditorFn) (*{{$op.Response.Success.ResponseName}}, error) {
+    var err error
+    url := c.baseURL + "{{$op.Path}}"
+    req, err := createRequest(ctx, url, "{{$op.Method}}", {{ if $op.HasRequestOptions }}options{{ else }}nil{{ end }})
+    if err != nil {
+        return nil, fmt.Errorf("error creating request: %w", err)
+    }
+
+    if err = c.applyEditors(ctx, req, reqEditors); err != nil {
+        return nil, fmt.Errorf("error applying request editors: %w", err)
+    }
+
+    logOutgoingRequest(ctx, req)
+    resp, err := c.httpClient.Do(ctx, req).Await()
+    if err != nil {
+        return nil, fmt.Errorf("error sending request: %w", err)
+    }
+
+    var bodyBytes []byte
+    if resp.Body != nil {
+        defer resp.Body.Close()
+        bodyBytes, err = io.ReadAll(resp.Body)
+        if err != nil {
+            return nil, fmt.Errorf("failed to read response body: %w", err)
+        }
+    }
+
+    {{ template "logReceivedResponse" $ }}
+
+    if resp.StatusCode != {{$op.Response.SuccessStatusCode}} {
+        {{- with $op.Response.Error }}
+            {{- if .ResponseName }}
+            target := new({{.ResponseName}})
+            err = json.Unmarshal(bodyBytes, target)
+            if err != nil {
+            return nil, fmt.Errorf("error decoding response: %w", err)
+        }
+            return nil, runtime.NewClientAPIError(*target)
+            {{- else }}
+                return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+            {{ end }}
+        {{ else }}
+        return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+        {{ end -}}
+    }
+
+    {{- if eq $op.Response.SuccessStatusCode 204 }}
+    return nil, nil
+    {{ else }}
+    target := new({{ $op.Response.Success.ResponseName }})
+    if err = json.Unmarshal(bodyBytes, target); err != nil {
+        err = fmt.Errorf("error decoding response: %w", err)
+        return nil, err
+    }
+    return target, nil
+    {{ end -}}
+}
+
+{{end -}}
+
+// applyEditors applies all the request editors to the request.
+func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
+    for _, r := range c.requestEditors {
+        if err := r(ctx, req); err != nil {
+            return err
+        }
+    }
+
+    for _, r := range additionalEditors {
+        if err := r(ctx, req); err != nil {
+            return err
+        }
+    }
+    return nil
+}
+
+type RequestOptions interface {
+    GetPathParams() (map[string]any, error)
+    GetQuery() (map[string]any, error)
+    GetBody() any
+    GetHeader() (map[string]string, error)
+}
+
+// createRequest creates a new POST request with the given URL, payload and headers.
+func createRequest(ctx context.Context, url, method string, options RequestOptions) (*http.Request, error) {
+    pathParams, err := options.GetPathParams()
+    if err != nil {
+        return nil, err
+    }
+    url = strings.TrimSuffix(url, "/")
+    url = replacePathPlaceholders(url, pathParams)
+
+    queryParams, err := options.GetQuery()
+    if err != nil {
+        return nil, err
+    }
+    if len(queryParams) > 0 {
+        var pairs []string
+        for k, v := range queryParams {
+            pairs = append(pairs, fmt.Sprintf("%s=%v", k, v))
+        }
+        url = fmt.Sprintf("%s?%s", url, strings.Join(pairs, "&"))
+    }
+
+    payload := options.GetBody()
+
+    headers, err := options.GetHeader()
+    if err != nil {
+        return nil, err
+    }
+    if headers == nil {
+        headers = map[string]string{
+            "Content-Type": "application/json",
+        }
+    }
+    httpHeaders := http.Header{}
+    for k, v := range headers {
+        httpHeaders.Set(k, v)
+    }
+
+    var bodyReader io.Reader
+    var encodedPayload string
+
+    // Check if request should be form-encoded
+    if strings.HasPrefix(headers["Content-Type"], "application/x-www-form-urlencoded") {
+        formValues, err := query.Values(payload)
+        if err != nil {
+            return nil, fmt.Errorf("error encoding form values: %w", err)
+        }
+        encodedPayload = formValues.Encode()
+        bodyReader = strings.NewReader(encodedPayload)
+    } else {
+        // Default to JSON encoding
+        body, err := json.Marshal(payload)
+        if err != nil {
+            return nil, err
+        }
+        encodedPayload = string(body)
+        bodyReader = bytes.NewBuffer(body)
+    }
+
+    req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+    if err != nil {
+        return nil, err
+    }
+
+    req.Header = httpHeaders
+
+    return req, nil
+}
+
+func replacePathPlaceholders(url string, pathParams map[string]any) string {
+    for k, v := range pathParams {
+        url = strings.Replace(url, fmt.Sprintf("{%s}", k), fmt.Sprintf("%v", v), -1)
+    }
+    return url
+}
+
+func logOutgoingRequest(ctx context.Context, req *http.Request) {
+    {{ template "logOutgoingRequest" $ }}
+}
+
+var _ ClientInterface = (*Client)(nil)
