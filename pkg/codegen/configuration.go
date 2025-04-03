@@ -13,31 +13,35 @@ const (
 
 // Configuration defines code generation customizations.
 // PackageName to generate the code under.
+// CopyrightHeader is the header to add to the generated code. Use without //.
 // SkipPrune indicates whether to skip pruning unused components on the generated code.
+// UseSingleOutput indicates whether to generate a single output file.
 //
-// OutputOptions are used to modify the output code in some way.
-// ImportMapping specifies the golang package path for each external reference
-// AdditionalImports defines any additional Go imports to add to the generated code
+// Filter is the configuration for filtering the paths and operations to be parsed.
+//
+// ImportMapping specifies the golang package path for each external reference.
+// AdditionalImports defines any additional Go imports to add to the generated code.
 // ErrorMapping is the configuration for mapping the OpenAPI error responses to Go types.
 //
 //	The key is the spec error type name
 //	and the value is the dotted json path to the string result.
+//
+// UserTemplates is the map of user-provided templates overriding the default ones.
+// UserContext is the map of user-provided context values to be used in templates user overrides.
 type Configuration struct {
 	PackageName     string `yaml:"package"`
 	CopyrightHeader string `yaml:"copyright-header,omitempty"`
 	SkipPrune       bool   `yaml:"skip-prune,omitempty"`
 	UseSingleOutput bool   `yaml:"use-single-output,omitempty"`
 
-	Filter        FilterConfig      `yaml:"filter,omitempty"`
-	UserTemplates map[string]string `yaml:"user-templates,omitempty"`
-
-	InitialismOverrides bool `yaml:"initialism-overrides,omitempty"`
-
-	DisableTypeAliasesForType []string `yaml:"disable-type-aliases-for-type"`
+	Filter FilterConfig `yaml:"filter,omitempty"`
 
 	ImportMapping     map[string]string  `yaml:"import-mapping,omitempty"`
 	AdditionalImports []AdditionalImport `yaml:"additional-imports,omitempty"`
 	ErrorMapping      map[string]string  `yaml:"error-mapping,omitempty"`
+
+	UserTemplates map[string]string `yaml:"user-templates,omitempty"`
+	UserContext   map[string]any    `yaml:"user-context,omitempty"`
 }
 
 // Validate checks whether Configuration represent a valid configuration
