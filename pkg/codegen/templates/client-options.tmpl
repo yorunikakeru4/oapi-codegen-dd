@@ -27,31 +27,33 @@ type {{$op.ID | ucFirst}}RequestOptions struct {
 // Validate validates all the fields in the options.
 // Use it if fields validation was not run.
 func (o *{{$op.ID | ucFirst}}RequestOptions) Validate() error {
-    {{- if $op.PathParams -}}
+    var errors runtime.ValidationErrors
+
+    {{ if $op.PathParams }}
     if err := clientOptionsValidate.Struct(o.PathParams); err != nil {
-        return fmt.Errorf("path params validation failed: %w", err)
+        errors = append(errors, runtime.NewValidationErrorsFromErrors("PathParams", []error{err})...)
     }
     {{ end -}}
 
-    {{- if $op.Query }}
+    {{ if $op.Query }}
     if err := clientOptionsValidate.Struct(o.Query); err != nil {
-        return fmt.Errorf("query params validation failed: %w", err)
+        errors = append(errors, runtime.NewValidationErrorsFromErrors("Query", []error{err})...)
     }
     {{end -}}
 
-    {{- if $op.Body }}
+    {{ if $op.Body }}
     if err := clientOptionsValidate.Struct(o.Body); err != nil {
-        return fmt.Errorf("body validation failed: %w", err)
+        errors = append(errors, runtime.NewValidationErrorsFromErrors("Body", []error{err})...)
     }
     {{end -}}
 
-    {{- if $op.Header }}
+    {{ if $op.Header }}
     if err := clientOptionsValidate.Struct(o.Header); err != nil {
-        return fmt.Errorf("header params validation failed: %w", err)
+        errors = append(errors, runtime.NewValidationErrorsFromErrors("Header", []error{err})...)
     }
     {{end -}}
 
-    return nil
+    return errors
 }
 
 // GetPathParams returns the path params as a map.

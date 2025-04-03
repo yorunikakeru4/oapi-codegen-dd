@@ -51,17 +51,31 @@ func (ve ValidationErrors) Error() string {
 	return strings.Join(messages, "\n")
 }
 
-func FormatValidationErrors(err error) ValidationErrors {
+// NewValidationErrorsFromError creates a new ValidationErrors from a single error.
+func NewValidationErrorsFromError(err error) ValidationErrors {
+	return NewValidationErrorsFromErrors("", []error{err})
+}
+
+// NewValidationErrorsFromErrors creates a new ValidationErrors from a list of errors.
+// If prefix is provided, it will be prepended to each field name with a dot.
+func NewValidationErrorsFromErrors(prefix string, errs []error) ValidationErrors {
 	var result ValidationErrors
 	var validationErrors validator.ValidationErrors
-	if errors.As(err, &validationErrors) {
-		for _, ve := range validationErrors {
-			result = append(result, ValidationError{
-				Field: ve.Field(),
-				Error: convertFieldErrorMessage(ve),
-			})
+	if prefix != "" {
+		prefix = fmt.Sprintf("%s.", prefix)
+	}
+
+	for _, err := range errs {
+		if errors.As(err, &validationErrors) {
+			for _, ve := range validationErrors {
+				result = append(result, ValidationError{
+					Field: prefix + ve.Field(),
+					Error: convertFieldErrorMessage(ve),
+				})
+			}
 		}
 	}
+
 	return result
 }
 

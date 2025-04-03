@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFormatValidationErrors(t *testing.T) {
+func TestNewValidationErrorsFromError(t *testing.T) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	type Foo struct {
 		Name  string `validate:"required"`
@@ -28,7 +28,7 @@ func TestFormatValidationErrors(t *testing.T) {
 			Range: 20,
 		}
 		err := validate.Struct(foo)
-		validationErrors := FormatValidationErrors(err)
+		validationErrors := NewValidationErrorsFromError(err)
 
 		assert.Len(t, validationErrors, 7)
 		assert.Equal(t, ValidationError{"Name", "is required"}, validationErrors[0])
@@ -39,4 +39,23 @@ func TestFormatValidationErrors(t *testing.T) {
 		assert.Equal(t, ValidationError{"Qty", "must be greater than or equal to 10"}, validationErrors[5])
 		assert.Equal(t, ValidationError{"Range", "must be less than 20"}, validationErrors[6])
 	})
+}
+
+func TestNewValidationErrorsFromErrors(t *testing.T) {
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	type Foo struct {
+		Name  string `validate:"required"`
+		Email string `validate:"required,email"`
+	}
+
+	foo := Foo{
+		Name:  "",
+		Email: "email",
+	}
+	err := validate.Struct(foo)
+	validationErrors := NewValidationErrorsFromErrors("headers", []error{err})
+
+	assert.Len(t, validationErrors, 2)
+	assert.Equal(t, ValidationError{"headers.Name", "is required"}, validationErrors[0])
+	assert.Equal(t, ValidationError{"headers.Email", "must be a valid email"}, validationErrors[1])
 }
