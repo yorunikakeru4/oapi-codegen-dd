@@ -1,14 +1,49 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
-  title: Smartum API
+  title: Smartum Public API
+  description: >
+    # Introduction
+
+    The Smartum [REST](https://en.wikipedia.org/wiki/Representational_state_transfer)
+    API is organized around beneficiaries, venues and partners.
+
+    - Beneficiary: an employee who receives Smartum benefits.
+
+    - Venue: a location where benefits can be purchased and/or used.
+
+    - Partner: a company that offers benefits to Smartum beneficiaries.
+
+    The API uses standard verbs and returns [HTTP response codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status)
+    and [JSON-encoded](https://www.json.org/json-en.html) responses and requests.
+
+
+    Try out our REST APIs with this Postman collection.
+
+    [![Run in Postman](https://run.pstmn.io/button.svg)](https://app.getpostman.com/run-collection/23328588-efcade2d-3b4d-4306-9388-dd3d5a746111?action=collection%2Ffork&collection-url=entityId%3D23328588-efcade2d-3b4d-4306-9388-dd3d5a746111%26entityType%3Dcollection%26workspaceId%3D1f4d9d31-ac6d-440a-8ce9-749111a35972)
+
+    The Smartum API uses SmartID format instead of traditional auto incremented ids for every entity: venues, accounts, transactions etc.
+    SmartIDs starts with 2 to 5 small case letters followed by underscore i.e. `acct_`, `tx_` and `ven_`. 
+    The first letters before the underscore signicifies the entity.
+
+
+    **Please read [get started](#tag/Get-started) section and then contact us to get necessary credentials to begin your integration.**
   version: 1.0.0
 servers:
-  - url: http://localhost:2200/smartum/api/v1/delivery-order-price
+  - description: Production
+    url: https://api.smartum.fi
+  - description: Staging
+    url: https://api.staging.smartum.fi
+  - description: Mock
+    url: http://localhost:2200/smartum
 paths:
   /checkout:
     post:
       summary: Initiate a checkout
       operationId: initiateCheckout
+      description: |
+        Initiate the checkout flow by generating a URL to the Checkout service.
+
+        It's very important to take notice of header `Smartum-Version` because it dictates what version of the API you are calling.
       tags:
         - Checkout
       parameters:
@@ -31,18 +66,29 @@ paths:
                 properties:
                   data:
                     type: object
+                    description: Contains the checkout URL.
                     properties:
-                      foo_id:
-                        type: string
                       url:
                         type: string
-                        example: "https://checkout.smartum.fi/5f7b3b3b"
+                        description: >-
+                          URL that beneficiary should be redirected to for Checkout. Must not be reused.
+                        example: https://checkout.staging.smartum.fi?amount=1&benefit=exercise&cancel_url=http%3A%2F%2Fexample.com%2Ferror&idempotency_id=c30317dd-0152-4143-a081-b5bd37d30f87&product_description=Movie+ticket+to+enjoy+some+culture.&product_image_url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1489599849927-2ee91cede3ba%3Ffit%3Dcrop%26w%3D300%26h%3D300%26q%3D80&product_name=Movie+Ticket&success_url=http%3A%2F%2Fexample.com%2Fsuccess&timeout=600&venue_id=ven_ZWx9l10hrNNX37d4
+                    required:
+                      - url
         "400":
-          $ref: "#/components/responses/ApiErrorResponse"
+          $ref: "#/components/responses/InvalidRequestError"
 
   /partner/transactions/{transaction_id}/refund:
     post:
-      summary: Refund a transaction
+      summary: Refund transaction
+      description: >
+        Refund transaction by given id. Transaction is refundable to the end of the day when transaction was done.
+        This requires `client_credentials` authentication.
+
+
+        Endpoint doesn't return HTTP `200 OK` response. If request succeeded response is HTTP `204 No Content`. 
+        If you accidentally refund transaction twice or refund transaction that has already been refunded you will
+        receive HTTP `422 Unprocessable Entity` response.
       operationId: refundTransaction
       tags:
         - Transactions
@@ -52,7 +98,8 @@ paths:
           required: true
           schema:
             type: string
-            example: "5f7b3b3b"
+            description: Transaction id in SmartumID format. Begins with `tx_`.
+            example: tx_6yX97h813RbK8w5N
         - $ref: "#/components/parameters/AuthorizationHeader"
         - $ref: "#/components/parameters/AcceptHeader"
         - $ref: "#/components/parameters/ContentTypeHeader"
@@ -61,7 +108,7 @@ paths:
         "204":
           description: Refund successful, no content returned
         "400":
-          $ref: "#/components/responses/ApiErrorResponse"
+          $ref: "#/components/responses/InvalidRequestError"
 
   /partner/payments/status:
     get:
@@ -75,13 +122,15 @@ paths:
           required: true
           schema:
             type: string
-            example: "a1b2c3d4"
+          description: Idempotency ID used when making the payment
+          example: c30317dd-0152-4143-a081-b5bd37d30f87
         - name: venue_id
           in: query
           required: true
           schema:
             type: string
-            example: "vf7b3b3v"
+          description: Venue ID used when making the payment
+          example: ven_0oAW5yNhvABDn6qK
         - $ref: "#/components/parameters/AuthorizationHeader"
         - $ref: "#/components/parameters/AcceptHeader"
         - $ref: "#/components/parameters/ContentTypeHeader"
@@ -99,13 +148,27 @@ paths:
                     properties:
                       transaction_id:
                         type: string
+                        description: Transaction ID
+                        example: tx_OJbegXq0HPmxD026
+                      pending:
+                        type: boolean
+                        description: True if the payment is pending
+                        example: true
+                    required:
+                      - transaction_id
+                      - pending
         "400":
-          $ref: "#/components/responses/ApiErrorResponse"
+          $ref: "#/components/responses/InvalidRequestError"
 
   /oauth2/token:
     post:
       summary: Obtain OAuth2 token
       operationId: obtainToken
+      description: >
+        The client makes a request to the token endpoint by sending the following
+        parameters using the `"application/x-www-form-urlencoded"` HTTP request entity-body.
+
+        Token endpoint includes all three possible flows: authorization code, refresh token and client credentials.
       tags:
         - Authentication
       requestBody:
@@ -120,12 +183,17 @@ paths:
                   example: "client-id"
                 client_secret:
                   type: string
+                  description: Client secret provided by Smartum
                   example: secret
                 grant_type:
                   type: string
                   enum: [client_credentials]
                 scope:
                   type: string
+              required:
+                - client_id
+                - client_secret
+                - grant_type
       responses:
         "200":
           description: Token retrieved successfully
@@ -137,23 +205,23 @@ paths:
                   access_token:
                     type: string
                     example: ta3b3b3b
+                    description: String that the OAuth client uses to make requests to the resource server.
                   token_type:
                     type: string
-                    example: "Bearer"
+                    example: "bearer"
                   expires_in:
                     type: integer
                     example: 3600
                   scope:
-                    type: array
-                    items:
-                      type: string
-                      example: "partner"
+                    type: string
+                    enum: [offline]
+                    example: offline
+                    description: Scopes of the `access_token`.
                   expires_at:
-                    type: number
-                    format: float
-                    example: 1600000000
+                    type: integer
+                    example: 3599
         "400":
-          $ref: "#/components/responses/ApiErrorResponse"
+          $ref: "#/components/responses/InvalidRequestError"
 
 components:
   parameters:
@@ -184,12 +252,20 @@ components:
       required: true
       schema:
         type: string
-        example: "2020-04-02"
-        enum:
-          - "2020-04-02"
+        format: YYYY-MM-DD
+        enum: ["2018-11-13", "2020-04-02"]
+        description: >
+          API version. By default chooses the earliest version. It's recommended to always use latest version.
+
+          - `2018-11-13`
+            - Default.
+            - Old API version.
+          - `2020-04-02`
+            - Same base features as `2018-11-13`.
+            - Stripe integration.
 
   responses:
-    ApiErrorResponse:
+    InvalidRequestError:
       description: Error response
       content:
         application/json:
@@ -201,14 +277,34 @@ components:
                 properties:
                   type:
                     type: string
+                    example: invalid_request_error
                   message:
                     type: string
+                    description: A human readable description of the error.
+                    example: The account doesn't have enough funds for this payment.
                   code:
                     type: string
                     nullable: true
+                    example: insufficient_funds
+                    description: >
+                      The error code the API client can programmatically check to
+                      distinguish different errors.
+      
+                      - `insufficient_funds` - returned when the account doesn't have
+                      enough funds for the payment.
+      
+                      - `insufficient_employer_funds` - returned when the employer
+                      doesn't have enough funds to cover the payment.
+      
+                      - `contract_required` - a contract is required between the
+                      employer and the venue for this payment to succeed.
                   param:
                     type: string
                     nullable: true
+                    description: Name of the parameter that caused the error.
+                    example: venue
+                required:
+                  - message
 
   schemas:
     CheckoutRequest:
@@ -216,21 +312,36 @@ components:
       properties:
         venue:
           type: string
-          example: "5f7b3b3b"
+          description: >-
+            The ID of the venue receiving the payment.
+          example: ven_0oAW5yNhvABDn6qK
         amount:
           type: integer
-          example: 2000
+          description: The total amount (in cents) for the payment.
+          minimum: 1
+          example: 1450
         benefit:
           $ref: "#/components/schemas/BenefitType"
         product_name:
           type: string
-          example: "The name of the product being purchased."
+          description: The name of the product being purchased.
+          example: Single movie ticket
         success_url:
           type: string
           format: uri
+          description: >
+            The URL that the Checkout service will redirect to in case of
+            successful payment. A querystring
+
+            parameter `jwt` is appended to the URL and contains the
+            [JWT](https://jwt.io) value.
         cancel_url:
           type: string
           format: uri
+          description: >
+            The URL that the Checkout service will redirect to in case the
+            beneficiary cancels the payment.
+          example: https://webshop.smartum.fi/choose-payment-method
         idempotency_id:
           type: string
           example: "a1b2c3d4"
@@ -240,23 +351,28 @@ components:
             Using an idempotency ID will enable cache in Checkout and the subsequent payment process.
         product_description:
           type: string
-          example: "An optional description of the product."
-          maxLength: 256
+          maxLength: 255
+          description: An optional description of the product.
+          example: Valid also on weekends and holidays.
         product_image_url:
           type: string
           format: uri
-          description: "An optional URL to a small thumbnail image of the product."
+          description: An optional URL to a small thumbnail image of the product.
+          example: https://products.smartum.fi/webshop/movie_ticket.jpg
         nonce:
           type: string
-          example: "fake-valid-nonce"
-          description: "An optional nonce value that is included in the signed JWT of a successful payment response."
+          example: "0f940533-bb62-440d-85a1-40fbc774d9d9"
+          description: >
+            An optional
+            [nonce](https://en.wikipedia.org/wiki/Cryptographic_nonce) value
+            that is included in the signed [JWT](https://jwt.io/) of a successful payment response.
           maxLength: 128
         timeout:
           type: integer
-          example: 300
-          description: |
-            An optional number of seconds after which the checkout flow will expire, 
-            and the beneficiary is redirected to the cancel_url.
+          description: >
+            An optional number of seconds after which the checkout flow will
+            expire, and the beneficiary is redirected to the `cancel_url`.
+          example: 600
         max_benefit_amount:
           type: integer
           example: 1000
@@ -271,10 +387,6 @@ components:
         stripe_account:
           type: string
           example: "acct_1Hqj3v2eZvKYlo2C"
-        # TODO: error_url is not present in the original spec
-        error_url:
-          type: string
-          format: uri
 
       required:
         - venue
@@ -282,6 +394,7 @@ components:
         - benefit
         - success_url
         - cancel_url
+        - stripe_account
 
     BenefitType:
       description: Benefit type for the product being purchased.

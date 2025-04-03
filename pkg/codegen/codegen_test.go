@@ -120,6 +120,9 @@ func TestSmartum(t *testing.T) {
 	packageName := "smartum"
 	config := Configuration{
 		PackageName: packageName,
+		ErrorMapping: map[string]string{
+			"InvalidRequestError": "error.message",
+		},
 		// UseSingleOutput: true,
 	}
 
@@ -131,5 +134,12 @@ func TestSmartum(t *testing.T) {
 	if errs != nil {
 		t.FailNow()
 	}
-	_ = code
+
+	parser, err := NewParser(config, code)
+	require.NoError(t, err)
+
+	// Parse the OpenAPI document
+	codes, err := parser.Parse()
+	require.NoError(t, err)
+	assert.NotEmpty(t, codes)
 }

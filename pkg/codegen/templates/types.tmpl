@@ -20,7 +20,8 @@ func ({{$alias}} {{.Name}}) Validate() error {
 {{ end }}
 {{ end -}}
 
-{{ if and (eq $loc "response") (hasSuffix .Name "ErrorResponse") }}
+{{- $val := index $config.ErrorMapping .Name }}
+{{ if and (eq $loc "response") $val }}
 {{ $alias := .SpecLocation | fst | lower }}
 {{ if not .IsAlias }}
 {{ $alias := .SpecLocation | fst | lower }}
