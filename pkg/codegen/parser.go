@@ -8,6 +8,7 @@ import (
 	"go/format"
 	"io/fs"
 	"os"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -200,8 +201,19 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 			delete(typesOut, "header")
 		}
 
-		for _, code := range typesOut {
+		// sort the types out by name
+		typeNames := make([]string, 0, len(typesOut))
+		for name := range typesOut {
+			typeNames = append(typeNames, name)
+		}
+		sort.Strings(typeNames)
+		for _, name := range typeNames {
+			code, ok := typesOut[name]
+			if !ok {
+				continue
+			}
 			res += code + "\n"
+			delete(typesOut, name)
 		}
 		typesOut = map[string]string{"all": FormatCode(res)}
 	}

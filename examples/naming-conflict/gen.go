@@ -2,15 +2,6 @@
 
 package namingconflict
 
-type Source struct {
-	ACHCreditTransfer *SourceTypeACHCreditTransfer `json:"ach_credit_transfer,omitempty"`
-}
-
-type SourceTypeACHCreditTransfer struct {
-	AccountNumber *string `json:"account_number,omitempty"`
-	BankName      *string `json:"bank_name,omitempty"`
-}
-
 type Type string
 
 const (
@@ -24,4 +15,13 @@ func (t Type) All() []Type {
 		TypeACHDebit,
 		TypeSourceTypeACHCreditTransfer,
 	}
+}
+
+type Source struct {
+	ACHCreditTransfer *SourceTypeACHCreditTransfer `json:"ach_credit_transfer,omitempty"`
+}
+
+type SourceTypeACHCreditTransfer struct {
+	AccountNumber *string `json:"account_number,omitempty"`
+	BankName      *string `json:"bank_name,omitempty"`
 }
