@@ -120,7 +120,14 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 			if err != nil {
 				return nil, fmt.Errorf("error generating code for client: %w", err)
 			}
-			typesOut[strcase.ToSnake(tmpl)] = FormatCode(out)
+			formatted := out
+			if !useSingleFile {
+				formatted, err = FormatCode(out)
+				if err != nil {
+					return nil, err
+				}
+			}
+			typesOut[strcase.ToSnake(tmpl)] = formatted
 		}
 	}
 
@@ -135,7 +142,14 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for type enums: %w", err)
 		}
-		typesOut["enums"] = FormatCode(out)
+		formatted := out
+		if !useSingleFile {
+			formatted, err = FormatCode(out)
+			if err != nil {
+				return nil, err
+			}
+		}
+		typesOut["enums"] = formatted
 	}
 
 	for sl, tds := range p.ctx.TypeDefinitions {
@@ -153,7 +167,14 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for %s type definitions: %w", sl, err)
 		}
-		typesOut[getSpecLocationOutName(sl)] = FormatCode(out)
+		formatted := out
+		if !useSingleFile {
+			formatted, err = FormatCode(out)
+			if err != nil {
+				return nil, err
+			}
+		}
+		typesOut[getSpecLocationOutName(sl)] = formatted
 	}
 
 	if len(p.ctx.AdditionalTypes) > 0 {
@@ -166,7 +187,14 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for additional properties: %w", err)
 		}
-		typesOut["additional"] = FormatCode(out)
+		formatted := out
+		if !useSingleFile {
+			formatted, err = FormatCode(out)
+			if err != nil {
+				return nil, err
+			}
+		}
+		typesOut["additional"] = formatted
 	}
 
 	if len(p.ctx.UnionTypes) > 0 {
@@ -180,7 +208,14 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for union types: %w", err)
 		}
-		typesOut["unions"] = FormatCode(out)
+		formatted := out
+		if !useSingleFile {
+			formatted, err = FormatCode(out)
+			if err != nil {
+				return nil, err
+			}
+		}
+		typesOut["unions"] = formatted
 	}
 
 	if len(p.ctx.UnionWithAdditionalTypes) > 0 {
@@ -194,7 +229,14 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error generating code for union types with additional properties: %w", err)
 		}
-		typesOut["unions_with_additional"] = FormatCode(out)
+		formatted := out
+		if !useSingleFile {
+			formatted, err = FormatCode(out)
+			if err != nil {
+				return nil, err
+			}
+		}
+		typesOut["unions_with_additional"] = formatted
 	}
 
 	if useSingleFile {
@@ -218,7 +260,11 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 			res += code + "\n"
 			delete(typesOut, name)
 		}
-		typesOut = map[string]string{"all": FormatCode(res)}
+		formatted, err := FormatCode(res)
+		if err != nil {
+			return nil, err
+		}
+		typesOut = map[string]string{"all": formatted}
 	}
 
 	return typesOut, nil
@@ -273,23 +319,23 @@ func loadTemplates() (*template.Template, error) {
 
 // FormatCode formats the provided Go code.
 // It optimizes imports and formats the code using gofmt.
-func FormatCode(src string) string {
+func FormatCode(src string) (string, error) {
 	src = strings.Trim(src, "\n") + "\n"
 	if src == "" {
-		return src
+		return src, nil
 	}
 
 	res, err := optimizeImports([]byte(src))
 	if err != nil {
-		return string(res)
+		return "", fmt.Errorf("error optimizing imports: %w", err)
 	}
 
 	res, err = format.Source(res)
 	if err != nil {
-		return string(res)
+		return "", fmt.Errorf("error formatting code: %w", err)
 	}
 
-	return sanitizeCode(string(res))
+	return sanitizeCode(string(res)), nil
 }
 
 // sanitizeCode runs sanitizers across the generated Go code to ensure the
