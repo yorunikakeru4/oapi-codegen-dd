@@ -9,13 +9,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/doordash/oapi-codegen/v3/pkg/runtime"
 	"github.com/google/go-querystring/query"
 )
 
-// RequestEditorFn  is the function signature for the RequestEditor callback function
+// RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
 
 // HttpRequestDoer performs HTTP requests.
@@ -79,8 +81,8 @@ type CustomClientTypeInterface interface {
 
 func (c *CustomClientType) GetClient(ctx context.Context, reqEditors ...RequestEditorFn) (*GetClientResponse, error) {
 	var err error
-	url := c.baseURL + "/client"
-	req, err := createRequest(ctx, url, "GET", nil)
+	reqURL := c.baseURL + "/client"
+	req, err := createRequest(ctx, reqURL, "GET", nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -138,27 +140,25 @@ type RequestOptions interface {
 }
 
 // createRequest creates a new POST request with the given URL, payload and headers.
-func createRequest(ctx context.Context, url, method string, options RequestOptions) (*http.Request, error) {
+func createRequest(ctx context.Context, reqURL, method string, options RequestOptions) (*http.Request, error) {
 	pathParams, err := options.GetPathParams()
 	if err != nil {
 		return nil, err
 	}
-	url = strings.TrimSuffix(url, "/")
-	url = replacePathPlaceholders(url, pathParams)
+	reqURL = strings.TrimSuffix(reqURL, "/")
+	reqURL = replacePathPlaceholders(reqURL, pathParams)
 
 	queryParams, err := options.GetQuery()
 	if err != nil {
 		return nil, err
 	}
 	if len(queryParams) > 0 {
-		var pairs []string
+		values := url.Values{}
 		for k, v := range queryParams {
-			pairs = append(pairs, fmt.Sprintf("%s=%v", k, v))
+			values.Set(k, fmt.Sprintf("%v", v))
 		}
-		url = fmt.Sprintf("%s?%s", url, strings.Join(pairs, "&"))
+		reqURL = fmt.Sprintf("%s?%s", reqURL, values.Encode())
 	}
-
-	payload := options.GetBody()
 
 	headers, err := options.GetHeader()
 	if err != nil {
@@ -169,33 +169,42 @@ func createRequest(ctx context.Context, url, method string, options RequestOptio
 			"Content-Type": "application/json",
 		}
 	}
+
 	httpHeaders := http.Header{}
-	for k, v := range headers {
-		httpHeaders.Set(k, v)
+
+	keys := make([]string, 0, len(headers))
+	for k := range headers {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		httpHeaders.Set(k, headers[k])
 	}
 
 	var bodyReader io.Reader
 	var encodedPayload string
 
-	// Check if request should be form-encoded
-	if strings.HasPrefix(headers["Content-Type"], "application/x-www-form-urlencoded") {
-		formValues, err := query.Values(payload)
-		if err != nil {
-			return nil, fmt.Errorf("error encoding form values: %w", err)
+	payload := options.GetBody()
+	if payload != nil {
+		// Check if request should be form-encoded
+		if strings.HasPrefix(headers["Content-Type"], "application/x-www-form-urlencoded") {
+			formValues, err := query.Values(payload)
+			if err != nil {
+				return nil, fmt.Errorf("error encoding form values: %w", err)
+			}
+			encodedPayload = formValues.Encode()
+			bodyReader = strings.NewReader(encodedPayload)
+		} else {
+			// Default to JSON encoding
+			body, err := json.Marshal(payload)
+			if err != nil {
+				return nil, err
+			}
+			encodedPayload = string(body)
+			bodyReader = bytes.NewBuffer(body)
 		}
-		encodedPayload = formValues.Encode()
-		bodyReader = strings.NewReader(encodedPayload)
-	} else {
-		// Default to JSON encoding
-		body, err := json.Marshal(payload)
-		if err != nil {
-			return nil, err
-		}
-		encodedPayload = string(body)
-		bodyReader = bytes.NewBuffer(body)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, bodyReader)
 	if err != nil {
 		return nil, err
 	}
@@ -205,11 +214,11 @@ func createRequest(ctx context.Context, url, method string, options RequestOptio
 	return req, nil
 }
 
-func replacePathPlaceholders(url string, pathParams map[string]any) string {
+func replacePathPlaceholders(reqURL string, pathParams map[string]any) string {
 	for k, v := range pathParams {
-		url = strings.Replace(url, fmt.Sprintf("{%s}", k), fmt.Sprintf("%v", v), -1)
+		reqURL = strings.Replace(reqURL, fmt.Sprintf("{%s}", k), fmt.Sprintf("%v", v), -1)
 	}
-	return url
+	return reqURL
 }
 
 var _ CustomClientTypeInterface = (*CustomClientType)(nil)
