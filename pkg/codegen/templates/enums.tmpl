@@ -12,13 +12,4 @@
         {{$safeName}} {{$Enum.Name}} = {{$Enum.ValueWrapper}}{{$value}}{{$Enum.ValueWrapper}}
       {{- end}}
     )
-
-    // All returns all possible values for {{$Enum.Name}}.
-    func ({{$Enum.Name | fst | lower}} {{$Enum.Name}}) All() []{{$Enum.Name}} {
-      return []{{$Enum.Name}}{
-        {{- range $safeNames }}
-        {{ . }},
-        {{- end }}
-      }
-    }
 {{end}}
