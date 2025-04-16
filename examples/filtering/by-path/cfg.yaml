@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../../configuration-schema.json
+package: filteringbypath
+output:
+  use-single-file: true
+filter:
+  include:
+    paths:
+      - /client

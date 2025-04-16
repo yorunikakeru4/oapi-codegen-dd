@@ -30,7 +30,13 @@ func filterOutDocument(doc libopenapi.Document, cfg FilterConfig) (libopenapi.Do
 }
 
 func filterOperations(model *v3high.Document, cfg FilterConfig) {
+	paths := map[string]*v3high.PathItem{}
+	// iterate over copy
 	for path, pathItem := range model.Paths.PathItems.FromOldest() {
+		paths[path] = pathItem
+	}
+
+	for path, pathItem := range paths {
 		if cfg.Include.Paths != nil && !slices.Contains(cfg.Include.Paths, path) {
 			model.Paths.PathItems.Delete(path)
 			continue

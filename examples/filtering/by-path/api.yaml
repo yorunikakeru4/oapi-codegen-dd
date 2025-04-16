@@ -1,0 +1,56 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Generate models
+paths:
+  /client:
+    get:
+      operationId: getClient
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Person"
+  /client/{id}/purchases:
+    get:
+      operationId: getPurchases
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Purchase"
+  /client/{id}/purchases/{purchaseId}:
+    get:
+      operationId: getPurchase
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Purchase"
+components:
+  schemas:
+    Person:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        age:
+          type: integer
+    Purchase:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+
