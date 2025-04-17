@@ -20,7 +20,32 @@ func MergeDocuments(src, other libopenapi.Document) (libopenapi.Document, error)
 		return nil, fmt.Errorf("error building model for other: %w", errs[0])
 	}
 
-	// Merge Operations
+	mergeOperations(srcModel, otherModel)
+
+	// Merge the components of the two documents
+	if otherModel.Model.Components != nil && otherModel.Model.Components.Schemas != nil {
+		for compName, schemaProxy := range otherModel.Model.Components.Schemas.FromOldest() {
+			current, exists := srcModel.Model.Components.Schemas.Get(compName)
+			if !exists {
+				srcModel.Model.Components.Schemas.Set(compName, schemaProxy)
+				continue
+			}
+			mergeSchemaProxy(current, schemaProxy)
+		}
+	}
+
+	_, res, _, errs := src.RenderAndReload()
+	if errs != nil {
+		return nil, fmt.Errorf("error reloading document: %w", errs[0])
+	}
+	return res, nil
+}
+
+func mergeOperations(srcModel, otherModel *libopenapi.DocumentModel[v3.Document]) {
+	if srcModel == nil || otherModel == nil || otherModel.Model.Paths == nil || otherModel.Model.Paths.PathItems == nil {
+		return
+	}
+
 	for path, pathItem := range otherModel.Model.Paths.PathItems.FromOldest() {
 		current, exists := srcModel.Model.Paths.PathItems.Get(path)
 		if !exists {
@@ -92,24 +117,6 @@ func MergeDocuments(src, other libopenapi.Document) (libopenapi.Document, error)
 			}
 		}
 	}
-
-	// Merge the components of the two documents
-	if otherModel.Model.Components != nil && otherModel.Model.Components.Schemas != nil {
-		for compName, schemaProxy := range otherModel.Model.Components.Schemas.FromOldest() {
-			current, exists := srcModel.Model.Components.Schemas.Get(compName)
-			if !exists {
-				srcModel.Model.Components.Schemas.Set(compName, schemaProxy)
-				continue
-			}
-			mergeSchemaProxy(current, schemaProxy)
-		}
-	}
-
-	_, res, _, errs := src.RenderAndReload()
-	if errs != nil {
-		return nil, fmt.Errorf("error reloading document: %w", errs[0])
-	}
-	return res, nil
 }
 
 func mergeSchemaProxy(src *base.SchemaProxy, other *base.SchemaProxy) {

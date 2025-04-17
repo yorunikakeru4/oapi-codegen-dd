@@ -65,6 +65,18 @@ func getPropertyKeys(schemaPr *base.SchemaProxy) []string {
 }
 
 func TestMergeDocuments(t *testing.T) {
+	t.Run("empty document", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-paths-empty.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		srcRendered, _ := srcDoc.Render()
+		resRendered, _ := res.Render()
+
+		assert.Equal(t, srcRendered, resRendered)
+	})
+
 	t.Run("new path appended", func(t *testing.T) {
 		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-paths-new.yml")
 
