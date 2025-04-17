@@ -13,6 +13,9 @@ import (
 //go:embed testdata/test_spec.yml
 var testDocument string
 
+//go:embed testdata/user.yml
+var userDocument string
+
 func TestExampleOpenAPICodeGeneration(t *testing.T) {
 	// Input vars for code generation:
 	packageName := "testswagger"
@@ -49,7 +52,7 @@ func TestExtPropGoTypeSkipOptionalPointer(t *testing.T) {
 			UseSingleFile: true,
 		},
 	}
-	spec := "testdata/x-go-type-skip-optional-pointer.yaml"
+	spec := "testdata/x-go-type-skip-optional-pointer.yml"
 	docContents, err := os.ReadFile(spec)
 	require.NoError(t, err)
 
@@ -86,7 +89,7 @@ func TestGoTypeImport(t *testing.T) {
 			UseSingleFile: true,
 		},
 	}
-	spec := "testdata/x-go-type-import-pet.yaml"
+	spec := "testdata/x-go-type-import-pet.yml"
 	docContents, err := os.ReadFile(spec)
 	require.NoError(t, err)
 

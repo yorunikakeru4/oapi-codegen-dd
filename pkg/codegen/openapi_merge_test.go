@@ -1,0 +1,299 @@
+package codegen
+
+import (
+	_ "embed"
+	"os"
+	"testing"
+
+	"github.com/pb33f/libopenapi"
+	"github.com/pb33f/libopenapi/datamodel/high/base"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func loadTestDocuments(t *testing.T, partialPath string) (libopenapi.Document, libopenapi.Document) {
+	t.Helper()
+	partialContent, err := os.ReadFile(partialPath)
+	require.NoError(t, err)
+
+	srcDoc, err := LoadDocumentFromContents([]byte(testDocument))
+	require.NoError(t, err)
+
+	partialDoc, err := LoadDocumentFromContents(partialContent)
+	require.NoError(t, err)
+	return srcDoc, partialDoc
+}
+
+func loadUserDocuments(t *testing.T, partialPath string) (libopenapi.Document, libopenapi.Document) {
+	t.Helper()
+	partialContent, err := os.ReadFile(partialPath)
+	require.NoError(t, err)
+
+	srcDoc, err := LoadDocumentFromContents([]byte(userDocument))
+	require.NoError(t, err)
+
+	partialDoc, err := LoadDocumentFromContents(partialContent)
+	require.NoError(t, err)
+	return srcDoc, partialDoc
+}
+
+func getSchemaProperties(t *testing.T, res libopenapi.Document, name string) ([]string, *base.SchemaProxy) {
+	t.Helper()
+
+	v3Model, errs := res.BuildV3Model()
+	if errs != nil {
+		t.Fatalf("error building document: %v", errs)
+	}
+	model := v3Model.Model
+	schemaObj, exists := model.Components.Schemas.Get(name)
+	require.True(t, exists)
+
+	props := getPropertyKeys(schemaObj)
+	return props, schemaObj
+}
+
+func getPropertyKeys(schemaPr *base.SchemaProxy) []string {
+	if schemaPr == nil {
+		return nil
+	}
+
+	var keys []string
+	for key := range schemaPr.Schema().Properties.KeysFromOldest() {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func TestMergeDocuments(t *testing.T) {
+	t.Run("new path appended", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-paths-new.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		assert.Equal(t, 6, model.Paths.PathItems.Len())
+
+		fooPath, exists := model.Paths.PathItems.Get("/foo")
+		require.True(t, exists)
+		assert.NotNil(t, fooPath.Get)
+
+		barPath, exists := model.Paths.PathItems.Get("/bar")
+		require.True(t, exists)
+		assert.NotNil(t, barPath.Get)
+		assert.NotNil(t, barPath.Post)
+	})
+
+	t.Run("new method appended", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-paths-user-patch.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		assert.Equal(t, 4, model.Paths.PathItems.Len())
+
+		userPath, exists := model.Paths.PathItems.Get("/user")
+		require.True(t, exists)
+		assert.NotNil(t, userPath.Patch)
+	})
+
+	t.Run("new params appended", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-paths-existing-params.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		assert.Equal(t, 4, model.Paths.PathItems.Len())
+
+		userPath, exists := model.Paths.PathItems.Get("/test/{name}")
+		require.True(t, exists)
+		assert.NotNil(t, userPath.Get)
+
+		expectedParams := []string{"name", "$top", "from", "to"}
+		var params []string
+		for _, v := range userPath.Get.Parameters {
+			params = append(params, v.Name)
+		}
+		assert.Equal(t, expectedParams, params)
+	})
+
+	t.Run("new request body appended", func(t *testing.T) {
+		srcDoc, partialDoc := loadUserDocuments(t, "testdata/partial-paths-req-body-new.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		userPath, exists := model.Paths.PathItems.Get("/user")
+		require.True(t, exists)
+		assert.NotNil(t, userPath.Post)
+
+		reqBody := userPath.Post.RequestBody
+		require.NotNil(t, reqBody)
+	})
+
+	t.Run("request bodies merged", func(t *testing.T) {
+		srcDoc, partialDoc := loadUserDocuments(t, "testdata/partial-paths-req-body-existing.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		userPath, exists := model.Paths.PathItems.Get("/user")
+		require.True(t, exists)
+		assert.NotNil(t, userPath.Patch)
+
+		reqBody := userPath.Patch.RequestBody
+		require.NotNil(t, reqBody)
+		expectedKeys := []string{"name", "city", "zip"}
+		props := getPropertyKeys(reqBody.Content.Value("application/json").Schema)
+		assert.Equal(t, expectedKeys, props)
+	})
+
+	t.Run("new response code appended", func(t *testing.T) {
+		srcDoc, partialDoc := loadUserDocuments(t, "testdata/partial-paths-user-new-response.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		userPath, exists := model.Paths.PathItems.Get("/user")
+		require.True(t, exists)
+
+		responses := userPath.Get.Responses.Codes
+		assert.NotNil(t, userPath.Get.Responses.Default)
+
+		assert.Equal(t, 2, responses.Len())
+		assert.NotNil(t, responses.Value("200"))
+		assert.NotNil(t, responses.Value("201"))
+	})
+
+	t.Run("same response code properties merged", func(t *testing.T) {
+		srcDoc, partialDoc := loadUserDocuments(t, "testdata/partial-paths-user-existing-response.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		userPath, exists := model.Paths.PathItems.Get("/user")
+		require.True(t, exists)
+
+		responses := userPath.Put.Responses.Codes
+		assert.NotNil(t, userPath.Get.Responses.Default)
+
+		assert.Equal(t, 1, responses.Len())
+		resp := responses.Value("200")
+		require.NotNil(t, resp)
+
+		expectedProps := []string{"name", "age", "city", "zip"}
+		props := getPropertyKeys(resp.Content.Value("application/json").Schema)
+		assert.Equal(t, expectedProps, props)
+	})
+
+	t.Run("new schema is injected", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-schema-person.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		props, _ := getSchemaProperties(t, res, "Person")
+		expected := []string{"name", "address"}
+		assert.Equal(t, expected, props)
+	})
+
+	t.Run("new properties can be added to existing", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-schema-cat-alive.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		props, _ := getSchemaProperties(t, res, "CatAlive")
+		expected := []string{"name", "alive_since", "nickname", "age"}
+		assert.Equal(t, expected, props)
+	})
+
+	t.Run("new nested properties can be added to existing", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-schema-location.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		props, schemaPr := getSchemaProperties(t, res, "Location")
+		expected := []string{"coordinates", "address"}
+		assert.Equal(t, expected, props)
+
+		addressSch, exists := schemaPr.Schema().Properties.Get("address")
+		require.True(t, exists)
+		props = getPropertyKeys(addressSch)
+		expected = []string{"street", "city", "owner", "zip"}
+		assert.Equal(t, expected, props)
+
+		ownerSch, exists := addressSch.Schema().Properties.Get("owner")
+		require.True(t, exists)
+		props = getPropertyKeys(ownerSch)
+		expected = []string{"name", "age"}
+		assert.Equal(t, expected, props)
+	})
+
+	t.Run("all-of, any-of appended", func(t *testing.T) {
+		srcDoc, partialDoc := loadTestDocuments(t, "testdata/partial-schema-user.yml")
+
+		res, err := MergeDocuments(srcDoc, partialDoc)
+		require.NoError(t, err)
+
+		v3Model, errs := res.BuildV3Model()
+		if errs != nil {
+			t.Fatalf("error building document: %v", errs)
+		}
+		model := v3Model.Model
+
+		schemaObj, exists := model.Components.Schemas.Get("User")
+		require.True(t, exists)
+
+		allOfSchemas := schemaObj.Schema().AllOf
+		require.Len(t, allOfSchemas, 2)
+
+		anyOfSchemas := schemaObj.Schema().AnyOf
+		require.Len(t, anyOfSchemas, 2)
+
+		notSchemas := schemaObj.Schema().Not
+		assert.NotNil(t, notSchemas)
+	})
+}

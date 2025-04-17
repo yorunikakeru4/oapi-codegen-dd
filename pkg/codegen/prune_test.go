@@ -8,7 +8,7 @@ import (
 
 func TestFindReferences(t *testing.T) {
 	t.Run("unfiltered", func(t *testing.T) {
-		doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
+		doc, err := LoadDocumentFromContents([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
 
 		model, _ := doc.BuildV3Model()
@@ -18,7 +18,7 @@ func TestFindReferences(t *testing.T) {
 	})
 
 	t.Run("only cat", func(t *testing.T) {
-		doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
+		doc, err := LoadDocumentFromContents([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
 
 		model, _ := doc.BuildV3Model()
@@ -41,7 +41,7 @@ func TestFindReferences(t *testing.T) {
 	})
 
 	t.Run("only dog", func(t *testing.T) {
-		doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
+		doc, err := LoadDocumentFromContents([]byte(pruneSpecTestFixture))
 		assert.NoError(t, err)
 
 		model, _ := doc.BuildV3Model()
@@ -65,7 +65,7 @@ func TestFindReferences(t *testing.T) {
 
 func TestFilterOnlyCat(t *testing.T) {
 	// Get a spec from the test definition in this file:
-	doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
+	doc, err := LoadDocumentFromContents([]byte(pruneSpecTestFixture))
 	assert.NoError(t, err)
 
 	model, _ := doc.BuildV3Model()
@@ -105,7 +105,7 @@ func TestFilterOnlyCat(t *testing.T) {
 
 func TestFilterOnlyDog(t *testing.T) {
 	// Get a spec from the test definition in this file:
-	doc, err := loadDocumentFromContents([]byte(pruneSpecTestFixture))
+	doc, err := LoadDocumentFromContents([]byte(pruneSpecTestFixture))
 	assert.NoError(t, err)
 
 	model, _ := doc.BuildV3Model()
@@ -147,7 +147,7 @@ func TestFilterOnlyDog(t *testing.T) {
 
 func TestPruningUnusedComponents(t *testing.T) {
 	// Get a spec from the test definition in this file:
-	doc, err := loadDocumentFromContents([]byte(pruneComprehensiveTestFixture))
+	doc, err := LoadDocumentFromContents([]byte(pruneComprehensiveTestFixture))
 	assert.NoError(t, err)
 
 	model, _ := doc.BuildV3Model()

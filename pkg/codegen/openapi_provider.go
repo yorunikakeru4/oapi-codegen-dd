@@ -8,7 +8,7 @@ import (
 )
 
 func CreateDocument(docContents []byte, cfg Configuration) (libopenapi.Document, error) {
-	doc, err := loadDocumentFromContents(docContents)
+	doc, err := LoadDocumentFromContents(docContents)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func CreateDocument(docContents []byte, cfg Configuration) (libopenapi.Document,
 	return doc, nil
 }
 
-func loadDocumentFromContents(contents []byte) (libopenapi.Document, error) {
+func LoadDocumentFromContents(contents []byte) (libopenapi.Document, error) {
 	docConfig := &datamodel.DocumentConfiguration{
 		SkipCircularReferenceCheck: true,
 	}

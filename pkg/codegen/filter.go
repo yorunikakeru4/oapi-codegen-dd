@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/pb33f/libopenapi"
 	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
@@ -81,7 +82,7 @@ func filterOperations(model *v3high.Document, cfg FilterConfig) {
 			}
 
 			if remove {
-				switch method {
+				switch strings.ToLower(method) {
 				case "get":
 					pathItem.Get = nil
 				case "post":

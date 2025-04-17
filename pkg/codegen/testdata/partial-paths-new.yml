@@ -1,0 +1,51 @@
+openapi: 3.0.1
+
+info:
+  title: OpenAPI-CodeGen Test
+  description: 'This is a test OpenAPI Spec'
+  version: 1.0.0
+
+paths:
+  /foo:
+    get:
+      operationId: get-foo
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: integer
+  /bar:
+    get:
+      operationId: get-bar
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bar"
+    post:
+      operationId: post-bar
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bar"
+components:
+  schemas:
+    Bar:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: integer

@@ -1,0 +1,22 @@
+openapi: 3.0.1
+
+info:
+  title: OpenAPI-CodeGen Test
+  description: 'This is a test OpenAPI Spec'
+  version: 1.0.0
+
+paths:
+  /user:
+    post:
+      # user.yml does not have a request body
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                age:
+                  type: integer
+      responses:

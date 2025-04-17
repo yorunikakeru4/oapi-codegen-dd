@@ -198,3 +198,28 @@ components:
             name:
               type: string
               description: User name
+
+    Location:
+      type: object
+      properties:
+        coordinates:
+          type: object
+          properties:
+            latitude:
+              type: number
+              format: double
+            longitude:
+              type: number
+              format: double
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+            city:
+              type: string
+            owner:
+              type: object
+              properties:
+                name:
+                  type: string
