@@ -9,25 +9,9 @@ const (
 	GetClientResponseTypeIndividual GetClientResponseType = "individual"
 )
 
-// All returns all possible values for GetClientResponseType.
-func (g GetClientResponseType) All() []GetClientResponseType {
-	return []GetClientResponseType{
-		GetClientResponseTypeCompany,
-		GetClientResponseTypeIndividual,
-	}
-}
-
 type ClientTypeType string
 
 const (
 	ClientTypeTypeCompany    ClientTypeType = "company"
 	ClientTypeTypeIndividual ClientTypeType = "individual"
 )
-
-// All returns all possible values for ClientTypeType.
-func (c ClientTypeType) All() []ClientTypeType {
-	return []ClientTypeType{
-		ClientTypeTypeCompany,
-		ClientTypeTypeIndividual,
-	}
-}

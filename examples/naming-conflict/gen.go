@@ -9,14 +9,6 @@ const (
 	TypeSourceTypeACHCreditTransfer Type = "source_type_ach_credit_transfer"
 )
 
-// All returns all possible values for Type.
-func (t Type) All() []Type {
-	return []Type{
-		TypeACHDebit,
-		TypeSourceTypeACHCreditTransfer,
-	}
-}
-
 type Source struct {
 	ACHCreditTransfer *SourceTypeACHCreditTransfer `json:"ach_credit_transfer,omitempty"`
 }

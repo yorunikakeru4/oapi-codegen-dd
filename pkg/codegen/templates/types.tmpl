@@ -6,29 +6,40 @@
 var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructEnabled())
 {{ end -}}
 
+{{- define "typeDef" -}}
+{{ $td := .type }}
+{{ $config := .config }}
+{{ $loc := .specLocation }}
+{{ $isParam := or (eq $loc "path") (eq $loc "query") (eq $loc "header") (eq $loc "body") }}
+
+    {{ if not $config.Generate.OmitDescription}}{{ toGoComment $td.Schema.Description $td.Name }}{{ end }}
+    type {{$td.Name}} {{if $td.IsAlias}}={{end}} {{$td.Schema.TypeDecl}}
+
+    {{ if $isParam }}
+    {{ if not $td.IsAlias }}
+    {{ $alias := $loc | fst | lower }}
+    func ({{$alias}} {{$td.Name}}) Validate() error {
+    return {{$loc}}TypesValidate.Struct({{$alias}})
+    }
+    {{ end }}
+    {{ end -}}
+
+    {{- $val := index $config.ErrorMapping $td.Name }}
+    {{ if and (eq $loc "response") $val }}
+    {{ $alias := $loc | fst | lower }}
+    {{ if not $td.IsAlias }}
+    {{ $alias := $loc | fst | lower }}
+    func ({{$alias}} {{$td.Name}}) Error() string {
+        {{ $td.GetErrorResponse $config.ErrorMapping $alias }}
+    }
+    {{ end }}
+    {{ end }}
+{{ end }}
+
 {{ $config := .Config }}
+
 {{- range .Types}}{{ $td := . }}
-{{if not $config.Generate.OmitDescription}}{{ toGoComment .Schema.Description .Name }}{{end}}
-type {{.Name}} {{if .IsAlias}}={{end}} {{.Schema.TypeDecl}}
-
-{{ if $isParam }}
-{{ if not .IsAlias }}
-{{ $alias := .SpecLocation | fst | lower }}
-func ({{$alias}} {{.Name}}) Validate() error {
-    return {{.SpecLocation}}TypesValidate.Struct({{$alias}})
-}
+{{ if not $td.Schema.UnionElements }}
+  {{ template "typeDef" (dict "type" $td "config" $config "specLocation" $loc) }}
 {{ end }}
-{{ end -}}
-
-{{- $val := index $config.ErrorMapping .Name }}
-{{ if and (eq $loc "response") $val }}
-{{ $alias := .SpecLocation | fst | lower }}
-{{ if not .IsAlias }}
-{{ $alias := .SpecLocation | fst | lower }}
-func ({{$alias}} {{.Name}}) Error() string {
-    {{ $td.GetErrorResponse $config.ErrorMapping $alias }}
-}
-{{ end }}
-{{ end }}
-
 {{ end }}

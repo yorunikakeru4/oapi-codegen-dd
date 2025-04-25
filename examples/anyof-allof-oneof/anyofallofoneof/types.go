@@ -20,3 +20,8 @@ type IdentityWithDuplicateField struct {
 		Name string `json:"name" validate:"required"`
 	} `json:"issuer" validate:"required"`
 }
+
+type ClientAndMaybeIdentity struct {
+	Entity *ClientAndMaybeIdentity_Entity `json:"entity,omitempty"`
+	Type   ClientAndMaybeIdentityType     `json:"type" validate:"required"`
+}

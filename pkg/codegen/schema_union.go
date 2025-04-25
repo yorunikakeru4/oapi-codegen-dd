@@ -10,12 +10,7 @@ import (
 // UnionElement describe union element, based on prefix externalRef\d+ and real ref name from external schema.
 type UnionElement string
 
-// String returns externalRef\d+ and real ref name from external schema, like externalRef0.SomeType.
-func (u UnionElement) String() string {
-	return string(u)
-}
-
-// Method generate union method name for template functions `As/From/Merge`.
+// Method generate union method name for template functions `As/From`.
 func (u UnionElement) Method() string {
 	var method string
 	for _, part := range strings.Split(string(u), `.`) {
@@ -24,8 +19,8 @@ func (u UnionElement) Method() string {
 	return method
 }
 
-func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminator, path []string, options ParseOptions) (GoSchema, error) {
-	outSchema := GoSchema{}
+func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminator, path []string, options ParseOptions) (*GoSchema, error) {
+	outSchema := &GoSchema{}
 
 	if discriminator != nil {
 		outSchema.Discriminator = &Discriminator{
@@ -34,7 +29,23 @@ func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminat
 		}
 	}
 
-	refToGoTypeMap := make(map[string]string)
+	primitives := map[string]bool{
+		"string":  true,
+		"int":     true,
+		"int8":    true,
+		"int16":   true,
+		"int32":   true,
+		"int64":   true,
+		"uint":    true,
+		"uint8":   true,
+		"uint16":  true,
+		"uint32":  true,
+		"uint64":  true,
+		"float":   true,
+		"float32": true,
+		"float64": true,
+		"bool":    true,
+	}
 
 	for i, element := range elements {
 		if element == nil {
@@ -44,33 +55,27 @@ func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminat
 		ref := element.GoLow().GetReference()
 		elementSchema, err := GenerateGoSchema(element, ref, elementPath, options)
 		if err != nil {
-			return GoSchema{}, err
+			return nil, err
 		}
 
-		if ref != "" {
-			refToGoTypeMap[ref] = elementSchema.GoType
-		}
-
-		if ref == "" {
+		// define new types only for non-primitive types
+		if ref == "" && !primitives[elementSchema.GoType] {
 			elementName := schemaNameToTypeName(pathToTypeName(elementPath))
-
-			if elementSchema.TypeDecl() == elementName {
-				elementSchema.GoType = elementName
-			} else {
+			if elementSchema.TypeDecl() != elementName {
 				td := TypeDefinition{
 					Schema:       elementSchema,
 					Name:         elementName,
 					SpecLocation: SpecLocationUnion,
 				}
 				outSchema.AdditionalTypes = append(outSchema.AdditionalTypes, td)
-				elementSchema.GoType = td.Name
 			}
+			elementSchema.GoType = elementName
 			outSchema.AdditionalTypes = append(outSchema.AdditionalTypes, elementSchema.AdditionalTypes...)
 		}
 
 		if discriminator != nil {
 			if discriminator.Mapping.Len() != 0 && element.GetReference() == "" {
-				return GoSchema{}, ErrAmbiguousDiscriminatorMapping
+				return nil, ErrAmbiguousDiscriminatorMapping
 			}
 
 			// Explicit mapping.
@@ -91,7 +96,7 @@ func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminat
 	}
 
 	if (outSchema.Discriminator != nil) && len(outSchema.Discriminator.Mapping) != len(elements) {
-		return GoSchema{}, ErrDiscriminatorNotAllMapped
+		return nil, ErrDiscriminatorNotAllMapped
 	}
 
 	return outSchema, nil

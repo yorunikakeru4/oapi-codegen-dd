@@ -9,28 +9,12 @@ const (
 	SourceTypeAlipay2           SourceType = "alipay"
 )
 
-// All returns all possible values for SourceType.
-func (s SourceType) All() []SourceType {
-	return []SourceType{
-		SourceTypeACHCreditTransfer,
-		SourceTypeAlipay2,
-	}
-}
-
 type PaymentSourceType string
 
 const (
 	PaymentSourceTypeACHCreditTransfer PaymentSourceType = "ach_credit_transfer"
 	PaymentSourceTypeAlipay            PaymentSourceType = "alipay"
 )
-
-// All returns all possible values for PaymentSourceType.
-func (p PaymentSourceType) All() []PaymentSourceType {
-	return []PaymentSourceType{
-		PaymentSourceTypeACHCreditTransfer,
-		PaymentSourceTypeAlipay,
-	}
-}
 
 type Payment struct {
 	Source *struct {

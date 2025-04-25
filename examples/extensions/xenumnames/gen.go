@@ -9,25 +9,9 @@ const (
 	EXP ClientType = "EXP"
 )
 
-// All returns all possible values for ClientType.
-func (c ClientType) All() []ClientType {
-	return []ClientType{
-		ACT,
-		EXP,
-	}
-}
-
 type ClientTypeWithNamesExtension string
 
 const (
 	Active  ClientTypeWithNamesExtension = "ACT"
 	Expired ClientTypeWithNamesExtension = "EXP"
 )
-
-// All returns all possible values for ClientTypeWithNamesExtension.
-func (c ClientTypeWithNamesExtension) All() []ClientTypeWithNamesExtension {
-	return []ClientTypeWithNamesExtension{
-		Active,
-		Expired,
-	}
-}

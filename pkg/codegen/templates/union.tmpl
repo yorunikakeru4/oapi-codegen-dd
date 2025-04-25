@@ -1,16 +1,47 @@
+func unmarshalAs[T any](v json.RawMessage) (T, error) {
+    var res T
+    err := json.Unmarshal(v, &res)
+    return res, err
+}
+
+func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, error) {
+    var err error
+    object := make(map[string]json.RawMessage)
+    if data != nil {
+        if err := json.Unmarshal(data, &object); err != nil {
+            return nil, err
+        }
+    }
+
+    object[field], err = json.Marshal(value)
+    if err != nil {
+        return nil, fmt.Errorf("error marshaling discriminator field '%s': %w", field, err)
+    }
+
+    return json.Marshal(object)
+}
+
+
+{{ $config := .Config }}
+
 {{range .Types}}
 {{/* make sure schema has union elements */}}
 {{ if .Schema.UnionElements }}
+    {{ template "typeDef" (dict "type" . "config" $config "specLocation" "union") }}
+
     {{$typeName := .Name -}}
     {{$discriminator := .Schema.Discriminator}}
     {{$properties := .Schema.Properties -}}
+
+    {{ $eitherType := eq (len .Schema.UnionElements) 2}}
+
     {{range .Schema.UnionElements}}
         {{$element := . -}}
+
+        {{ if not $eitherType }}
         // As{{ .Method }} returns the union data inside the {{$typeName}} as a {{.}}
         func (t *{{$typeName}}) As{{ .Method }}() ({{.}}, error) {
-            var body {{.}}
-            err := json.Unmarshal(t.union, &body)
-            return body, err
+            return unmarshalAs[{{.}}](t.union)
         }
 
         // From{{ .Method }} overwrites any union data inside the {{$typeName}} as the provided {{.}}
@@ -33,20 +64,23 @@
             t.union = b
             return err
         }
+        {{end}}{{/*// either type check*/}}
     {{end}}
 
     {{if $discriminator}}
-        func (t {{.Name}}) Discriminator() (string, error) {
+        func (t {{.Name}}) discriminator(data []byte) (string, error) {
             var discriminator struct {
-                Discriminator string {{$discriminator.JSONTag}}
+                Value string {{$discriminator.JSONTag}}
             }
-            err := json.Unmarshal(t.union, &discriminator)
-            return discriminator.Discriminator, err
+            if err := json.Unmarshal(data, &discriminator); err != nil {
+                return "", err
+            }
+            return discriminator.Value, nil
         }
 
-        {{if ne 0 (len $discriminator.Mapping)}}
-            func (t {{.Name}}) ValueByDiscriminator() (interface{}, error) {
-                discriminator, err := t.Discriminator()
+        {{if and (ne 0 (len $discriminator.Mapping)) (not $eitherType)}}
+            func (t {{.Name}}) ValueByDiscriminator() (any, error) {
+                discriminator, err := t.discriminator(t.union)
                 if err != nil {
                     return nil, err
                 }
@@ -62,56 +96,139 @@
         {{end}}
     {{end}}
 
-    {{if not .Schema.HasAdditionalProperties}}
+    {{if and (not .Schema.HasAdditionalProperties) }}
+        {{if $eitherType}}
+            {{ template "marshalEither" (dict "name" .Name "discriminator" $discriminator) }}
+        {{ else }}
+            {{ template "marshalUnion" (dict "name" .Name "schema" .Schema) }}
+        {{ end }}
 
-    func (t {{.Name}}) MarshalJSON() ([]byte, error) {
-        b, err := t.union.MarshalJSON()
-        {{if ne 0 (len .Schema.Properties) -}}
-            if err != nil {
-                return nil, err
+        {{ if $eitherType }}
+            {{ if $discriminator }}
+                {{ template "unmarshalEitherTypeWithDiscriminator" (dict "discriminator" $discriminator "elements" .Schema.UnionElements "name" .Name) }}
+            {{ else }}
+                {{ template "unmarshalEitherTypeWithoutDiscriminator" (dict "name" .Name) }}
+            {{ end }}
+        {{ else }}
+            {{ template "unmarshalUnion" (dict "name" .Name "schema" .Schema) }}
+        {{ end }}
+    {{end}}
+    {{end}}
+{{end}}
+
+
+{{ define "marshalEither" }}
+{{- $args := . -}}
+func (t *{{$args.name}}) MarshalJSON() ([]byte, error) {
+    data := t.Value()
+    if data == nil {
+        return nil, nil
+    }
+
+    obj, err := json.Marshal(data)
+    if err != nil {
+        return nil, err
+    }
+    {{- if $args.discriminator }}
+    disc, err := t.discriminator(obj)
+    if err != nil {
+        return nil, err
+    }
+    return marshalJSONWithDiscriminator(obj, "{{$args.discriminator.Property}}", disc)
+    {{ else }}
+        return obj, nil
+    {{ end -}}
+}
+{{ end }}
+
+{{ define "unmarshalEitherTypeWithoutDiscriminator" }}
+{{- $args := . -}}
+func (t *{{$args.name}}) UnmarshalJSON(data []byte) error {
+    return t.Unmarshal(data)
+}
+{{ end }}
+
+{{ define "unmarshalEitherTypeWithDiscriminator" }}
+{{- $args := . -}}
+func (t *{{$args.name}}) UnmarshalJSON(data []byte) error {
+    discriminator, err := t.discriminator(data)
+    if err != nil {
+        return err
+    }
+
+    switch discriminator{
+    {{range $value, $type := $args.discriminator.Mapping -}}
+        case "{{$value}}":
+            var res {{$type}}
+            if err = json.Unmarshal(data, &res); err != nil {
+                return err
             }
-            object := make(map[string]json.RawMessage)
-            if t.union != nil {
-              err = json.Unmarshal(b, &object)
-              if err != nil {
-                return nil, err
-              }
-            }
-            {{range .Schema.Properties}}
-            {{if not .Required}}if t.{{.GoName}} != nil { {{end}}
+
+            {{if eq $type (index $args.elements 0)}}
+                t.A = res
+                t.N = 1
+            {{ else }}
+                t.B = res
+                t.N = 2
+            {{ end -}}
+    {{end -}}
+    default:
+        return errors.New("unknown discriminator value: "+discriminator)
+    }
+    return nil
+}
+{{ end }}
+
+{{ define "marshalUnion" }}
+{{- $args := . -}}
+func (t {{$args.name}}) MarshalJSON() ([]byte, error) {
+    b, err := t.union.MarshalJSON()
+
+    {{if ne 0 (len $args.schema.Properties) -}}
+        if err != nil {
+            return nil, err
+        }
+        object := make(map[string]json.RawMessage)
+        if err = json.Unmarshal(b, &object); err != nil {
+            return nil, err
+        }
+
+        {{range $args.schema.Properties}}
+            {{if not .Constraints.Required}}if t.{{.GoName}} != nil { {{end}}
                 object["{{.JsonFieldName}}"], err = json.Marshal(t.{{.GoName}})
                 if err != nil {
                     return nil, fmt.Errorf("error marshaling '{{.JsonFieldName}}': %w", err)
                 }
-            {{if not .Required}} }{{end}}
-            {{end -}}
-            b, err = json.Marshal(object)
+                {{if not .Constraints.Required}} }{{end}}
         {{end -}}
-        return b, err
-    }
+        b, err = json.Marshal(object)
+    {{end -}}
+    return b, err
+}
+{{ end }}
 
-    func (t *{{.Name}}) UnmarshalJSON(b []byte) error {
-        err := t.union.UnmarshalJSON(b)
-        {{if ne 0 (len .Schema.Properties) -}}
-            if err != nil {
-                return err
+{{ define "unmarshalUnion" }}
+{{- $args := . -}}
+func (t *{{$args.name}}) UnmarshalJSON(b []byte) error {
+    err := t.union.UnmarshalJSON(b)
+
+    {{if ne 0 (len $args.schema.Properties) -}}
+        if err != nil {
+            return err
+        }
+        object := make(map[string]json.RawMessage)
+        if err = json.Unmarshal(b, &object); err != nil {
+            return err
+        }
+
+        {{range $args.schema.Properties}}
+        if raw, found := object["{{.JsonFieldName}}"]; found {
+            if err = json.Unmarshal(raw, &t.{{.GoName}}); err != nil {
+                return fmt.Errorf("error reading '{{.JsonFieldName}}': %w", err)
             }
-            object := make(map[string]json.RawMessage)
-            err = json.Unmarshal(b, &object)
-            if err != nil {
-                return err
-            }
-            {{range .Schema.Properties}}
-                if raw, found := object["{{.JsonFieldName}}"]; found {
-                    err = json.Unmarshal(raw, &t.{{.GoName}})
-                    if err != nil {
-                        return fmt.Errorf("error reading '{{.JsonFieldName}}': %w", err)
-                    }
-                }
-            {{end}}
-        {{end -}}
-        return err
-    }
-    {{end}}
-{{end}}
-{{end}}
+        }
+        {{end}}
+    {{end -}}
+    return err
+}
+{{ end }}

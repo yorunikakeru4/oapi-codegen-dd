@@ -4,88 +4,164 @@ package anyofallofoneof
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+
+	"github.com/doordash/oapi-codegen/v3/pkg/runtime"
 )
 
-type ClientAndMaybeIdentity struct {
+func unmarshalAs[T any](v json.RawMessage) (T, error) {
+	var res T
+	err := json.Unmarshal(v, &res)
+	return res, err
+}
+
+func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+	if data != nil {
+		if err := json.Unmarshal(data, &object); err != nil {
+			return nil, err
+		}
+	}
+
+	object[field], err = json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling discriminator field '%s': %w", field, err)
+	}
+
+	return json.Marshal(object)
+}
+
+type ClientAndMaybeIdentity_Entity struct {
 	union json.RawMessage
 }
 
-type ClientOrIdentity struct {
-	union json.RawMessage
+// AsClient returns the union data inside the ClientAndMaybeIdentity_Entity as a Client
+func (t *ClientAndMaybeIdentity_Entity) AsClient() (Client, error) {
+	return unmarshalAs[Client](t.union)
 }
 
-// AsClient returns the union data inside the ClientAndMaybeIdentity as a Client
-func (t *ClientAndMaybeIdentity) AsClient() (Client, error) {
-	var body Client
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromClient overwrites any union data inside the ClientAndMaybeIdentity as the provided Client
-func (t *ClientAndMaybeIdentity) FromClient(v Client) error {
+// FromClient overwrites any union data inside the ClientAndMaybeIdentity_Entity as the provided Client
+func (t *ClientAndMaybeIdentity_Entity) FromClient(v Client) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// AsIdentity returns the union data inside the ClientAndMaybeIdentity as a Identity
-func (t *ClientAndMaybeIdentity) AsIdentity() (Identity, error) {
-	var body Identity
-	err := json.Unmarshal(t.union, &body)
-	return body, err
+// AsIdentity returns the union data inside the ClientAndMaybeIdentity_Entity as a Identity
+func (t *ClientAndMaybeIdentity_Entity) AsIdentity() (Identity, error) {
+	return unmarshalAs[Identity](t.union)
 }
 
-// FromIdentity overwrites any union data inside the ClientAndMaybeIdentity as the provided Identity
-func (t *ClientAndMaybeIdentity) FromIdentity(v Identity) error {
+// FromIdentity overwrites any union data inside the ClientAndMaybeIdentity_Entity as the provided Identity
+func (t *ClientAndMaybeIdentity_Entity) FromIdentity(v Identity) error {
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-func (t ClientAndMaybeIdentity) MarshalJSON() ([]byte, error) {
+// AsClientWithID returns the union data inside the ClientAndMaybeIdentity_Entity as a ClientWithID
+func (t *ClientAndMaybeIdentity_Entity) AsClientWithID() (ClientWithID, error) {
+	return unmarshalAs[ClientWithID](t.union)
+}
+
+// FromClientWithID overwrites any union data inside the ClientAndMaybeIdentity_Entity as the provided ClientWithID
+func (t *ClientAndMaybeIdentity_Entity) FromClientWithID(v ClientWithID) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+func (t ClientAndMaybeIdentity_Entity) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
+
 	return b, err
 }
 
-func (t *ClientAndMaybeIdentity) UnmarshalJSON(b []byte) error {
+func (t *ClientAndMaybeIdentity_Entity) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
+
 	return err
 }
 
-// AsClient returns the union data inside the ClientOrIdentity as a Client
-func (t *ClientOrIdentity) AsClient() (Client, error) {
-	var body Client
-	err := json.Unmarshal(t.union, &body)
-	return body, err
+type ClientOrID struct {
+	runtime.Either[Client, string]
 }
 
-// FromClient overwrites any union data inside the ClientOrIdentity as the provided Client
-func (t *ClientOrIdentity) FromClient(v Client) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
+func (t *ClientOrID) MarshalJSON() ([]byte, error) {
+	data := t.Value()
+	if data == nil {
+		return nil, nil
+	}
+
+	obj, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
 
-// AsIdentity returns the union data inside the ClientOrIdentity as a Identity
-func (t *ClientOrIdentity) AsIdentity() (Identity, error) {
-	var body Identity
-	err := json.Unmarshal(t.union, &body)
-	return body, err
+func (t *ClientOrID) UnmarshalJSON(data []byte) error {
+	return t.Unmarshal(data)
 }
 
-// FromIdentity overwrites any union data inside the ClientOrIdentity as the provided Identity
-func (t *ClientOrIdentity) FromIdentity(v Identity) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
+type ClientOrIdentityWithDiscriminator struct {
+	runtime.Either[Client, Identity]
 }
 
-func (t ClientOrIdentity) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
+func (t ClientOrIdentityWithDiscriminator) discriminator(data []byte) (string, error) {
+	var discriminator struct {
+		Value string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &discriminator); err != nil {
+		return "", err
+	}
+	return discriminator.Value, nil
 }
 
-func (t *ClientOrIdentity) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
+func (t *ClientOrIdentityWithDiscriminator) MarshalJSON() ([]byte, error) {
+	data := t.Value()
+	if data == nil {
+		return nil, nil
+	}
+
+	obj, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	disc, err := t.discriminator(obj)
+	if err != nil {
+		return nil, err
+	}
+	return marshalJSONWithDiscriminator(obj, "type", disc)
+}
+
+func (t *ClientOrIdentityWithDiscriminator) UnmarshalJSON(data []byte) error {
+	discriminator, err := t.discriminator(data)
+	if err != nil {
+		return err
+	}
+
+	switch discriminator {
+	case "client":
+		var res Client
+		if err = json.Unmarshal(data, &res); err != nil {
+			return err
+		}
+
+		t.A = res
+		t.N = 1
+	case "identity":
+		var res Identity
+		if err = json.Unmarshal(data, &res); err != nil {
+			return err
+		}
+
+		t.B = res
+		t.N = 2
+	default:
+		return errors.New("unknown discriminator value: " + discriminator)
+	}
+	return nil
 }

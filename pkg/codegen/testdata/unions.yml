@@ -1,0 +1,66 @@
+openapi: 3.0.1
+
+info:
+  title: OpenAPI-CodeGen Test
+  description: 'This is a test OpenAPI Spec'
+  version: 1.0.0
+
+paths:
+  /one-of-1:
+    get:
+      operationId: getUser1
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/User'
+  /one-of-2:
+    get:
+      operationId: getUser2
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/User'
+                  - type: string
+                    minLength: 3
+  /one-of-3:
+    get:
+      operationId: getUser3
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/User'
+                  - $ref: '#/components/schemas/Error'
+                  - type: string
+                    minLength: 3
+
+components:
+  schemas:
+    User:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          description: User name
+    Error:
+      type: object
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message

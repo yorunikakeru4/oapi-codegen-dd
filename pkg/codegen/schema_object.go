@@ -212,6 +212,8 @@ func createObjectSchema(schema *base.Schema, ref string, path []string, options 
 				if len(res.UnionElements) != 0 {
 					outSchema.UnionElements = append(outSchema.UnionElements, res.UnionElements...)
 				}
+				outSchema.DefineViaAlias = res.DefineViaAlias
+				outSchema.RefType = res.RefType
 				outSchema.AdditionalTypes = append(outSchema.AdditionalTypes, res.AdditionalTypes...)
 			}
 		}

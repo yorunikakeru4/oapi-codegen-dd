@@ -83,7 +83,9 @@ func (s GoSchema) createGoStruct(fields []string) string {
 				additionalPropertiesType(s)))
 	}
 
-	if len(s.UnionElements) != 0 {
+	if len(s.UnionElements) == 2 {
+		objectParts = append(objectParts, fmt.Sprintf("runtime.Either[%s, %s]", s.UnionElements[0], s.UnionElements[1]))
+	} else if len(s.UnionElements) > 0 {
 		objectParts = append(objectParts, "union json.RawMessage")
 	}
 

@@ -10,7 +10,8 @@ import (
 
 // ErrValidationEmail is the sentinel error returned when an email fails validation
 var (
-	ErrValidationEmail = errors.New("email: failed to pass regex validation")
+	ErrValidationEmail         = errors.New("email: failed to pass regex validation")
+	ErrFailedToUnmarshalAsAOrB = errors.New("failed to unmarshal as either A or B")
 )
 
 // ClientAPIError represents type for client API errors.
