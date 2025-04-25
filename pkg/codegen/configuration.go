@@ -90,13 +90,6 @@ type FilterParamsConfig struct {
 	SchemaProperties map[string][]string `yaml:"schema-properties"`
 }
 
-func (f FilterParamsConfig) isEmpty() bool {
-	return len(f.Paths) == 0 &&
-		len(f.Tags) == 0 &&
-		len(f.OperationIDs) == 0 &&
-		len(f.SchemaProperties) == 0
-}
-
 type GenerateOptions struct {
 	// Client specifies whether to generate a client. Defaults to true.
 	Client bool `yaml:"client"`

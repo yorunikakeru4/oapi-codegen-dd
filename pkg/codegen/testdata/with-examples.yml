@@ -1,0 +1,130 @@
+openapi: 3.1.0
+info:
+  version: '1'
+  title: Checkout API
+
+paths:
+  /sessions:
+    post:
+      tags:
+        - Utility
+      summary: Get a Pay session
+      operationId: pay-sessions
+      requestBody:
+        content:
+          application/json:
+            examples:
+              basic:
+                $ref: '#/components/examples/post-sessions-basic'
+            schema:
+              $ref: '#/components/schemas/PaySessionRequest'
+      parameters:
+        - $ref: '#/components/parameters/Idempotency-Key'
+      responses:
+        '200':
+          content:
+            application/json:
+              examples:
+                basic:
+                  $ref: '#/components/examples/post-sessions-basic-200'
+              schema:
+                $ref: '#/components/schemas/PaySessionResponse'
+          description: OK - the request has succeeded.
+          headers:
+            Idempotency-Key:
+              $ref: '#/components/headers/Idempotency-Key'
+
+components:
+  schemas:
+    PaySessionRequest:
+      type: object
+      properties:
+        foo:
+          type: string
+          description: The foo property
+          example: foo
+          examples:
+            $ref: '#/components/examples/foo-example'
+        amount:
+          $ref: '#/components/schemas/Amount'
+        additionalData:
+          additionalProperties:
+            type: string
+          x-anyOf:
+            - $ref: '#/components/schemas/extra-a'
+            - $ref: '#/components/schemas/extra-b'
+    PaySessionResponse:
+      type: object
+      properties:
+        bar:
+          type: string
+          description: The bar property
+          example: bar
+          examples:
+            $ref: '#/components/examples/bar-example'
+    Amount:
+      type: object
+      properties:
+        value:
+          type: integer
+          description: The value property
+          example: 1000
+        currency:
+          type: string
+          description: The currency property
+          example: EUR
+    extra-a:
+      type: string
+    extra-b:
+      type: string
+
+  headers:
+    Idempotency-Key:
+      description: The idempotency key
+      type: string
+      content:
+        application/json:
+          schema:
+            type: string
+            description: The idempotency key
+            example: 1234567890
+      example: 1234567890
+      examples:
+        $ref: '#/components/examples/idempotency-key'
+
+  parameters:
+    Idempotency-Key:
+      name: Idempotency-Key
+      in: header
+      description: The idempotency key
+      required: false
+      schema:
+        type: string
+        description: The idempotency key
+        example: 1234567890
+        examples:
+          $ref: '#/components/examples/idempotency-key'
+
+  examples:
+    post-sessions-basic:
+      summary: Basic example
+      description: Basic example of the Apple Pay session request
+      value:
+        foo: foo
+    post-sessions-basic-200:
+      summary: Basic example
+      description: Basic example of the Apple Pay session response
+      value:
+        bar: bar
+    idempotency-key:
+      summary: Idempotency key
+      description: The idempotency key
+      value: 1234567890
+    bar-example:
+      summary: Bar example
+      description: The bar example
+      value: bar
+    foo-example:
+      summary: Foo example
+      description: The foo example
+      value: foo

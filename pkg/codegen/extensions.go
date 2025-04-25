@@ -56,10 +56,20 @@ func extExtraTags(extPropValue any) (map[string]string, error) {
 }
 
 func extParseEnumVarNames(extPropValue any) ([]string, error) {
-	strs, ok := extPropValue.([]string)
+	rawSlice, ok := extPropValue.([]any)
 	if !ok {
-		return nil, fmt.Errorf("expected []string, got %T", extPropValue)
+		return nil, fmt.Errorf("expected []any, got %T", extPropValue)
 	}
+
+	strs := make([]string, 0, len(rawSlice))
+	for _, v := range rawSlice {
+		s, ok := v.(string)
+		if !ok {
+			return nil, fmt.Errorf("expected string in slice, got %T", v)
+		}
+		strs = append(strs, s)
+	}
+
 	return strs, nil
 }
 
@@ -79,10 +89,13 @@ func extractExtensions(schemaExtensions *orderedmap.Map[string, *yaml.Node]) map
 		}
 
 		if node.Kind == yaml.SequenceNode {
-			seq := make([]string, len(node.Content))
+			seq := make([]any, len(node.Content))
 			for i, n := range node.Content {
 				if n.Kind == yaml.ScalarNode {
 					seq[i] = n.Value
+				} else if n.Kind == yaml.MappingNode {
+					mKey, mValue := n.Content[0].Value, n.Content[1].Value
+					seq[i] = keyValue[string, string]{mKey, mValue}
 				}
 			}
 			res[extType] = seq

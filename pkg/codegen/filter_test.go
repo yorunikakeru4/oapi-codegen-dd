@@ -1,6 +1,7 @@
 package codegen
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,5 +90,26 @@ func TestFilterOperationsByOperationID(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, code)
 		assert.NotContains(t, code.GetCombined(), `"/cat"`)
+	})
+
+	t.Run("examples removed", func(t *testing.T) {
+		contents, err := os.ReadFile("testdata/with-examples.yml")
+		require.NoError(t, err)
+
+		opts := Configuration{
+			PackageName: packageName,
+			Output: &Output{
+				UseSingleFile: true,
+			},
+		}
+
+		// Run our code generation:
+		code, err := Generate(contents, opts)
+		require.NoError(t, err)
+		assert.NotEmpty(t, code)
+
+		combined := code.GetCombined()
+		assert.Contains(t, combined, `type ExtraA = string`)
+		assert.Contains(t, combined, `type ExtraB = string`)
 	})
 }

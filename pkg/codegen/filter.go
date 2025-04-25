@@ -10,16 +10,15 @@ import (
 )
 
 func filterOutDocument(doc libopenapi.Document, cfg FilterConfig) (libopenapi.Document, error) {
-	if cfg.Include.isEmpty() && cfg.Exclude.isEmpty() {
-		return doc, nil
-	}
-
 	model, errs := doc.BuildV3Model()
 	if len(errs) > 0 {
 		return nil, errs[0]
 	}
 
 	filterOperations(&model.Model, cfg)
+	if model.Model.Components != nil && model.Model.Components.Examples != nil {
+		model.Model.Components.Examples = nil
+	}
 	filterComponentSchemaProperties(&model.Model, cfg)
 
 	_, doc, _, errs = doc.RenderAndReload()
@@ -32,9 +31,12 @@ func filterOutDocument(doc libopenapi.Document, cfg FilterConfig) (libopenapi.Do
 
 func filterOperations(model *v3high.Document, cfg FilterConfig) {
 	paths := map[string]*v3high.PathItem{}
+
 	// iterate over copy
-	for path, pathItem := range model.Paths.PathItems.FromOldest() {
-		paths[path] = pathItem
+	if model.Paths != nil && model.Paths.PathItems != nil {
+		for path, pathItem := range model.Paths.PathItems.FromOldest() {
+			paths[path] = pathItem
+		}
 	}
 
 	for path, pathItem := range paths {
@@ -100,6 +102,8 @@ func filterOperations(model *v3high.Document, cfg FilterConfig) {
 				case "trace":
 					pathItem.Trace = nil
 				}
+			} else {
+				removeOperationReferences(op)
 			}
 		}
 	}
@@ -139,5 +143,26 @@ func filterComponentSchemaProperties(model *v3high.Document, cfg FilterConfig) {
 				}
 			}
 		}
+	}
+}
+
+func removeOperationReferences(op *v3high.Operation) {
+	if op.RequestBody != nil && op.RequestBody.Content != nil {
+		for _, content := range op.RequestBody.Content.FromOldest() {
+			content.Examples = nil
+		}
+	}
+
+	for _, resp := range op.Responses.Codes.FromOldest() {
+		if resp.Content != nil {
+			for _, content := range resp.Content.FromOldest() {
+				content.Examples = nil
+			}
+		}
+		resp.Headers = nil
+	}
+
+	for _, param := range op.Parameters {
+		param.Examples = nil
 	}
 }

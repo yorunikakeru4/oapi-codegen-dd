@@ -116,6 +116,10 @@ func findOperationRefs(model *v3high.Document) []string {
 					refSet[ref] = struct{}{}
 				}
 				for _, mediaType := range op.RequestBody.Content.FromOldest() {
+					medRef := mediaType.Schema.GetReference()
+					if medRef != "" {
+						refSet[medRef] = struct{}{}
+					}
 					if mediaType.Schema != nil {
 						collectSchemaRefs(mediaType.Schema.Schema(), refSet)
 					}
@@ -248,6 +252,21 @@ func collectSchemaRefsInternal(schema *base.Schema, refSet map[string]struct{}, 
 				}
 			}
 			collectSchemaRefsInternal(schemaProxy.Schema(), refSet, visited)
+		}
+	}
+
+	extensions := extractExtensions(schema.Extensions)
+	for _, extValue := range extensions {
+		switch extValue.(type) {
+		case []any:
+			for _, v := range extValue.([]any) {
+				switch m := v.(type) {
+				case keyValue[string, string]:
+					if m.key == "$ref" {
+						refSet[m.value] = struct{}{}
+					}
+				}
+			}
 		}
 	}
 }
