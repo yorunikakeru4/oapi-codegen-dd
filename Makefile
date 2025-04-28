@@ -51,7 +51,10 @@ tidy-ci:
 	# then, for all child modules, use a module-managed `Makefile`
 	git ls-files '**/*go.mod' -z | xargs -0 -I{} bash -xc 'cd $$(dirname {}) && make tidy-ci'
 
-check-all: generate lint test
+test-integration:
+	go test -v -tags=integration ./pkg/codegen/integration/...
+
+check-all: generate lint test test-integration
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo >&2 "ERROR: generate command should not produce extra code"; \
 		exit 1; \
