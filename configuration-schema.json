@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Configuration",
+  "description": "Configuration defines code generation customizations.",
+  "type": "object",
+  "properties": {
+    "package": {
+      "type": "string",
+      "description": "PackageName to generate the code under."
+    },
+    "copyright-header": {
+      "type": "string",
+      "description": "CopyrightHeader is the header to add to the generated code. Use without //."
+    },
+    "skip-prune": {
+      "type": "boolean",
+      "description": "SkipPrune indicates whether to skip pruning unused components on the generated code."
+    },
+    "output": {
+      "$ref": "#/definitions/Output",
+      "description": "Output specifies the output options for the generated code."
+    },
+    "generate": {
+      "$ref": "#/definitions/GenerateOptions",
+      "description": "Generate options for the generated code."
+    },
+    "filter": {
+      "$ref": "#/definitions/FilterConfig",
+      "description": "Filter is the configuration for filtering the paths and operations to be parsed."
+    },
+    "additional-imports": {
+      "type": "array",
+      "description": "AdditionalImports defines any additional Go imports to add to the generated code.",
+      "items": {
+        "$ref": "#/definitions/AdditionalImport"
+      }
+    },
+    "error-mapping": {
+      "type": "object",
+      "description": "ErrorMapping is the configuration for mapping the OpenAPI error responses to Go types. The key is the spec error type name and the value is the dotted json path to the string result.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "name-mapping": {
+      "type": "object",
+      "description": "NameMapping defines a mapping from spec names to Go names.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "user-templates": {
+      "type": "object",
+      "description": "UserTemplates is the map of user-provided templates overriding the default ones.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "user-context": {
+      "type": "object",
+      "description": "UserContext is the map of user-provided context values to be used in templates user overrides.",
+      "additionalProperties": true
+    }
+  },
+  "required": [],
+  "definitions": {
+    "Output": {
+      "type": "object",
+      "properties": {
+        "use-single-file": {
+          "type": "boolean",
+          "description": "Whether to generate the output into a single file."
+        },
+        "directory": {
+          "type": "string",
+          "description": "Directory where generated files should be placed."
+        },
+        "filename": {
+          "type": "string",
+          "description": "Filename to use if single file output is enabled."
+        }
+      },
+      "required": []
+    },
+    "GenerateOptions": {
+      "type": "object",
+      "properties": {
+        "client": {
+          "type": "boolean",
+          "description": "Client specifies whether to generate a client. Defaults to true."
+        },
+        "omit-description": {
+          "type": "boolean",
+          "description": "OmitDescription specifies whether to omit schema description from the spec in the generated code. Defaults to false."
+        }
+      },
+      "required": []
+    },
+    "FilterConfig": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "$ref": "#/definitions/FilterParamsConfig",
+          "description": "Paths, tags, operation IDs, and schema properties to include."
+        },
+        "exclude": {
+          "$ref": "#/definitions/FilterParamsConfig",
+          "description": "Paths, tags, operation IDs, and schema properties to exclude."
+        }
+      },
+      "required": []
+    },
+    "FilterParamsConfig": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of paths to include or exclude."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of tags to include or exclude."
+        },
+        "operation-ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of operation IDs to include or exclude."
+        },
+        "schema-properties": {
+          "type": "object",
+          "description": "Mapping of schema names to property names to include or exclude.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": []
+    },
+    "AdditionalImport": {
+      "type": "object",
+      "properties": {
+        "alias": {
+          "type": "string",
+          "description": "Optional alias for the import."
+        },
+        "package": {
+          "type": "string",
+          "description": "Package path to import."
+        }
+      },
+      "required": [
+        "package"
+      ]
+    }
+  }
+}
