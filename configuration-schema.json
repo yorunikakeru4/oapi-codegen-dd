@@ -67,6 +67,7 @@
   "definitions": {
     "Output": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "use-single-file": {
           "type": "boolean",
@@ -85,6 +86,7 @@
     },
     "GenerateOptions": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "client": {
           "type": "boolean",
@@ -99,6 +101,7 @@
     },
     "FilterConfig": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "include": {
           "$ref": "#/definitions/FilterParamsConfig",
@@ -113,6 +116,7 @@
     },
     "FilterParamsConfig": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "paths": {
           "type": "array",
@@ -150,6 +154,7 @@
     },
     "AdditionalImport": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "alias": {
           "type": "string",

@@ -4,6 +4,6 @@ skip-prune: true
 generate:
   client: false
 output:
-  use-single-fle: false
+  use-single-file: false
 name-mapping:
   client: HTTPClient
