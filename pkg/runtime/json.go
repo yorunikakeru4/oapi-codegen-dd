@@ -185,3 +185,52 @@ func JSONMerge(data, patch json.RawMessage) (json.RawMessage, error) {
 	}
 	return merged, nil
 }
+
+func MarshalWithAdditionalProps[T any](value T, additional map[string]any) ([]byte, error) {
+	baseData, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var baseMap map[string]any
+	if err := json.Unmarshal(baseData, &baseMap); err != nil {
+		return nil, err
+	}
+
+	// Merge additional props
+	for k, v := range additional {
+		baseMap[k] = v
+	}
+	return json.Marshal(baseMap)
+}
+
+// func UnmarshalWithAdditionalProps[T any](data []byte, target *T, additional *map[string]json.RawMessage) error {
+// 	var raw map[string]json.RawMessage
+// 	if err := json.Unmarshal(data, &raw); err != nil {
+// 		return err
+// 	}
+//
+// 	baseFieldsData, err := json.Marshal(raw)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if err := json.Unmarshal(baseFieldsData, target); err != nil {
+// 		return err
+// 	}
+//
+// 	// Capture unknown fields
+// 	type fieldChecker interface {
+// 		KnownFields() map[string]struct{}
+// 	}
+// 	if fc, ok := any(target).(fieldChecker); ok {
+// 		known := fc.KnownFields()
+// 		for k := range known {
+// 			delete(raw, k)
+// 		}
+// 	}
+//
+// 	*additional = make(map[string]json.RawMessage, len(raw))
+// 	for k, v := range raw {
+// 		(*additional)[k] = v
+// 	}
+// 	return nil
+// }

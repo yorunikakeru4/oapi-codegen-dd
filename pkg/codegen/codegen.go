@@ -10,15 +10,13 @@ import (
 
 // ParseContext holds the OpenAPI models.
 type ParseContext struct {
-	Operations               []OperationDefinition
-	TypeDefinitions          map[SpecLocation][]TypeDefinition
-	Enums                    []EnumDefinition
-	UnionTypes               []TypeDefinition
-	AdditionalTypes          []TypeDefinition
-	UnionWithAdditionalTypes []TypeDefinition
-	Imports                  []string
-	ResponseErrors           []string
-	TypeRegistry             TypeRegistry
+	Operations      []OperationDefinition
+	TypeDefinitions map[SpecLocation][]TypeDefinition
+	Enums           []EnumDefinition
+	UnionTypes      []TypeDefinition
+	Imports         []string
+	ResponseErrors  []string
+	TypeRegistry    TypeRegistry
 }
 
 type operationsCollection struct {
@@ -129,18 +127,10 @@ func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 	enums, typeDefs, registry := filterOutEnums(typeDefs)
 
 	groupedTypeDefs := make(map[SpecLocation][]TypeDefinition)
-	var (
-		additionalTypes          []TypeDefinition
-		unionTypes               []TypeDefinition
-		unionWithAdditionalTypes []TypeDefinition
-	)
+	var unionTypes []TypeDefinition
 
 	for _, td := range typeDefs {
 		collected := false
-		if td.Schema.HasAdditionalProperties {
-			additionalTypes = append(additionalTypes, td)
-			collected = true
-		}
 
 		if len(td.Schema.UnionElements) != 0 {
 			td.SpecLocation = SpecLocationUnion
@@ -148,11 +138,6 @@ func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 			collected = true
 		} else if td.SpecLocation == SpecLocationUnion {
 			unionTypes = append(unionTypes, td)
-			collected = true
-		}
-
-		if len(additionalTypes) != 0 && len(unionTypes) != 0 {
-			unionWithAdditionalTypes = append(unionWithAdditionalTypes, td)
 			collected = true
 		}
 
@@ -169,15 +154,13 @@ func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 	}
 
 	return &ParseContext{
-		Operations:               operations,
-		TypeDefinitions:          groupedTypeDefs,
-		Enums:                    enums,
-		UnionTypes:               unionTypes,
-		AdditionalTypes:          additionalTypes,
-		UnionWithAdditionalTypes: unionWithAdditionalTypes,
-		Imports:                  importMap(imprts).GoImports(),
-		ResponseErrors:           responseErrors,
-		TypeRegistry:             registry,
+		Operations:      operations,
+		TypeDefinitions: groupedTypeDefs,
+		Enums:           enums,
+		UnionTypes:      unionTypes,
+		Imports:         importMap(imprts).GoImports(),
+		ResponseErrors:  responseErrors,
+		TypeRegistry:    registry,
 	}, nil
 }
 

@@ -12,13 +12,14 @@ var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructE
 {{ $loc := .specLocation }}
 {{ $responseErrors := .responseErrors }}
 {{ $isParam := or (eq $loc "path") (eq $loc "query") (eq $loc "header") (eq $loc "body") }}
+{{ $alias := .alias }}
+{{ if not $alias}}{{ $alias = $td.Name | fst | lower }}{{ end }}
 
     {{ if not $config.Generate.OmitDescription}}{{ toGoComment $td.Schema.Description $td.Name }}{{ end }}
     type {{$td.Name}} {{if $td.IsAlias}}={{end}} {{$td.Schema.TypeDecl}}
 
     {{ if $isParam }}
     {{ if not $td.IsAlias }}
-    {{ $alias := $loc | fst | lower }}
     func ({{$alias}} {{$td.Name}}) Validate() error {
     return {{$loc}}TypesValidate.Struct({{$alias}})
     }
@@ -28,7 +29,6 @@ var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructE
     {{ if $responseErrors }}
     {{- $isResponseError := index $responseErrors $td.Name }}
     {{ if $isResponseError }}
-    {{ $alias := $loc | fst | lower }}
     {{ if not $td.IsAlias }}
     {{ $alias := $loc | fst | lower }}
     func ({{$alias}} {{$td.Name}}) Error() string {
@@ -40,6 +40,10 @@ var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructE
     }
     {{ end }}
     {{ end }}
+    {{ end }}
+
+    {{ if $td.Schema.HasAdditionalProperties }}
+    {{ template "additionalProperties" (dict "typeDef" $td "alias" $alias) }}
     {{ end }}
 {{ end }}
 

@@ -1,0 +1,88 @@
+{{ template "header" $ }}
+
+{{ define "unionAdditionalProperties" }}
+{{ $args := . }}
+{{ $addType := $args.Schema.AdditionalPropertiesType.TypeDecl }}
+{{ $typeName := $args.Name -}}
+{{ $discriminator := $args.Schema.Discriminator }}
+{{ $properties := $args.Schema.Properties -}}
+{{ $eitherType := eq (len .Schema.UnionElements) 2}}
+
+// Override default JSON handling for {{.Name}} to handle AdditionalProperties and union
+func ({{$args.alias}} *{{$args.Name}}) UnmarshalJSON(b []byte) error {
+    {{- if $eitherType }}
+    if err := {{$args.alias}}.Unmarshal(b); err != nil {
+    {{ else }}
+    if err := {{$args.alias}}.union.UnmarshalJSON(b); err != nil {
+    {{ end -}}
+        return err
+    }
+    object := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(b, &object); err != nil {
+		return err
+	}
+
+    {{range $args.Schema.Properties}}
+    if raw, found := object["{{.JsonFieldName}}"]; found {
+        if err = json.Unmarshal(raw, &{{$args.alias}}.{{.GoName}}); err != nil {
+            return fmt.Errorf("error reading '{{.JsonFieldName}}': %w", err)
+        }
+        delete(object, "{{.JsonFieldName}}")
+    }
+    {{end}}
+
+    if len(object) != 0 {
+        {{$args.alias}}.AdditionalProperties = make(map[string]{{$addType}})
+        for fieldName, fieldBuf := range object {
+            var fieldVal {{$addType}}
+            if err := json.Unmarshal(fieldBuf, &fieldVal); err != nil {
+                return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+            }
+            {{$args.alias}}.AdditionalProperties[fieldName] = fieldVal
+        }
+    }
+	return nil
+}
+
+// Override default JSON handling for {{.Name}} to handle AdditionalProperties and union
+func ({{$args.alias}} {{$args.Name}}) MarshalJSON() ([]byte, error) {
+    var err error
+    {{- if $eitherType }}
+    union := {{$args.alias}}.Value()
+    if union == nil {
+        return nil, nil
+    }
+    b, err := json.Marshal(union)
+    {{ else }}
+    union := {{$args.alias}}.union
+    if union == nil {
+        return nil, nil
+    }
+    b, err := union.MarshalJSON()
+    {{ end }}
+    if err != nil {
+        return nil, err
+    }
+    object := make(map[string]json.RawMessage)
+    if err = json.Unmarshal(b, &object); err != nil {
+        return nil, err
+    }
+
+    {{range $args.Schema.Properties}}
+        {{if not .Constraints.Required}}if {{$args.alias}}.{{.GoName}} != nil { {{end}}
+        object["{{.JsonFieldName}}"], err = json.Marshal({{$args.alias}}.{{.GoName}})
+        if err != nil {
+            return nil, fmt.Errorf("error marshaling '{{.JsonFieldName}}': %w", err)
+        }
+        {{if not .Constraints.Required}} }{{end}}
+    {{end}}
+
+    for fieldName, field := range {{$args.alias}}.AdditionalProperties {
+        object[fieldName], err = json.Marshal(field)
+        if err != nil {
+            return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+        }
+    }
+	return json.Marshal(object)
+}
+{{end}}

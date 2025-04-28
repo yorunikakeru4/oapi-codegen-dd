@@ -38,49 +38,49 @@ type ClientAndMaybeIdentity_Entity struct {
 }
 
 // AsClient returns the union data inside the ClientAndMaybeIdentity_Entity as a Client
-func (t *ClientAndMaybeIdentity_Entity) AsClient() (Client, error) {
-	return unmarshalAs[Client](t.union)
+func (c *ClientAndMaybeIdentity_Entity) AsClient() (Client, error) {
+	return unmarshalAs[Client](c.union)
 }
 
 // FromClient overwrites any union data inside the ClientAndMaybeIdentity_Entity as the provided Client
-func (t *ClientAndMaybeIdentity_Entity) FromClient(v Client) error {
+func (c *ClientAndMaybeIdentity_Entity) FromClient(v Client) error {
 	b, err := json.Marshal(v)
-	t.union = b
+	c.union = b
 	return err
 }
 
 // AsIdentity returns the union data inside the ClientAndMaybeIdentity_Entity as a Identity
-func (t *ClientAndMaybeIdentity_Entity) AsIdentity() (Identity, error) {
-	return unmarshalAs[Identity](t.union)
+func (c *ClientAndMaybeIdentity_Entity) AsIdentity() (Identity, error) {
+	return unmarshalAs[Identity](c.union)
 }
 
 // FromIdentity overwrites any union data inside the ClientAndMaybeIdentity_Entity as the provided Identity
-func (t *ClientAndMaybeIdentity_Entity) FromIdentity(v Identity) error {
+func (c *ClientAndMaybeIdentity_Entity) FromIdentity(v Identity) error {
 	b, err := json.Marshal(v)
-	t.union = b
+	c.union = b
 	return err
 }
 
 // AsClientWithID returns the union data inside the ClientAndMaybeIdentity_Entity as a ClientWithID
-func (t *ClientAndMaybeIdentity_Entity) AsClientWithID() (ClientWithID, error) {
-	return unmarshalAs[ClientWithID](t.union)
+func (c *ClientAndMaybeIdentity_Entity) AsClientWithID() (ClientWithID, error) {
+	return unmarshalAs[ClientWithID](c.union)
 }
 
 // FromClientWithID overwrites any union data inside the ClientAndMaybeIdentity_Entity as the provided ClientWithID
-func (t *ClientAndMaybeIdentity_Entity) FromClientWithID(v ClientWithID) error {
+func (c *ClientAndMaybeIdentity_Entity) FromClientWithID(v ClientWithID) error {
 	b, err := json.Marshal(v)
-	t.union = b
+	c.union = b
 	return err
 }
 
-func (t ClientAndMaybeIdentity_Entity) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
+func (c ClientAndMaybeIdentity_Entity) MarshalJSON() ([]byte, error) {
+	b, err := c.union.MarshalJSON()
 
 	return b, err
 }
 
-func (t *ClientAndMaybeIdentity_Entity) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
+func (c *ClientAndMaybeIdentity_Entity) UnmarshalJSON(b []byte) error {
+	err := c.union.UnmarshalJSON(b)
 
 	return err
 }
@@ -89,8 +89,8 @@ type ClientOrID struct {
 	runtime.Either[Client, string]
 }
 
-func (t *ClientOrID) MarshalJSON() ([]byte, error) {
-	data := t.Value()
+func (c *ClientOrID) MarshalJSON() ([]byte, error) {
+	data := c.Value()
 	if data == nil {
 		return nil, nil
 	}
@@ -102,15 +102,15 @@ func (t *ClientOrID) MarshalJSON() ([]byte, error) {
 	return obj, nil
 }
 
-func (t *ClientOrID) UnmarshalJSON(data []byte) error {
-	return t.Unmarshal(data)
+func (c *ClientOrID) UnmarshalJSON(data []byte) error {
+	return c.Unmarshal(data)
 }
 
 type ClientOrIdentityWithDiscriminator struct {
 	runtime.Either[Client, Identity]
 }
 
-func (t ClientOrIdentityWithDiscriminator) discriminator(data []byte) (string, error) {
+func (c ClientOrIdentityWithDiscriminator) discriminator(data []byte) (string, error) {
 	var discriminator struct {
 		Value string `json:"type"`
 	}
@@ -120,8 +120,8 @@ func (t ClientOrIdentityWithDiscriminator) discriminator(data []byte) (string, e
 	return discriminator.Value, nil
 }
 
-func (t *ClientOrIdentityWithDiscriminator) MarshalJSON() ([]byte, error) {
-	data := t.Value()
+func (c *ClientOrIdentityWithDiscriminator) MarshalJSON() ([]byte, error) {
+	data := c.Value()
 	if data == nil {
 		return nil, nil
 	}
@@ -130,15 +130,15 @@ func (t *ClientOrIdentityWithDiscriminator) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	disc, err := t.discriminator(obj)
+	disc, err := c.discriminator(obj)
 	if err != nil {
 		return nil, err
 	}
 	return marshalJSONWithDiscriminator(obj, "type", disc)
 }
 
-func (t *ClientOrIdentityWithDiscriminator) UnmarshalJSON(data []byte) error {
-	discriminator, err := t.discriminator(data)
+func (c *ClientOrIdentityWithDiscriminator) UnmarshalJSON(data []byte) error {
+	discriminator, err := c.discriminator(data)
 	if err != nil {
 		return err
 	}
@@ -150,16 +150,16 @@ func (t *ClientOrIdentityWithDiscriminator) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
-		t.A = res
-		t.N = 1
+		c.A = res
+		c.N = 1
 	case "identity":
 		var res Identity
 		if err = json.Unmarshal(data, &res); err != nil {
 			return err
 		}
 
-		t.B = res
-		t.N = 2
+		c.B = res
+		c.N = 2
 	default:
 		return errors.New("unknown discriminator value: " + discriminator)
 	}

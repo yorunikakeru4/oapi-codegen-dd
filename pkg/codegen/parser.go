@@ -188,27 +188,6 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		typesOut[getSpecLocationOutName(sl)] = formatted
 	}
 
-	if len(p.ctx.AdditionalTypes) > 0 {
-		out, err := p.ParseTemplates([]string{"additional-properties.tmpl"}, &TplTypeContext{
-			Types:          p.ctx.AdditionalTypes,
-			Imports:        p.ctx.Imports,
-			Config:         p.cfg,
-			WithHeader:     withHeader,
-			ResponseErrors: responseErrs,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error generating code for additional properties: %w", err)
-		}
-		formatted := out
-		if !useSingleFile {
-			formatted, err = FormatCode(out)
-			if err != nil {
-				return nil, err
-			}
-		}
-		typesOut["additional"] = formatted
-	}
-
 	if len(p.ctx.UnionTypes) > 0 {
 		out, err := p.ParseTemplates([]string{"types.tmpl", "union.tmpl"}, &TplTypeContext{
 			Types:          p.ctx.UnionTypes,
@@ -229,28 +208,6 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 			}
 		}
 		typesOut["unions"] = formatted
-	}
-
-	if len(p.ctx.UnionWithAdditionalTypes) > 0 {
-		out, err := p.ParseTemplates([]string{"union-and-additional-properties.tmpl"}, &TplTypeContext{
-			Types:          p.ctx.UnionWithAdditionalTypes,
-			SpecLocation:   "union_with_additional",
-			Imports:        p.ctx.Imports,
-			Config:         p.cfg,
-			WithHeader:     withHeader,
-			ResponseErrors: responseErrs,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error generating code for union types with additional properties: %w", err)
-		}
-		formatted := out
-		if !useSingleFile {
-			formatted, err = FormatCode(out)
-			if err != nil {
-				return nil, err
-			}
-		}
-		typesOut["unions_with_additional"] = formatted
 	}
 
 	if useSingleFile {

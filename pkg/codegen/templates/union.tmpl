@@ -27,9 +27,10 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
 {{range .Types}}
 {{/* make sure schema has union elements */}}
 {{ if .Schema.UnionElements }}
-    {{ template "typeDef" (dict "type" . "config" $config "specLocation" "union") }}
+{{$typeName := .Name -}}
+{{ $alias := $typeName | fst | lower }}
+    {{ template "typeDef" (dict "type" . "config" $config "specLocation" "union" "alias" $alias) }}
 
-    {{$typeName := .Name -}}
     {{$discriminator := .Schema.Discriminator}}
     {{$properties := .Schema.Properties -}}
 
@@ -40,19 +41,19 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
 
         {{ if not $eitherType }}
         // As{{ .Method }} returns the union data inside the {{$typeName}} as a {{.}}
-        func (t *{{$typeName}}) As{{ .Method }}() ({{.}}, error) {
-            return unmarshalAs[{{.}}](t.union)
+        func ({{$alias}} *{{$typeName}}) As{{ .Method }}() ({{.}}, error) {
+            return unmarshalAs[{{.}}]({{$alias}}.union)
         }
 
         // From{{ .Method }} overwrites any union data inside the {{$typeName}} as the provided {{.}}
-        func (t *{{$typeName}}) From{{ .Method }} (v {{.}}) error {
+        func ({{$alias}} *{{$typeName}}) From{{ .Method }} (v {{.}}) error {
             {{if $discriminator -}}
                 {{range $value, $type := $discriminator.Mapping -}}
                     {{if eq $type $element -}}
                         {{$hasProperty := false -}}
                         {{range $properties -}}
                             {{if eq .GoName $discriminator.PropertyName -}}
-                                t.{{$discriminator.PropertyName}} = "{{$value}}"
+                                {{$alias}}.{{$discriminator.PropertyName}} = "{{$value}}"
                                 {{$hasProperty = true -}}
                             {{end -}}
                         {{end -}}
@@ -61,14 +62,14 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
                 {{end -}}
             {{end -}}
             b, err := json.Marshal(v)
-            t.union = b
+            {{$alias}}.union = b
             return err
         }
         {{end}}{{/*// either type check*/}}
     {{end}}
 
     {{if $discriminator}}
-        func (t {{.Name}}) discriminator(data []byte) (string, error) {
+        func ({{$alias}} {{.Name}}) discriminator(data []byte) (string, error) {
             var discriminator struct {
                 Value string {{$discriminator.JSONTag}}
             }
@@ -79,15 +80,15 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
         }
 
         {{if and (ne 0 (len $discriminator.Mapping)) (not $eitherType)}}
-            func (t {{.Name}}) ValueByDiscriminator() (any, error) {
-                discriminator, err := t.discriminator(t.union)
+            func ({{$alias}} {{.Name}}) ValueByDiscriminator() (any, error) {
+                discriminator, err := {{$alias}}.discriminator({{$alias}}.union)
                 if err != nil {
                     return nil, err
                 }
                 switch discriminator{
                     {{range $value, $type := $discriminator.Mapping -}}
                         case "{{$value}}":
-                            return t.As{{$type}}()
+                            return {{$alias}}.As{{$type}}()
                     {{end -}}
                     default:
                         return nil, errors.New("unknown discriminator value: "+discriminator)
@@ -96,21 +97,23 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
         {{end}}
     {{end}}
 
-    {{if and (not .Schema.HasAdditionalProperties) }}
+    {{ if .Schema.HasAdditionalProperties }}
+      {{ template "unionAdditionalProperties" (dict "Name" .Name "Schema" .Schema "alias" $alias) }}
+    {{ else }}
         {{if $eitherType}}
-            {{ template "marshalEither" (dict "name" .Name "discriminator" $discriminator) }}
+            {{ template "marshalEither" (dict "name" .Name "discriminator" $discriminator "alias" $alias) }}
         {{ else }}
-            {{ template "marshalUnion" (dict "name" .Name "schema" .Schema) }}
+            {{ template "marshalUnion" (dict "name" .Name "schema" .Schema "alias" $alias) }}
         {{ end }}
 
         {{ if $eitherType }}
             {{ if $discriminator }}
-                {{ template "unmarshalEitherTypeWithDiscriminator" (dict "discriminator" $discriminator "elements" .Schema.UnionElements "name" .Name) }}
+                {{ template "unmarshalEitherTypeWithDiscriminator" (dict "discriminator" $discriminator "elements" .Schema.UnionElements "name" .Name "alias" $alias) }}
             {{ else }}
-                {{ template "unmarshalEitherTypeWithoutDiscriminator" (dict "name" .Name) }}
+                {{ template "unmarshalEitherTypeWithoutDiscriminator" (dict "name" .Name "alias" $alias) }}
             {{ end }}
         {{ else }}
-            {{ template "unmarshalUnion" (dict "name" .Name "schema" .Schema) }}
+            {{ template "unmarshalUnion" (dict "name" .Name "schema" .Schema "alias" $alias) }}
         {{ end }}
     {{end}}
     {{end}}
@@ -119,8 +122,8 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
 
 {{ define "marshalEither" }}
 {{- $args := . -}}
-func (t *{{$args.name}}) MarshalJSON() ([]byte, error) {
-    data := t.Value()
+func ({{$args.alias}} *{{$args.name}}) MarshalJSON() ([]byte, error) {
+    data := {{$args.alias}}.Value()
     if data == nil {
         return nil, nil
     }
@@ -130,7 +133,7 @@ func (t *{{$args.name}}) MarshalJSON() ([]byte, error) {
         return nil, err
     }
     {{- if $args.discriminator }}
-    disc, err := t.discriminator(obj)
+    disc, err := {{$args.alias}}.discriminator(obj)
     if err != nil {
         return nil, err
     }
@@ -143,15 +146,15 @@ func (t *{{$args.name}}) MarshalJSON() ([]byte, error) {
 
 {{ define "unmarshalEitherTypeWithoutDiscriminator" }}
 {{- $args := . -}}
-func (t *{{$args.name}}) UnmarshalJSON(data []byte) error {
-    return t.Unmarshal(data)
+func ({{$args.alias}} *{{$args.name}}) UnmarshalJSON(data []byte) error {
+    return {{$args.alias}}.Unmarshal(data)
 }
 {{ end }}
 
 {{ define "unmarshalEitherTypeWithDiscriminator" }}
 {{- $args := . -}}
-func (t *{{$args.name}}) UnmarshalJSON(data []byte) error {
-    discriminator, err := t.discriminator(data)
+func ({{$args.alias}} *{{$args.name}}) UnmarshalJSON(data []byte) error {
+    discriminator, err := {{$args.alias}}.discriminator(data)
     if err != nil {
         return err
     }
@@ -165,11 +168,11 @@ func (t *{{$args.name}}) UnmarshalJSON(data []byte) error {
             }
 
             {{if eq $type (index $args.elements 0)}}
-                t.A = res
-                t.N = 1
+                {{$args.alias}}.A = res
+                {{$args.alias}}.N = 1
             {{ else }}
-                t.B = res
-                t.N = 2
+                {{$args.alias}}.B = res
+                {{$args.alias}}.N = 2
             {{ end -}}
     {{end -}}
     default:
@@ -181,8 +184,8 @@ func (t *{{$args.name}}) UnmarshalJSON(data []byte) error {
 
 {{ define "marshalUnion" }}
 {{- $args := . -}}
-func (t {{$args.name}}) MarshalJSON() ([]byte, error) {
-    b, err := t.union.MarshalJSON()
+func ({{$args.alias}} {{$args.name}}) MarshalJSON() ([]byte, error) {
+    b, err := {{$args.alias}}.union.MarshalJSON()
 
     {{if ne 0 (len $args.schema.Properties) -}}
         if err != nil {
@@ -194,8 +197,8 @@ func (t {{$args.name}}) MarshalJSON() ([]byte, error) {
         }
 
         {{range $args.schema.Properties}}
-            {{if not .Constraints.Required}}if t.{{.GoName}} != nil { {{end}}
-                object["{{.JsonFieldName}}"], err = json.Marshal(t.{{.GoName}})
+            {{if not .Constraints.Required}}if {{$args.alias}}.{{.GoName}} != nil { {{end}}
+                object["{{.JsonFieldName}}"], err = json.Marshal({{$args.alias}}.{{.GoName}})
                 if err != nil {
                     return nil, fmt.Errorf("error marshaling '{{.JsonFieldName}}': %w", err)
                 }
@@ -209,8 +212,8 @@ func (t {{$args.name}}) MarshalJSON() ([]byte, error) {
 
 {{ define "unmarshalUnion" }}
 {{- $args := . -}}
-func (t *{{$args.name}}) UnmarshalJSON(b []byte) error {
-    err := t.union.UnmarshalJSON(b)
+func ({{$args.alias}} *{{$args.name}}) UnmarshalJSON(b []byte) error {
+    err := {{$args.alias}}.union.UnmarshalJSON(b)
 
     {{if ne 0 (len $args.schema.Properties) -}}
         if err != nil {
@@ -223,7 +226,7 @@ func (t *{{$args.name}}) UnmarshalJSON(b []byte) error {
 
         {{range $args.schema.Properties}}
         if raw, found := object["{{.JsonFieldName}}"]; found {
-            if err = json.Unmarshal(raw, &t.{{.GoName}}); err != nil {
+            if err = json.Unmarshal(raw, &{{$args.alias}}.{{.GoName}}); err != nil {
                 return fmt.Errorf("error reading '{{.JsonFieldName}}': %w", err)
             }
         }
