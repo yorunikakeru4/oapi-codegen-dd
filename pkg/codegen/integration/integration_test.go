@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/doordash/oapi-codegen/v3/pkg/codegen"
@@ -42,6 +43,31 @@ func TestIntegration_fromURLs(t *testing.T) {
 
 		})
 	}
+
+	files := map[string]string{
+		"train-travel-api": "../testdata/train-travel-api.yml",
+	}
+	for name, filePath := range files {
+		t.Run(fmt.Sprintf("test-%s", name), func(t *testing.T) {
+			t.Parallel()
+
+			fmt.Printf("[%s] Opening file from %s\n", name, filePath)
+			contents, err := getFileContents(filePath)
+			if err != nil {
+				t.Fatalf("failed to download file: %s", err)
+			}
+
+			fmt.Printf("[%s] Generating code\n", name)
+			res, err := codegen.Generate(contents, cfg)
+			require.NoError(t, err, "failed to generate code")
+			require.NotNil(t, res, "result should not be nil")
+
+			assert.NotNil(t, res["client"])
+			assert.NotNil(t, res["client_options"])
+			assert.NotNil(t, res["types"])
+
+		})
+	}
 }
 
 func downloadFile(url string) ([]byte, error) {
@@ -56,4 +82,19 @@ func downloadFile(url string) ([]byte, error) {
 	}
 
 	return io.ReadAll(resp.Body)
+}
+
+func getFileContents(filePath string) ([]byte, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	contents, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+
+	return contents, nil
 }

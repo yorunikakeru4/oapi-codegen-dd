@@ -175,6 +175,25 @@ func findOperationRefs(model *v3high.Document) []string {
 						collectSchemaRefs(mediaType.Schema.Schema(), refSet)
 					}
 				}
+
+				for _, header := range resp.Headers.FromOldest() {
+					if header == nil {
+						continue
+					}
+					hRef := header.GoLow().GetReference()
+					if hRef != "" {
+						refSet[hRef] = struct{}{}
+					}
+					for _, mediaType := range header.Content.FromOldest() {
+						if mediaType.Schema != nil {
+							mRef := mediaType.Schema.GoLow().GetReference()
+							if mRef != "" {
+								refSet[mRef] = struct{}{}
+							}
+							collectSchemaRefs(mediaType.Schema.Schema(), refSet)
+						}
+					}
+				}
 			}
 		}
 	}
