@@ -69,6 +69,9 @@ func (o Configuration) Merge(other Configuration) Configuration {
 	if o.Client == nil {
 		o.Client = other.Client
 	}
+	if o.Client.Name == "" && other.Client.Name != "" {
+		o.Client.Name = other.Client.Name
+	}
 
 	return o
 }
