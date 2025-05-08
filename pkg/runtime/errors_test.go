@@ -1,11 +1,34 @@
 package runtime
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestNewClientAPIError(t *testing.T) {
+	t.Run("nil error", func(t *testing.T) {
+		err := NewClientAPIError(nil)
+		assert.Equal(t, "client api error", err.Error())
+	})
+
+	t.Run("non-nil error", func(t *testing.T) {
+		err := NewClientAPIError(ErrValidationEmail)
+		assert.Equal(t, ErrValidationEmail.Error(), err.Error())
+	})
+
+	t.Run("non-nil error with status code", func(t *testing.T) {
+		err := NewClientAPIError(ErrValidationEmail, WithStatusCode(400))
+		assert.Equal(t, ErrValidationEmail.Error(), err.Error())
+
+		var apiErr *ClientAPIError
+		require.True(t, errors.As(err, &apiErr))
+		assert.Equal(t, 400, apiErr.StatusCode())
+	})
+}
 
 func TestNewValidationErrorsFromError(t *testing.T) {
 	validate := validator.New(validator.WithRequiredStructEnabled())

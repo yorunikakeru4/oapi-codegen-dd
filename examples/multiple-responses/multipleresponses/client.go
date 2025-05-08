@@ -110,7 +110,7 @@ func (c *Client) CreateBooking(ctx context.Context, options *CreateBookingReques
 		if err != nil {
 			return nil, fmt.Errorf("error decoding response: %w", err)
 		}
-		return nil, runtime.NewClientAPIError(*target)
+		return nil, runtime.NewClientAPIError(*target, runtime.WithStatusCode(resp.StatusCode))
 	}
 	target := new(CreateBookingResponse)
 	if err = json.Unmarshal(bodyBytes, target); err != nil {

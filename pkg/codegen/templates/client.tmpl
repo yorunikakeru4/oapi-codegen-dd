@@ -117,12 +117,14 @@ func (c *{{$clientName}}) {{$op.ID}}(ctx context.Context{{ if $op.HasRequestOpti
             if err != nil {
             return nil, fmt.Errorf("error decoding response: %w", err)
         }
-            return nil, runtime.NewClientAPIError(*target)
+            return nil, runtime.NewClientAPIError(*target, runtime.WithStatusCode(resp.StatusCode))
             {{- else }}
-                return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+                return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
+                    runtime.WithStatusCode(resp.StatusCode))
             {{ end }}
         {{ else }}
-        return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+        return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
+            runtime.WithStatusCode(resp.StatusCode))
         {{ end -}}
     }
 

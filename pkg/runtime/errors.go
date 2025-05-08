@@ -14,9 +14,12 @@ var (
 	ErrFailedToUnmarshalAsAOrB = errors.New("failed to unmarshal as either A or B")
 )
 
+type ClientAPIErrorOption func(*ClientAPIError)
+
 // ClientAPIError represents type for client API errors.
 type ClientAPIError struct {
-	err error
+	err        error
+	statusCode int
 }
 
 // Error implements the error interface.
@@ -27,14 +30,28 @@ func (e *ClientAPIError) Error() string {
 	return e.err.Error()
 }
 
+func (e *ClientAPIError) StatusCode() int {
+	return e.statusCode
+}
+
 // Unwrap returns the underlying error.
 func (e *ClientAPIError) Unwrap() error {
 	return e.err
 }
 
 // NewClientAPIError creates a new ClientAPIError from the given error.
-func NewClientAPIError(err error) error {
-	return &ClientAPIError{err: err}
+func NewClientAPIError(err error, opts ...ClientAPIErrorOption) error {
+	e := &ClientAPIError{err: err}
+	for _, opt := range opts {
+		opt(e)
+	}
+	return e
+}
+
+func WithStatusCode(code int) ClientAPIErrorOption {
+	return func(e *ClientAPIError) {
+		e.statusCode = code
+	}
 }
 
 type ValidationError struct {

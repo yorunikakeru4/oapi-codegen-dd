@@ -108,7 +108,8 @@ func (c *Client) GetClient(ctx context.Context, reqEditors ...RequestEditorFn) (
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+		return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
+			runtime.WithStatusCode(resp.StatusCode))
 	}
 	target := new(GetClientResponse)
 	if err = json.Unmarshal(bodyBytes, target); err != nil {
@@ -150,7 +151,7 @@ func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestO
 		if err != nil {
 			return nil, fmt.Errorf("error decoding response: %w", err)
 		}
-		return nil, runtime.NewClientAPIError(*target)
+		return nil, runtime.NewClientAPIError(*target, runtime.WithStatusCode(resp.StatusCode))
 	}
 	return nil, nil
 }

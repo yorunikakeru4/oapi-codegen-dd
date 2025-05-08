@@ -108,7 +108,8 @@ func (c *Client) GetPurchases(ctx context.Context, reqEditors ...RequestEditorFn
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+		return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
+			runtime.WithStatusCode(resp.StatusCode))
 	}
 	target := new(GetPurchasesResponse)
 	if err = json.Unmarshal(bodyBytes, target); err != nil {
@@ -145,7 +146,8 @@ func (c *Client) GetPurchase(ctx context.Context, reqEditors ...RequestEditorFn)
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode))
+		return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
+			runtime.WithStatusCode(resp.StatusCode))
 	}
 	target := new(GetPurchaseResponse)
 	if err = json.Unmarshal(bodyBytes, target); err != nil {
