@@ -12,7 +12,7 @@ paths:
             schema:
               properties:
                 payment_method_data:
-                  $ref: "#/components/schemas/payment_method_data"
+                  $ref: "#/components/schemas/custom_payment_method_data"
                 options:
                   type: object
                   properties:
@@ -22,12 +22,12 @@ paths:
 
 components:
   schemas:
-    payment_method_data:
+    custom_payment_method_data:
       type: object
       properties:
-        payment_id:
+        custom_payment_id:
           type: string
-        card:
+        custom_card:
           $ref: "#/components/schemas/Card"
 
     Card:

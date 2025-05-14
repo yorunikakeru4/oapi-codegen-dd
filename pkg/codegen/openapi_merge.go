@@ -7,6 +7,7 @@ import (
 	"github.com/pb33f/libopenapi"
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
+	"github.com/pb33f/libopenapi/orderedmap"
 )
 
 func MergeDocuments(src, other libopenapi.Document) (libopenapi.Document, error) {
@@ -24,6 +25,11 @@ func MergeDocuments(src, other libopenapi.Document) (libopenapi.Document, error)
 
 	// Merge the components of the two documents
 	if otherModel.Model.Components != nil && otherModel.Model.Components.Schemas != nil {
+		if srcModel.Model.Components == nil {
+			srcModel.Model.Components = &v3.Components{
+				Schemas: orderedmap.New[string, *base.SchemaProxy](),
+			}
+		}
 		for compName, schemaProxy := range otherModel.Model.Components.Schemas.FromOldest() {
 			current, exists := srcModel.Model.Components.Schemas.Get(compName)
 			if !exists {
@@ -131,6 +137,13 @@ func mergeSchemaProxy(src *base.SchemaProxy, other *base.SchemaProxy) {
 	}
 
 	if src.Schema() == nil {
+		return
+	}
+
+	otherLow := other.GoLow()
+	otherRef := otherLow.GetReference()
+	if otherRef != "" {
+		src.GoLow().SetReference(otherRef, otherLow.GetReferenceNode())
 		return
 	}
 

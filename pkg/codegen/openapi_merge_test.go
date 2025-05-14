@@ -287,8 +287,8 @@ func TestMergeDocuments(t *testing.T) {
 		assert.Equal(t, expectedApiKeyEnums, actualApiKeyEnums)
 	})
 
-	t.Run("request body previously inlined can use ref", func(t *testing.T) {
-		srcDoc, partialDoc := loadUserDocuments(t, "testdata/partial-intent-req-body-ref.yml")
+	t.Run("request body previously inlined can use overwriting ref", func(t *testing.T) {
+		srcDoc, partialDoc := loadPaymentIntentDocuments(t, "partial-intent-req-body-ref.yml")
 
 		res, err := MergeDocuments(srcDoc, partialDoc)
 		require.NoError(t, err)
@@ -305,15 +305,18 @@ func TestMergeDocuments(t *testing.T) {
 
 		reqBody := epPath.Post.RequestBody
 		require.NotNil(t, reqBody)
-		expectedKeys := []string{"payment_method_data", "options"}
+		expectedKeys := []string{"user_data", "payment_method_data", "options"}
 		props := getPropertyKeys(reqBody.Content.Value("application/x-www-form-urlencoded").Schema)
 		assert.Equal(t, expectedKeys, props)
 
 		paymentMethodData := reqBody.Content.Value("application/x-www-form-urlencoded").Schema.Schema().Properties.Value("payment_method_data")
 		require.NotNil(t, paymentMethodData)
-		expectedPaymentMethodDataProps := []string{"payment_id", "card"}
+		expectedPaymentMethodDataProps := []string{"custom_payment_id", "custom_card"}
 		paymentMethodDataProps := getPropertyKeys(paymentMethodData)
 		assert.Equal(t, expectedPaymentMethodDataProps, paymentMethodDataProps)
+
+		paymentMethodDataComponent := model.Components.Schemas.Value("custom_payment_method_data")
+		require.NotNil(t, paymentMethodDataComponent)
 	})
 
 	t.Run("new response code appended", func(t *testing.T) {
