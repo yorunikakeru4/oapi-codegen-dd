@@ -97,7 +97,7 @@
         "default-int-type": {
           "type": "string",
           "description": "DefaultIntType specifies the default integer type to use in the generated code. Can be 'int', 'int32', or 'int64'. Defaults to 'int'."
-        },
+        }
       },
       "required": []
     },
