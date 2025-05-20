@@ -38,6 +38,7 @@ func TestCreateRequest(t *testing.T) {
 		method          string
 		url             string
 		options         RequestOptions
+		contentType     string
 		expectedURL     string
 		expectedBody    string
 		expectedCT      string
@@ -100,10 +101,8 @@ func TestCreateRequest(t *testing.T) {
 					Email: "test@example.com",
 					Token: "abc123",
 				},
-				headers: map[string]string{
-					"Content-Type": "application/x-www-form-urlencoded",
-				},
 			},
+			contentType:  "application/x-www-form-urlencoded",
 			expectedURL:  "https://example.com/api/resource",
 			expectedBody: "email=test%40example.com&token=abc123",
 			expectedHeaders: http.Header{
@@ -130,7 +129,13 @@ func TestCreateRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := createRequest(context.Background(), tt.url, tt.method, tt.options)
+			params := RequestOptionsParameters{
+				reqURL:      tt.url,
+				method:      tt.method,
+				options:     tt.options,
+				contentType: tt.contentType,
+			}
+			req, err := createRequest(context.Background(), params)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedURL, req.URL.String())
 			assert.Equal(t, tt.method, req.Method)

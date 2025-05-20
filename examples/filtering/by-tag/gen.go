@@ -83,8 +83,11 @@ type ClientInterface interface {
 
 func (c *Client) GetPurchases(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPurchasesResponse, error) {
 	var err error
-	reqURL := c.baseURL + "/client/{id}/purchases"
-	req, err := createRequest(ctx, reqURL, "GET", nil)
+	reqParams := RequestOptionsParameters{
+		reqURL: c.baseURL + "/client/{id}/purchases",
+		method: "GET",
+	}
+	req, err := createRequest(ctx, reqParams)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -121,8 +124,11 @@ func (c *Client) GetPurchases(ctx context.Context, reqEditors ...RequestEditorFn
 
 func (c *Client) GetPurchase(ctx context.Context, reqEditors ...RequestEditorFn) (*GetPurchaseResponse, error) {
 	var err error
-	reqURL := c.baseURL + "/client/{id}/purchases/{purchaseId}"
-	req, err := createRequest(ctx, reqURL, "GET", nil)
+	reqParams := RequestOptionsParameters{
+		reqURL: c.baseURL + "/client/{id}/purchases/{purchaseId}",
+		method: "GET",
+	}
+	req, err := createRequest(ctx, reqParams)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -180,13 +186,22 @@ type RequestOptions interface {
 	GetHeader() (map[string]string, error)
 }
 
+type RequestOptionsParameters struct {
+	options     RequestOptions
+	reqURL      string
+	method      string
+	contentType string
+}
+
 // createRequest creates a new POST request with the given URL, payload and headers.
-func createRequest(ctx context.Context, reqURL, method string, options RequestOptions) (*http.Request, error) {
+func createRequest(ctx context.Context, params RequestOptionsParameters) (*http.Request, error) {
+	options := params.options
+
 	pathParams, err := options.GetPathParams()
 	if err != nil {
 		return nil, err
 	}
-	reqURL = strings.TrimSuffix(reqURL, "/")
+	reqURL := strings.TrimSuffix(params.reqURL, "/")
 	reqURL = replacePathPlaceholders(reqURL, pathParams)
 
 	queryParams, err := options.GetQuery()
@@ -201,13 +216,18 @@ func createRequest(ctx context.Context, reqURL, method string, options RequestOp
 		reqURL = fmt.Sprintf("%s?%s", reqURL, values.Encode())
 	}
 
+	contentType := "application/json"
+	if params.contentType != "" {
+		contentType = params.contentType
+	}
+
 	headers, err := options.GetHeader()
 	if err != nil {
 		return nil, err
 	}
 	if headers == nil {
 		headers = map[string]string{
-			"Content-Type": "application/json",
+			"Content-Type": contentType,
 		}
 	}
 
@@ -228,7 +248,7 @@ func createRequest(ctx context.Context, reqURL, method string, options RequestOp
 	payload := options.GetBody()
 	if payload != nil {
 		// Check if request should be form-encoded
-		if strings.HasPrefix(headers["Content-Type"], "application/x-www-form-urlencoded") {
+		if strings.HasPrefix(contentType, "application/x-www-form-urlencoded") {
 			formValues, err := query.Values(payload)
 			if err != nil {
 				return nil, fmt.Errorf("error encoding form values: %w", err)
@@ -245,7 +265,7 @@ func createRequest(ctx context.Context, reqURL, method string, options RequestOp
 			bodyReader = bytes.NewBuffer(body)
 		}
 	}
-	req, err := http.NewRequestWithContext(ctx, method, reqURL, bodyReader)
+	req, err := http.NewRequestWithContext(ctx, params.method, reqURL, bodyReader)
 	if err != nil {
 		return nil, err
 	}

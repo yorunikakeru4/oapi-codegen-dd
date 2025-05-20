@@ -98,7 +98,7 @@ func createBodyDefinition(operationID string, body *v3high.RequestBody, options 
 	// If the request has a body, but it's not a user defined
 	// type under #/components, we'll define a type for it, so
 	// that we have an easy-to-use type for marshaling.
-	if bodySchema.RefType == "" {
+	if !bodySchema.DefineViaAlias {
 		if contentType == "application/x-www-form-urlencoded" {
 			// Apply the appropriate structure tag if the request
 			// schema was defined under the operations' section.
@@ -118,6 +118,12 @@ func createBodyDefinition(operationID string, body *v3high.RequestBody, options 
 		}
 		// The body schema now is a reference to a type
 		bodySchema.RefType = bodyTypeName
+	} else if bodySchema.RefType == "" {
+		td = TypeDefinition{
+			Name:         bodyTypeName,
+			Schema:       bodySchema,
+			SpecLocation: SpecLocationBody,
+		}
 	}
 
 	bodySchema.Constraints.Required = required
