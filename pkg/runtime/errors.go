@@ -67,8 +67,8 @@ func (e *ValidationError) Error() string {
 	return fmt.Sprintf("%s%s", field, e.Message)
 }
 
-func NewValidationError(field, message string) *ValidationError {
-	return &ValidationError{Field: field, Message: message}
+func NewValidationError(field, message string) ValidationError {
+	return ValidationError{Field: field, Message: message}
 }
 
 type ValidationErrors []ValidationError
