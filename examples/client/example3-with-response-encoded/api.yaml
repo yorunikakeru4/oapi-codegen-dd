@@ -1,0 +1,64 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Generate models
+paths:
+  /users/{userId}/single:
+    get:
+      operationId: getUserSingle
+      responses:
+        200:
+          description: "Successful response"
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{userId}/union-1:
+    get:
+      operationId: getUserUnion1
+      responses:
+        200:
+          description: "Successful response"
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/User'
+  /users/{userId}/union-2:
+    get:
+      operationId: getUserUnion2
+      responses:
+        200:
+          description: "Successful response"
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/User'
+                  - type: string
+  /users/{userId}/union-3:
+    get:
+      operationId: getUserUnion3
+      responses:
+        200:
+          description: "Successful response"
+          content:
+            application/x-www-form-urlencoded:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/User'
+                  - type: string
+                  - type: integer
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string

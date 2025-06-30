@@ -134,8 +134,8 @@ func (c *{{$clientName}}) {{$op.ID}}(ctx context.Context{{ if $op.HasRequestOpti
             target := new({{.ResponseName}})
             err = json.Unmarshal(bodyBytes, target)
             if err != nil {
-            return nil, fmt.Errorf("error decoding response: %w", err)
-        }
+                return nil, fmt.Errorf("error decoding response: %w", err)
+            }
             return nil, runtime.NewClientAPIError(*target, runtime.WithStatusCode(resp.StatusCode))
             {{- else }}
                 return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
@@ -151,6 +151,24 @@ func (c *{{$clientName}}) {{$op.ID}}(ctx context.Context{{ if $op.HasRequestOpti
     return nil, nil
     {{ else }}
     target := new({{ $op.Response.Success.ResponseName }})
+    {{ if eq $op.Response.Success.NameTag "Formdata" }}
+        values, err := url.ParseQuery(string(bodyBytes))
+        if err != nil {
+            return nil, fmt.Errorf("error parsing form-encoded body: %w", err)
+        }
+
+        data := make(map[string]any, len(values))
+        for key := range values {
+            data[key] = values.Get(key)
+        }
+
+        // Convert back to JSON
+        bodyBytes, err = json.Marshal(data)
+        if err != nil {
+            return nil, fmt.Errorf("error marshaling to JSON: %w", err)
+        }
+
+    {{ end -}}
     if err = json.Unmarshal(bodyBytes, target); err != nil {
         err = fmt.Errorf("error decoding response: %w", err)
         return nil, err
