@@ -27,6 +27,7 @@ if err != nil {
         baseURL string
         httpClient HttpRequestDoer
         requestEditors []RequestEditorFn
+        httpCallRecorder HTTPCallRecorder
     }
 {{- end -}}
 
@@ -60,6 +61,24 @@ func NewClient(baseURL string, opts ...{{$clientName}}Option) (*{{$clientName}},
     return res, nil
 }
 
+// HTTPCall is a recorded http call client made.
+// Method is the HTTP method used for the request.
+// URL is the full URL of the request.
+// Path is the masked path of the request, for example "/v1/payments/{id}".
+// ResponseCode is the HTTP response code received. In case of failed request, this will be zero.
+// Latency is the time it took to complete the request.
+type HTTPCall struct {
+    Method string
+    URL string
+    Path string
+    ResponseCode int
+    Latency time.Duration
+}
+
+type HTTPCallRecorder interface {
+    Record(HTTPCall)
+}
+
 // WithHTTPClient allows overriding the default Doer, which is
 // automatically created using http.Client.
 func WithHTTPClient(doer HttpRequestDoer) {{$clientName}}Option {
@@ -74,6 +93,13 @@ func WithHTTPClient(doer HttpRequestDoer) {{$clientName}}Option {
 func WithRequestEditorFn(fn RequestEditorFn) {{$clientName}}Option {
     return func(c *{{$clientName}}) error {
         c.requestEditors = append(c.requestEditors, fn)
+        return nil
+    }
+}
+
+func WithHTTPCallRecorder(httpCallRecorder HTTPCallRecorder) {{$clientName}}Option {
+    return func(c *{{$clientName}}) error {
+        c.httpCallRecorder = httpCallRecorder
         return nil
     }
 }
@@ -120,7 +146,16 @@ func (c *{{$clientName}}) {{$op.ID}}(ctx context.Context{{ if $op.HasRequestOpti
         return nil, fmt.Errorf("error applying request editors: %w", err)
     }
 
+    start := time.Now()
     {{ template "executeRequest" (dict "operation" $op "config" $config) }}
+    if c.httpCallRecorder != nil {
+        c.httpCallRecorder.Record(HTTPCall{
+            Method: req.Method,
+            URL:    req.URL.String(),
+            Path: "{{$op.Path}}",
+            Latency: time.Since(start),
+        })
+    }
 
     var bodyBytes []byte
     if resp.Body != nil {
