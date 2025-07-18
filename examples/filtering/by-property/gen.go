@@ -34,7 +34,7 @@ type Client struct {
 	baseURL          string
 	httpClient       HttpRequestDoer
 	requestEditors   []RequestEditorFn
-	httpCallRecorder HTTPCallRecorder
+	httpCallRecorder runtime.HTTPCallRecorder
 }
 
 // ClientOption allows setting custom parameters during construction.
@@ -57,24 +57,6 @@ func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	return res, nil
 }
 
-// HTTPCall is a recorded http call client made.
-// Method is the HTTP method used for the request.
-// URL is the full URL of the request.
-// Path is the masked path of the request, for example "/v1/payments/{id}".
-// ResponseCode is the HTTP response code received. In case of failed request, this will be zero.
-// Latency is the time it took to complete the request.
-type HTTPCall struct {
-	Method       string
-	URL          string
-	Path         string
-	ResponseCode int
-	Latency      time.Duration
-}
-
-type HTTPCallRecorder interface {
-	Record(HTTPCall)
-}
-
 // WithHTTPClient allows overriding the default Doer, which is
 // automatically created using http.Client.
 func WithHTTPClient(doer HttpRequestDoer) ClientOption {
@@ -93,7 +75,7 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	}
 }
 
-func WithHTTPCallRecorder(httpCallRecorder HTTPCallRecorder) ClientOption {
+func WithHTTPCallRecorder(httpCallRecorder runtime.HTTPCallRecorder) ClientOption {
 	return func(c *Client) error {
 		c.httpCallRecorder = httpCallRecorder
 		return nil
@@ -128,7 +110,7 @@ func (c *Client) GetClient(ctx context.Context, reqEditors ...RequestEditorFn) (
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	if c.httpCallRecorder != nil {
-		c.httpCallRecorder.Record(HTTPCall{
+		c.httpCallRecorder.Record(runtime.HTTPCall{
 			Method:  req.Method,
 			URL:     req.URL.String(),
 			Path:    "/client",
@@ -180,7 +162,7 @@ func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestO
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 	if c.httpCallRecorder != nil {
-		c.httpCallRecorder.Record(HTTPCall{
+		c.httpCallRecorder.Record(runtime.HTTPCall{
 			Method:  req.Method,
 			URL:     req.URL.String(),
 			Path:    "/client",
