@@ -18,8 +18,8 @@ if err != nil {
 
 {{- define "emitMetrics" -}}
 defer func() {
-    if c.httpCallRecorder != nil {
-            c.httpCallRecorder.Record(runtime.HTTPCall{
+    if c.httpRecorder != nil {
+            c.httpRecorder.Record(runtime.HTTPCall{
                 Method: req.Method,
                 URL:    req.URL.String(),
                 Path: "{{ .path }}",
@@ -42,7 +42,7 @@ defer func() {
         baseURL string
         httpClient HttpRequestDoer
         requestEditors []RequestEditorFn
-        httpCallRecorder runtime.HTTPCallRecorder
+        httpRecorder runtime.HTTPCallRecorder
     }
 {{- end -}}
 
@@ -94,9 +94,9 @@ func WithRequestEditorFn(fn RequestEditorFn) {{$clientName}}Option {
     }
 }
 
-func WithHTTPCallRecorder(httpCallRecorder runtime.HTTPCallRecorder) {{$clientName}}Option {
+func WithHTTPCallRecorder(httpRecorder runtime.HTTPCallRecorder) {{$clientName}}Option {
     return func(c *{{$clientName}}) error {
-        c.httpCallRecorder = httpCallRecorder
+        c.httpRecorder = httpRecorder
         return nil
     }
 }
