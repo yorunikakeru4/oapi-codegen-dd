@@ -10,13 +10,13 @@ Do(context context.Context, req *http.Request) (*http.Response, error)
 {{- define "executeRequest" -}}
 start := time.Now()
 resp, err := c.httpClient.Do(ctx, req)
-{{ template "emitMetrics" (dict "path" $.operation.Path ) }}
+{{ template "recordHttpCall" (dict "path" $.operation.Path ) }}
 if err != nil {
     return nil, fmt.Errorf("error sending request: %w", err)
 }
 {{- end -}}
 
-{{- define "emitMetrics" -}}
+{{- define "recordHttpCall" -}}
 if c.httpRecorder != nil {
     c.httpRecorder.Record(runtime.HTTPCall{
             Method: req.Method,
