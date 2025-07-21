@@ -30,10 +30,10 @@ type HttpRequestDoer interface {
 // httpClient is the HTTP client to use for making requests.
 // requestEditors is a list of callbacks for modifying requests which are generated before sending over the network.
 type Client struct {
-	baseURL        string
-	httpClient     HttpRequestDoer
-	requestEditors []RequestEditorFn
-	httpRecorder   runtime.HTTPCallRecorder
+	baseURL          string
+	httpClient       HttpRequestDoer
+	requestEditors   []RequestEditorFn
+	httpCallRecorder runtime.HTTPCallRecorder
 }
 
 // ClientOption allows setting custom parameters during construction.
@@ -74,9 +74,9 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 	}
 }
 
-func WithHTTPCallRecorder(httpRecorder runtime.HTTPCallRecorder) ClientOption {
+func WithHTTPCallRecorder(httpCallRecorder runtime.HTTPCallRecorder) ClientOption {
 	return func(c *Client) error {
-		c.httpRecorder = httpRecorder
+		c.httpCallRecorder = httpCallRecorder
 		return nil
 	}
 }
@@ -109,8 +109,8 @@ func (c *Client) GetUserSingle(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
-	if c.httpRecorder != nil {
-		c.httpRecorder.Record(runtime.HTTPCall{
+	if c.httpCallRecorder != nil {
+		c.httpCallRecorder.Record(runtime.HTTPCall{
 			Method:  req.Method,
 			URL:     req.URL.String(),
 			Path:    "/users/{userId}/single",
@@ -176,8 +176,8 @@ func (c *Client) GetUserUnion1(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
-	if c.httpRecorder != nil {
-		c.httpRecorder.Record(runtime.HTTPCall{
+	if c.httpCallRecorder != nil {
+		c.httpCallRecorder.Record(runtime.HTTPCall{
 			Method:  req.Method,
 			URL:     req.URL.String(),
 			Path:    "/users/{userId}/union-1",
@@ -243,8 +243,8 @@ func (c *Client) GetUserUnion2(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
-	if c.httpRecorder != nil {
-		c.httpRecorder.Record(runtime.HTTPCall{
+	if c.httpCallRecorder != nil {
+		c.httpCallRecorder.Record(runtime.HTTPCall{
 			Method:  req.Method,
 			URL:     req.URL.String(),
 			Path:    "/users/{userId}/union-2",
@@ -310,8 +310,8 @@ func (c *Client) GetUserUnion3(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
-	if c.httpRecorder != nil {
-		c.httpRecorder.Record(runtime.HTTPCall{
+	if c.httpCallRecorder != nil {
+		c.httpCallRecorder.Record(runtime.HTTPCall{
 			Method:  req.Method,
 			URL:     req.URL.String(),
 			Path:    "/users/{userId}/union-3",

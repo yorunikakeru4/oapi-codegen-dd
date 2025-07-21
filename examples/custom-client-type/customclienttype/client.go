@@ -30,10 +30,10 @@ type HttpRequestDoer interface {
 // httpClient is the HTTP client to use for making requests.
 // requestEditors is a list of callbacks for modifying requests which are generated before sending over the network.
 type CustomClientType struct {
-	baseURL        string
-	httpClient     HttpRequestDoer
-	requestEditors []RequestEditorFn
-	httpRecorder   runtime.HTTPCallRecorder
+	baseURL          string
+	httpClient       HttpRequestDoer
+	requestEditors   []RequestEditorFn
+	httpCallRecorder runtime.HTTPCallRecorder
 }
 
 // ClientOption allows setting custom parameters during construction.
@@ -74,9 +74,9 @@ func WithRequestEditorFn(fn RequestEditorFn) CustomClientTypeOption {
 	}
 }
 
-func WithHTTPCallRecorder(httpRecorder runtime.HTTPCallRecorder) CustomClientTypeOption {
+func WithHTTPCallRecorder(httpCallRecorder runtime.HTTPCallRecorder) CustomClientTypeOption {
 	return func(c *CustomClientType) error {
-		c.httpRecorder = httpRecorder
+		c.httpCallRecorder = httpCallRecorder
 		return nil
 	}
 }
@@ -103,8 +103,8 @@ func (c *CustomClientType) GetClient(ctx context.Context, reqEditors ...RequestE
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
-	if c.httpRecorder != nil {
-		c.httpRecorder.Record(runtime.HTTPCall{
+	if c.httpCallRecorder != nil {
+		c.httpCallRecorder.Record(runtime.HTTPCall{
 			Method:  req.Method,
 			URL:     req.URL.String(),
 			Path:    "/client",
