@@ -109,16 +109,21 @@ func (c *Client) GetUserSingle(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
+	if c.httpCallRecorder != nil {
+		responseCode := 0
+		if resp != nil {
+			responseCode = resp.StatusCode
+		}
+		c.httpCallRecorder.Record(runtime.HTTPCall{
+			Latency:      time.Since(start),
+			Method:       req.Method,
+			Path:         "/users/{userId}/single",
+			ResponseCode: responseCode,
+			URL:          req.URL.String(),
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
-	}
-	if c.httpCallRecorder != nil {
-		c.httpCallRecorder.Record(runtime.HTTPCall{
-			Method:  req.Method,
-			URL:     req.URL.String(),
-			Path:    "/users/{userId}/single",
-			Latency: time.Since(start),
-		})
 	}
 
 	var bodyBytes []byte
@@ -176,16 +181,21 @@ func (c *Client) GetUserUnion1(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
+	if c.httpCallRecorder != nil {
+		responseCode := 0
+		if resp != nil {
+			responseCode = resp.StatusCode
+		}
+		c.httpCallRecorder.Record(runtime.HTTPCall{
+			Latency:      time.Since(start),
+			Method:       req.Method,
+			Path:         "/users/{userId}/union-1",
+			ResponseCode: responseCode,
+			URL:          req.URL.String(),
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
-	}
-	if c.httpCallRecorder != nil {
-		c.httpCallRecorder.Record(runtime.HTTPCall{
-			Method:  req.Method,
-			URL:     req.URL.String(),
-			Path:    "/users/{userId}/union-1",
-			Latency: time.Since(start),
-		})
 	}
 
 	var bodyBytes []byte
@@ -243,16 +253,21 @@ func (c *Client) GetUserUnion2(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
+	if c.httpCallRecorder != nil {
+		responseCode := 0
+		if resp != nil {
+			responseCode = resp.StatusCode
+		}
+		c.httpCallRecorder.Record(runtime.HTTPCall{
+			Latency:      time.Since(start),
+			Method:       req.Method,
+			Path:         "/users/{userId}/union-2",
+			ResponseCode: responseCode,
+			URL:          req.URL.String(),
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
-	}
-	if c.httpCallRecorder != nil {
-		c.httpCallRecorder.Record(runtime.HTTPCall{
-			Method:  req.Method,
-			URL:     req.URL.String(),
-			Path:    "/users/{userId}/union-2",
-			Latency: time.Since(start),
-		})
 	}
 
 	var bodyBytes []byte
@@ -310,16 +325,21 @@ func (c *Client) GetUserUnion3(ctx context.Context, reqEditors ...RequestEditorF
 
 	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
+	if c.httpCallRecorder != nil {
+		responseCode := 0
+		if resp != nil {
+			responseCode = resp.StatusCode
+		}
+		c.httpCallRecorder.Record(runtime.HTTPCall{
+			Latency:      time.Since(start),
+			Method:       req.Method,
+			Path:         "/users/{userId}/union-3",
+			ResponseCode: responseCode,
+			URL:          req.URL.String(),
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
-	}
-	if c.httpCallRecorder != nil {
-		c.httpCallRecorder.Record(runtime.HTTPCall{
-			Method:  req.Method,
-			URL:     req.URL.String(),
-			Path:    "/users/{userId}/union-3",
-			Latency: time.Since(start),
-		})
 	}
 
 	var bodyBytes []byte
