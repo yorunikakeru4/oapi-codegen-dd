@@ -39,6 +39,7 @@ func MergeDocuments(src, other libopenapi.Document) (libopenapi.Document, error)
 				continue
 			}
 			mergeSchemaProxy(current, schemaProxy, srcModel)
+			resolveRefExtensions(current, srcModel)
 		}
 	}
 
@@ -109,6 +110,9 @@ func mergeOperations(srcModel, otherModel *libopenapi.DocumentModel[v3.Document]
 							currentOperation.RequestBody.Content.Set(contentType, content)
 						}
 					}
+					if currentContent != nil {
+						resolveRefExtensions(currentContent.Schema, srcModel)
+					}
 				}
 			}
 
@@ -158,12 +162,16 @@ func mergeSchemaProxy(src *base.SchemaProxy, other *base.SchemaProxy, docModel *
 				src.Schema().Properties.Set(key, value)
 				continue
 			}
-
-			if setFromExtension(srcKeySchema, value, docModel) {
-				continue
-			}
-
 			mergeSchemaProxy(srcKeySchema, value, docModel)
+		}
+	}
+
+	if src.Schema().Items == nil {
+		src.Schema().Items = other.Schema().Items
+	} else {
+		if other.Schema().Items != nil && other.Schema().Items.IsA() && other.Schema().Items.A != nil {
+			srcItems := src.Schema().Items.A
+			mergeSchemaProxy(srcItems, other.Schema().Items.A, docModel)
 		}
 	}
 
@@ -212,42 +220,58 @@ func mergeResponses(src, other *v3.Response, docModel *libopenapi.DocumentModel[
 		srcContent, exists := src.Content.Get(contentType)
 		if exists {
 			mergeSchemaProxy(srcContent.Schema, content.Schema, docModel)
+			resolveRefExtensions(srcContent.Schema, docModel)
 		} else {
 			src.Content.Set(contentType, content)
 		}
 	}
 }
 
-func setFromExtension(src, other *base.SchemaProxy, docModel *libopenapi.DocumentModel[v3.Document]) bool {
-	if src == nil || other == nil {
-		return false
+// resolveRefExtensions resolves the x-src-merge-ref extension in the schema and sets the source ref to the
+// ref pointed to by the other schema. This is used to merge schemas that are referenced in the OpenAPI document.
+func resolveRefExtensions(src *base.SchemaProxy, docModel *libopenapi.DocumentModel[v3.Document]) {
+	if src == nil || src.Schema() == nil {
+		return
+	}
+
+	if src.Schema().Properties != nil && src.Schema().Properties.Len() > 0 {
+		for _, prop := range src.Schema().Properties.FromOldest() {
+			resolveRefExtensions(prop, docModel)
+		}
+	}
+
+	if src.Schema().Items != nil && src.Schema().Items.IsA() && src.Schema().Items.A != nil {
+		resolveRefExtensions(src.Schema().Items.A, docModel)
 	}
 
 	// set source ref to the ref pointed to by the other schema
-	valueExtensions := other.Schema().Extensions
+	valueExtensions := src.Schema().Extensions
+	if valueExtensions == nil || valueExtensions.Len() == 0 {
+		return
+	}
+
+	// set source ref to the ref pointed to by the other schema
 	exts := extractExtensions(valueExtensions)
 	if exts == nil || exts[extSrcMergeRef] == nil {
-		return false
+		return
 	}
 
 	refName, _ := parseString(exts[extSrcMergeRef])
 
 	const prefix = "#/components/schemas/"
 	if !strings.HasPrefix(refName, prefix) {
-		return false
+		return
 	}
 
 	schemaName := strings.TrimPrefix(refName, prefix)
 	if schemaName == "" {
-		return false
+		return
 	}
 
 	ref := docModel.Model.Components.Schemas.Value(schemaName)
 	if ref != nil {
 		src.GoLow().SetReference(refName, ref.GoLow().GetReferenceNode())
 		src.Schema().Properties = nil
-		return true
+		return
 	}
-
-	return false
 }

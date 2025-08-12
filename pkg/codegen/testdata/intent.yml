@@ -67,3 +67,10 @@ components:
               type: integer
             last4:
               type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
