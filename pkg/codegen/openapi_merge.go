@@ -8,7 +8,6 @@ import (
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 	"github.com/pb33f/libopenapi/orderedmap"
-	"gopkg.in/yaml.v3"
 )
 
 const extSrcMergeRef = "x-src-merge-ref"
@@ -40,6 +39,7 @@ func MergeDocuments(src, other libopenapi.Document) (libopenapi.Document, error)
 				continue
 			}
 			mergeSchemaProxy(current, schemaProxy, srcModel)
+			resolveRefExtensions(current, srcModel)
 		}
 	}
 
@@ -110,6 +110,9 @@ func mergeOperations(srcModel, otherModel *libopenapi.DocumentModel[v3.Document]
 							currentOperation.RequestBody.Content.Set(contentType, content)
 						}
 					}
+					if currentContent != nil {
+						resolveRefExtensions(currentContent.Schema, srcModel)
+					}
 				}
 			}
 
@@ -156,19 +159,9 @@ func mergeSchemaProxy(src *base.SchemaProxy, other *base.SchemaProxy, docModel *
 		for key, value := range other.Schema().Properties.FromOldest() {
 			srcKeySchema, exists := src.Schema().Properties.Get(key)
 			if !exists {
-				resolveRefExtensions(value, docModel)
 				src.Schema().Properties.Set(key, value)
 				continue
 			}
-
-			if value == nil || value.Schema() == nil {
-				continue
-			}
-
-			if setFromExtension(srcKeySchema, value.Schema().Extensions, docModel) {
-				continue
-			}
-
 			mergeSchemaProxy(srcKeySchema, value, docModel)
 		}
 	}
@@ -178,9 +171,6 @@ func mergeSchemaProxy(src *base.SchemaProxy, other *base.SchemaProxy, docModel *
 	} else {
 		if other.Schema().Items != nil && other.Schema().Items.IsA() && other.Schema().Items.A != nil {
 			srcItems := src.Schema().Items.A
-			if setFromExtension(srcItems, other.Schema().Items.A.Schema().Extensions, docModel) {
-				return
-			}
 			mergeSchemaProxy(srcItems, other.Schema().Items.A, docModel)
 		}
 	}
@@ -230,48 +220,18 @@ func mergeResponses(src, other *v3.Response, docModel *libopenapi.DocumentModel[
 		srcContent, exists := src.Content.Get(contentType)
 		if exists {
 			mergeSchemaProxy(srcContent.Schema, content.Schema, docModel)
+			resolveRefExtensions(srcContent.Schema, docModel)
 		} else {
 			src.Content.Set(contentType, content)
 		}
 	}
 }
 
-func setFromExtension(src *base.SchemaProxy, valueExtensions *orderedmap.Map[string, *yaml.Node], docModel *libopenapi.DocumentModel[v3.Document]) bool {
-	if src == nil {
-		return false
-	}
-
-	// set source ref to the ref pointed to by the other schema
-	exts := extractExtensions(valueExtensions)
-	if exts == nil || exts[extSrcMergeRef] == nil {
-		return false
-	}
-
-	refName, _ := parseString(exts[extSrcMergeRef])
-
-	const prefix = "#/components/schemas/"
-	if !strings.HasPrefix(refName, prefix) {
-		return false
-	}
-
-	schemaName := strings.TrimPrefix(refName, prefix)
-	if schemaName == "" {
-		return false
-	}
-
-	ref := docModel.Model.Components.Schemas.Value(schemaName)
-	if ref != nil {
-		src.GoLow().SetReference(refName, ref.GoLow().GetReferenceNode())
-		src.Schema().Properties = nil
-		return true
-	}
-
-	return false
-}
-
-func resolveRefExtensions(src *base.SchemaProxy, docModel *libopenapi.DocumentModel[v3.Document]) bool {
+// resolveRefExtensions resolves the x-src-merge-ref extension in the schema and sets the source ref to the
+// ref pointed to by the other schema. This is used to merge schemas that are referenced in the OpenAPI document.
+func resolveRefExtensions(src *base.SchemaProxy, docModel *libopenapi.DocumentModel[v3.Document]) {
 	if src == nil || src.Schema() == nil {
-		return false
+		return
 	}
 
 	if src.Schema().Properties != nil && src.Schema().Properties.Len() > 0 {
@@ -287,8 +247,31 @@ func resolveRefExtensions(src *base.SchemaProxy, docModel *libopenapi.DocumentMo
 	// set source ref to the ref pointed to by the other schema
 	valueExtensions := src.Schema().Extensions
 	if valueExtensions == nil || valueExtensions.Len() == 0 {
-		return false
+		return
 	}
 
-	return setFromExtension(src, valueExtensions, docModel)
+	// set source ref to the ref pointed to by the other schema
+	exts := extractExtensions(valueExtensions)
+	if exts == nil || exts[extSrcMergeRef] == nil {
+		return
+	}
+
+	refName, _ := parseString(exts[extSrcMergeRef])
+
+	const prefix = "#/components/schemas/"
+	if !strings.HasPrefix(refName, prefix) {
+		return
+	}
+
+	schemaName := strings.TrimPrefix(refName, prefix)
+	if schemaName == "" {
+		return
+	}
+
+	ref := docModel.Model.Components.Schemas.Value(schemaName)
+	if ref != nil {
+		src.GoLow().SetReference(refName, ref.GoLow().GetReferenceNode())
+		src.Schema().Properties = nil
+		return
+	}
 }
