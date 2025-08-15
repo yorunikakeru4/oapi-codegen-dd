@@ -56,9 +56,8 @@ func (c *Client) CreateOrder(ctx context.Context, options *CreateOrderRequestOpt
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*CreateOrderResponse, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}

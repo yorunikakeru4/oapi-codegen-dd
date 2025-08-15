@@ -50,9 +50,8 @@ func (c *Client) GetClient(ctx context.Context, options *GetClientRequestOptions
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetClientResponse, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			target := new(GetClientErrorResponse)
 			err = json.Unmarshal(bodyBytes, target)
 			if err != nil {
@@ -90,9 +89,8 @@ func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestO
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*struct{}, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 204 {
+		if resp.StatusCode != 204 {
 			target := new(UpdateClientErrorResponse)
 			err = json.Unmarshal(bodyBytes, target)
 			if err != nil {

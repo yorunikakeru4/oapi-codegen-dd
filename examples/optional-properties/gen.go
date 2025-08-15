@@ -52,9 +52,8 @@ func (c *Client) PostPayments(ctx context.Context, options *PostPaymentsRequestO
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*PostPaymentsResponse, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}

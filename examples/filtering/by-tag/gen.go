@@ -50,9 +50,8 @@ func (c *Client) GetPurchases(ctx context.Context, reqEditors ...runtime.Request
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetPurchasesResponse, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}
@@ -84,9 +83,8 @@ func (c *Client) GetPurchase(ctx context.Context, reqEditors ...runtime.RequestE
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetPurchaseResponse, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}

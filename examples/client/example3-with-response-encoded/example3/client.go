@@ -53,9 +53,8 @@ func (c *Client) GetUserSingle(ctx context.Context, reqEditors ...runtime.Reques
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetUserSingleResponse, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}
@@ -89,9 +88,8 @@ func (c *Client) GetUserUnion1(ctx context.Context, reqEditors ...runtime.Reques
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetUserUnion1Response, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}
@@ -125,9 +123,8 @@ func (c *Client) GetUserUnion2(ctx context.Context, reqEditors ...runtime.Reques
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetUserUnion2Response, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}
@@ -161,9 +158,8 @@ func (c *Client) GetUserUnion3(ctx context.Context, reqEditors ...runtime.Reques
 	}
 
 	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetUserUnion3Response, error) {
-		raw := resp.Raw
 		bodyBytes := resp.Content
-		if raw.StatusCode != 200 {
+		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}

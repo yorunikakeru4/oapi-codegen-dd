@@ -84,9 +84,8 @@ var _ {{$clientName}}Interface = (*{{$clientName}})(nil)
 {{- define "responseParserFn" }}{{- $op := .op }}
 {{- $respName := $op.Response.Success.ResponseName }}
 responseParser := func(ctx context.Context, resp *runtime.Response) (*{{$op.Response.Success.ResponseName}}, error) {
-    raw := resp.Raw
     bodyBytes := resp.Content
-    if raw.StatusCode != {{$op.Response.SuccessStatusCode}} {
+    if resp.StatusCode != {{$op.Response.SuccessStatusCode}} {
         {{- with $op.Response.Error }}
             {{- if .ResponseName }}
                 target := new({{ .ResponseName }})
