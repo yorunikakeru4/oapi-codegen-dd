@@ -163,6 +163,16 @@ func (c *Client) CreateResponse(ctx context.Context, resp *http.Response) (*Resp
 	}
 
 	if c.logger != nil {
+		var (
+			method string
+			reqURL string
+		)
+
+		if resp.Request != nil {
+			method = resp.Request.Method
+			reqURL = resp.Request.URL.String()
+		}
+
 		c.logger(ctx, LogEntry{
 			Message: "Received response",
 			Prefix:  "response.",
@@ -170,8 +180,8 @@ func (c *Client) CreateResponse(ctx context.Context, resp *http.Response) (*Resp
 				Headers: resp.Header,
 				Body:    bodyBytes,
 				Extras: map[string]any{
-					"method": resp.Request.Method,
-					"url":    resp.Request.URL.String(),
+					"method": method,
+					"url":    reqURL,
 				},
 			},
 		})
