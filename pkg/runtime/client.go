@@ -10,26 +10,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
-	"time"
 )
-
-// HTTPCall is a recorded http call client made.
-// Method is the HTTP method used for the request.
-// URL is the full URL of the request.
-// Path is the masked path of the request, for example "/v1/payments/{id}".
-// ResponseCode is the HTTP response code received. In case of failed request, this will be zero.
-// Latency is the time it took to complete the request.
-type HTTPCall struct {
-	Method       string
-	URL          string
-	Path         string
-	ResponseCode int
-	Latency      time.Duration
-}
-
-type HTTPCallRecorder interface {
-	Record(HTTPCall)
-}
 
 type RequestOptions interface {
 	GetPathParams() (map[string]any, error)
@@ -72,11 +53,9 @@ type APIClient interface {
 // httpClient is the HTTP client to use for making requests.
 // requestEditors is a list of callbacks for modifying requests which are generated before sending over the network.
 type Client struct {
-	baseURL          string
-	httpClient       HttpRequestDoer
-	requestEditors   []RequestEditorFn
-	httpCallRecorder HTTPCallRecorder
-	logger           Logger
+	baseURL        string
+	httpClient     HttpRequestDoer
+	requestEditors []RequestEditorFn
 }
 
 // GetBaseURL returns the base URL of the API client.
@@ -102,53 +81,11 @@ func (c *Client) CreateRequest(ctx context.Context, params RequestOptionsParamet
 // ExecuteRequest sends the HTTP request and returns the response.
 // It records the HTTP call with latency if an HTTPCallRecorder is set.
 func (c *Client) ExecuteRequest(ctx context.Context, req *http.Request, operationPath string) (*Response, error) {
-	if c.logger != nil {
-		var body []byte
-		if req.Body != nil {
-			body, _ = io.ReadAll(req.Body)
-			req.Body = io.NopCloser(bytes.NewReader(body))
-		}
-
-		c.logger(ctx, LogEntry{
-			Message: "Outgoing request to " + operationPath,
-			Prefix:  "request.",
-			Data: &LogFields{
-				Headers: req.Header,
-				Body:    body,
-				Extras: map[string]any{
-					"method": req.Method,
-					"url":    req.URL.String(),
-					"path":   operationPath,
-				},
-			},
-		})
-	}
-
-	start := time.Now()
 	resp, err := c.httpClient.Do(ctx, req)
-	if c.httpCallRecorder != nil {
-		responseCode := 0
-		if resp != nil {
-			responseCode = resp.StatusCode
-		}
-		c.httpCallRecorder.Record(HTTPCall{
-			Latency:      time.Since(start),
-			Method:       req.Method,
-			Path:         operationPath,
-			ResponseCode: responseCode,
-			URL:          req.URL.String(),
-		})
-	}
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 
-	return c.CreateResponse(ctx, resp, operationPath)
-}
-
-// CreateResponse creates a Response object from the HTTP response.
-// It reads the response body and logs the response if a logger is set.
-func (c *Client) CreateResponse(ctx context.Context, resp *http.Response, operationPath string) (*Response, error) {
 	if resp == nil {
 		return nil, nil
 	}
@@ -161,32 +98,6 @@ func (c *Client) CreateResponse(ctx context.Context, resp *http.Response, operat
 		if err != nil {
 			return nil, fmt.Errorf("error reading response body: %w", err)
 		}
-	}
-
-	if c.logger != nil {
-		var (
-			method string
-			reqURL string
-		)
-
-		if resp.Request != nil {
-			method = resp.Request.Method
-			reqURL = resp.Request.URL.String()
-		}
-
-		c.logger(ctx, LogEntry{
-			Message: "Received response from " + operationPath,
-			Prefix:  "response.",
-			Data: &LogFields{
-				Headers: resp.Header,
-				Body:    bodyBytes,
-				Extras: map[string]any{
-					"method": method,
-					"url":    reqURL,
-					"path":   operationPath,
-				},
-			},
-		})
 	}
 
 	return &Response{
@@ -246,20 +157,6 @@ func WithHTTPClient(doer HttpRequestDoer) APIClientOption {
 func WithRequestEditorFn(fn RequestEditorFn) APIClientOption {
 	return func(c *Client) error {
 		c.requestEditors = append(c.requestEditors, fn)
-		return nil
-	}
-}
-
-func WithHTTPCallRecorder(httpCallRecorder HTTPCallRecorder) APIClientOption {
-	return func(c *Client) error {
-		c.httpCallRecorder = httpCallRecorder
-		return nil
-	}
-}
-
-func WithLogger(logger Logger) APIClientOption {
-	return func(c *Client) error {
-		c.logger = logger
 		return nil
 	}
 }
