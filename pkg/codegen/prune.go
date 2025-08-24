@@ -141,7 +141,7 @@ func findOperationRefs(model *v3high.Document) []string {
 				}
 			}
 
-			if op.Responses.Default != nil {
+			if op.Responses != nil && op.Responses.Default != nil {
 				ref := op.Responses.Default.GoLow().GetReference()
 				if ref != "" {
 					refSet[ref] = true
@@ -157,40 +157,42 @@ func findOperationRefs(model *v3high.Document) []string {
 				}
 			}
 
-			for _, resp := range op.Responses.Codes.FromOldest() {
-				if resp == nil {
-					continue
-				}
-				ref := resp.GoLow().GetReference()
-				if ref != "" {
-					refSet[ref] = true
-				}
-
-				for _, mediaType := range resp.Content.FromOldest() {
-					if mediaType.Schema != nil {
-						mRef := mediaType.Schema.GoLow().GetReference()
-						if mRef != "" {
-							refSet[mRef] = true
-						}
-						collectSchemaRefs(mediaType.Schema.Schema(), refSet)
-					}
-				}
-
-				for _, header := range resp.Headers.FromOldest() {
-					if header == nil {
+			if op.Responses != nil {
+				for _, resp := range op.Responses.Codes.FromOldest() {
+					if resp == nil {
 						continue
 					}
-					hRef := header.GoLow().GetReference()
-					if hRef != "" {
-						refSet[hRef] = true
+					ref := resp.GoLow().GetReference()
+					if ref != "" {
+						refSet[ref] = true
 					}
-					for _, mediaType := range header.Content.FromOldest() {
+
+					for _, mediaType := range resp.Content.FromOldest() {
 						if mediaType.Schema != nil {
 							mRef := mediaType.Schema.GoLow().GetReference()
 							if mRef != "" {
 								refSet[mRef] = true
 							}
 							collectSchemaRefs(mediaType.Schema.Schema(), refSet)
+						}
+					}
+
+					for _, header := range resp.Headers.FromOldest() {
+						if header == nil {
+							continue
+						}
+						hRef := header.GoLow().GetReference()
+						if hRef != "" {
+							refSet[hRef] = true
+						}
+						for _, mediaType := range header.Content.FromOldest() {
+							if mediaType.Schema != nil {
+								mRef := mediaType.Schema.GoLow().GetReference()
+								if mRef != "" {
+									refSet[mRef] = true
+								}
+								collectSchemaRefs(mediaType.Schema.Schema(), refSet)
+							}
 						}
 					}
 				}

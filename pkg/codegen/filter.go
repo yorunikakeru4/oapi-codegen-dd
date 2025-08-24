@@ -172,10 +172,12 @@ func removeOperationReferences(op *v3high.Operation) {
 		}
 	}
 
-	for _, resp := range op.Responses.Codes.FromOldest() {
-		if resp.Content != nil {
-			for _, content := range resp.Content.FromOldest() {
-				content.Examples = nil
+	if op.Responses != nil && op.Responses.Codes != nil {
+		for _, resp := range op.Responses.Codes.FromOldest() {
+			if resp.Content != nil {
+				for _, content := range resp.Content.FromOldest() {
+					content.Examples = nil
+				}
 			}
 		}
 	}

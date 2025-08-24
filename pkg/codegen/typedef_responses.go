@@ -39,15 +39,18 @@ type ResponseContentDefinition struct {
 }
 
 func getOperationResponses(operationID string, responses *v3high.Responses, options ParseOptions) (*ResponseDefinition, []TypeDefinition, error) {
+	if responses == nil {
+		return nil, nil, nil
+	}
+
 	var (
-		successCode int
-		errorCode   int
+		successCode     int
+		errorCode       int
+		typeDefinitions []TypeDefinition
 	)
 
-	var typeDefinitions []TypeDefinition
-
-	defaultResponse := responses.Default
 	all := make(map[int]*ResponseContentDefinition)
+	defaultResponse := responses.Default
 
 	// we just need success and error responses
 	for statusCode, response := range responses.Codes.FromOldest() {

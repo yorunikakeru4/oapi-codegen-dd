@@ -265,16 +265,22 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 			}
 
 			// Process Responses
+			response := ResponseDefinition{}
 			responseDef, responseTypes, err := getOperationResponses(operationID, operation.Responses, options)
 			if err != nil {
 				return nil, fmt.Errorf("error getting operation responses: %w", err)
 			}
-			typeDefs = append(typeDefs, responseTypes...)
-			for _, responseType := range responseTypes {
-				importSchemas = append(importSchemas, responseType.Schema)
+			if responseTypes != nil {
+				typeDefs = append(typeDefs, responseTypes...)
+				for _, responseType := range responseTypes {
+					importSchemas = append(importSchemas, responseType.Schema)
+				}
 			}
-			if responseDef.Error != nil {
-				responseErrors = append(responseErrors, responseDef.Error.ResponseName)
+			if responseDef != nil {
+				response = *responseDef
+				if responseDef.Error != nil {
+					responseErrors = append(responseErrors, responseDef.Error.ResponseName)
+				}
 			}
 
 			operations = append(operations, OperationDefinition{
@@ -287,7 +293,7 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 				PathParams: pathParamsDef,
 				Header:     headerDef,
 				Query:      queryDef,
-				Response:   *responseDef,
+				Response:   response,
 				Body:       bodyDefinition,
 			})
 		}
