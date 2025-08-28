@@ -4,6 +4,8 @@ output:
   use-single-file: true
 error-mapping:
   UpdateClientErrorResponse: code
+generate:
+  client: true
 filter:
   include:
     schema-properties:

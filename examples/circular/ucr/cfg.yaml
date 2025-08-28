@@ -1,6 +1,2 @@
 # yaml-language-server: $schema=../../../configuration-schema.json
 package: circularucr
-generate:
-  client: false
-output:
-  use-single-file: true

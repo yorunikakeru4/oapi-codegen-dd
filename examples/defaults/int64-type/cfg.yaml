@@ -1,7 +1,4 @@
 # yaml-language-server: $schema=../../../configuration-schema.json
 package: defaultsint64type
-output:
-  use-single-file: true
 generate:
-  client: false
   default-int-type: int64

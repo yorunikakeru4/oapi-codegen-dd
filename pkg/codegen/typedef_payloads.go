@@ -53,8 +53,6 @@ func createBodyDefinition(operationID string, body *v3high.RequestBody, options 
 		return nil, nil, nil
 	}
 
-	td := TypeDefinition{}
-
 	required := false
 	if body.Required != nil {
 		required = *body.Required
@@ -68,6 +66,9 @@ func createBodyDefinition(operationID string, body *v3high.RequestBody, options 
 	contentType, content := pair.Key(), pair.Value()
 
 	schemaProxy := content.Schema
+	if schemaProxy == nil {
+		return nil, nil, nil
+	}
 
 	var tag string
 	var defaultBody bool
@@ -96,35 +97,17 @@ func createBodyDefinition(operationID string, body *v3high.RequestBody, options 
 		return nil, nil, fmt.Errorf("error generating request body definition: %w", err)
 	}
 
+	td := TypeDefinition{
+		Name:         bodyTypeName,
+		Schema:       bodySchema,
+		SpecLocation: SpecLocationBody,
+	}
+
 	// If the request has a body, but it's not a user defined
 	// type under #/components, we'll define a type for it, so
 	// that we have an easy-to-use type for marshaling.
 	if !bodySchema.DefineViaAlias {
-		if contentType == "application/x-www-form-urlencoded" {
-			// Apply the appropriate structure tag if the request
-			// schema was defined under the operations' section.
-			for i := range bodySchema.Properties {
-				bodySchema.Properties[i].NeedsFormTag = true
-			}
-
-			// Regenerate the Golang struct adding the new form tag.
-			fields := genFieldsFromProperties(bodySchema.Properties, options)
-			bodySchema.GoType = bodySchema.createGoStruct(fields)
-		}
-
-		td = TypeDefinition{
-			Name:         bodyTypeName,
-			Schema:       bodySchema,
-			SpecLocation: SpecLocationBody,
-		}
-		// The body schema now is a reference to a type
 		bodySchema.RefType = bodyTypeName
-	} else if bodySchema.RefType == "" {
-		td = TypeDefinition{
-			Name:         bodyTypeName,
-			Schema:       bodySchema,
-			SpecLocation: SpecLocationBody,
-		}
 	}
 
 	bodySchema.Constraints.Required = required

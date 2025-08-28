@@ -2,6 +2,8 @@
 package: filteringbypath
 output:
   use-single-file: true
+generate:
+  client: true
 filter:
   include:
     paths:

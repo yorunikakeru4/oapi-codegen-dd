@@ -10,9 +10,9 @@ import (
 type OrgModelType string
 
 const (
-	Department   OrgModelType = "Department"
-	Division     OrgModelType = "Division"
-	Organization OrgModelType = "Organization"
+	OrgModelTypeDepartment   OrgModelType = "Department"
+	OrgModelTypeDivision     OrgModelType = "Division"
+	OrgModelTypeOrganization OrgModelType = "Organization"
 )
 
 type AcctstructureResponse struct {

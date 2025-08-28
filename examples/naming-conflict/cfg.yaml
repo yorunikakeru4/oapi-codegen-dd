@@ -1,7 +1,3 @@
 # yaml-language-server: $schema=../../configuration-schema.json
 package: namingconflict
 skip-prune: true
-generate:
-  client: false
-output:
-  use-single-file: true

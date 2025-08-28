@@ -4,3 +4,5 @@ client:
   name: CustomClientType
 output:
   use-single-file: false
+generate:
+  client: true

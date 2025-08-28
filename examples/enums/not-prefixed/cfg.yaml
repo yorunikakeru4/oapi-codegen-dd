@@ -1,0 +1,5 @@
+# yaml-language-server: $schema=../../configuration-schema.json
+package: notprefixed
+skip-prune: true
+generate:
+  always-prefix-enum-values: false
