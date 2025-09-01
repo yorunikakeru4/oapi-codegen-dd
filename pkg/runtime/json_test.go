@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -238,5 +239,43 @@ func TestJSONMerge(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, expected, string(actual))
 		})
+	})
+}
+
+func TestCoalesceOrMerge(t *testing.T) {
+	t.Run("when object", func(t *testing.T) {
+		parts := []json.RawMessage{
+			[]byte(`{"foo": 1}`),
+			[]byte(`{"bar": {"car": "var"}}`),
+			[]byte(`{"baz": null}`),
+		}
+
+		expected := `{"bar":{"car":"var"},"baz":null,"foo":1}`
+
+		res, err := CoalesceOrMerge(parts...)
+		require.NoError(t, err)
+		require.JSONEq(t, expected, string(res))
+	})
+
+	t.Run("when array", func(t *testing.T) {
+		parts := []json.RawMessage{
+			[]byte(`[1, 2]`),
+			[]byte(`[3, 4]`),
+		}
+		expected := `[1,2,3,4]`
+		res, err := CoalesceOrMerge(parts...)
+		require.NoError(t, err)
+		require.JSONEq(t, expected, string(res))
+	})
+
+	t.Run("when scalar", func(t *testing.T) {
+		parts := []json.RawMessage{
+			[]byte(`1`),
+			[]byte(`2`),
+		}
+
+		res, err := CoalesceOrMerge(parts...)
+		assert.Nil(t, res)
+		assert.Equal(t, "cannot combine 2 non-null branches of mixed/unsupported kinds", err.Error())
 	})
 }

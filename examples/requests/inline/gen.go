@@ -3,6 +3,7 @@
 package gen
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -26,34 +27,214 @@ func (p ProcessPaymentBody) Validate() error {
 var schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
 
 type ProcessPaymentBody_C struct {
-	ProcessPaymentBody_C_OneOf *ProcessPaymentBody_C_OneOf `json:",omitempty"`
+	ProcessPaymentBody_C_OneOf *ProcessPaymentBody_C_OneOf `json:"-"`
 }
 
 func (p ProcessPaymentBody_C) Validate() error {
 	return schemaTypesValidate.Struct(p)
 }
 
+func (p ProcessPaymentBody_C) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(p.ProcessPaymentBody_C_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("ProcessPaymentBody_C_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (p *ProcessPaymentBody_C) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if p.ProcessPaymentBody_C_OneOf == nil {
+		p.ProcessPaymentBody_C_OneOf = &ProcessPaymentBody_C_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, p.ProcessPaymentBody_C_OneOf); err != nil {
+		return fmt.Errorf("ProcessPaymentBody_C_OneOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
 type ProcessPaymentBody_D1 struct {
-	ProcessPaymentBody_D_AllOf0 *ProcessPaymentBody_D_AllOf0 `json:",omitempty"`
-	ProcessPaymentBody_D_AllOf1 *ProcessPaymentBody_D_AllOf1 `json:",omitempty"`
+	ProcessPaymentBody_D_AllOf0 *ProcessPaymentBody_D_AllOf0 `json:"-"`
 }
 
 func (p ProcessPaymentBody_D1) Validate() error {
 	return schemaTypesValidate.Struct(p)
 }
 
+func (p ProcessPaymentBody_D1) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(p.ProcessPaymentBody_D_AllOf0)
+		if err != nil {
+			return nil, fmt.Errorf("ProcessPaymentBody_D_AllOf0 marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (p *ProcessPaymentBody_D1) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if p.ProcessPaymentBody_D_AllOf0 == nil {
+		p.ProcessPaymentBody_D_AllOf0 = &ProcessPaymentBody_D_AllOf0{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, p.ProcessPaymentBody_D_AllOf0); err != nil {
+		return fmt.Errorf("ProcessPaymentBody_D_AllOf0 unmarshal: %w", err)
+	}
+
+	return nil
+}
+
 type ProcessPaymentBody_D struct {
-	ProcessPaymentBody_D_AllOf0 *ProcessPaymentBody_D_AllOf0 `json:",omitempty"`
-	ProcessPaymentBody_D_AllOf1 *ProcessPaymentBody_D_AllOf1 `json:",omitempty"`
+	ProcessPaymentBody_D_AllOf0 *ProcessPaymentBody_D_AllOf0 `json:"-"`
+}
+
+func (p ProcessPaymentBody_D) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(p.ProcessPaymentBody_D_AllOf0)
+		if err != nil {
+			return nil, fmt.Errorf("ProcessPaymentBody_D_AllOf0 marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (p *ProcessPaymentBody_D) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if p.ProcessPaymentBody_D_AllOf0 == nil {
+		p.ProcessPaymentBody_D_AllOf0 = &ProcessPaymentBody_D_AllOf0{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, p.ProcessPaymentBody_D_AllOf0); err != nil {
+		return fmt.Errorf("ProcessPaymentBody_D_AllOf0 unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 type ProcessPaymentBody_D_AllOf0 struct {
-	ProcessPaymentBody_D_AllOf0_AnyOf *ProcessPaymentBody_D_AllOf0_AnyOf `json:",omitempty"`
+	ProcessPaymentBody_D_AllOf0_OneOf *ProcessPaymentBody_D_AllOf0_OneOf `json:"-"`
 }
 
-type ProcessPaymentBody_D_AllOf1 struct {
-	ProcessPaymentBody_D_AllOf1_AnyOf *ProcessPaymentBody_D_AllOf1_AnyOf `json:",omitempty"`
+func (p ProcessPaymentBody_D_AllOf0) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(p.ProcessPaymentBody_D_AllOf0_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("ProcessPaymentBody_D_AllOf0_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
 }
+
+func (p *ProcessPaymentBody_D_AllOf0) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if p.ProcessPaymentBody_D_AllOf0_OneOf == nil {
+		p.ProcessPaymentBody_D_AllOf0_OneOf = &ProcessPaymentBody_D_AllOf0_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, p.ProcessPaymentBody_D_AllOf0_OneOf); err != nil {
+		return fmt.Errorf("ProcessPaymentBody_D_AllOf0_OneOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
+type ProcessPaymentBody_D_AllOf0_OneOf_0 struct {
+	ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf `json:"-"`
+}
+
+func (p ProcessPaymentBody_D_AllOf0_OneOf_0) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(p.ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf)
+		if err != nil {
+			return nil, fmt.Errorf("ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if p.ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf == nil {
+		p.ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf = &ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, p.ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf); err != nil {
+		return fmt.Errorf("ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
+type ProcessPaymentBody_D_AllOf0_OneOf_1 = map[string]any
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
 	var res T
@@ -82,61 +263,63 @@ type ProcessPaymentBody_C_OneOf struct {
 	runtime.Either[string, bool]
 }
 
-func (p *ProcessPaymentBody_C_OneOf) MarshalJSON() ([]byte, error) {
-	data := p.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
+type ProcessPaymentBody_D_AllOf0_OneOf struct {
+	runtime.Either[ProcessPaymentBody_D_AllOf0_OneOf_0, ProcessPaymentBody_D_AllOf0_OneOf_1]
 }
 
-func (p *ProcessPaymentBody_C_OneOf) UnmarshalJSON(data []byte) error {
-	return p.Unmarshal(data)
+type ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf struct {
+	union json.RawMessage
 }
 
-type ProcessPaymentBody_D_AllOf0_AnyOf struct {
-	runtime.Either[int, string]
+// Raw returns the union data inside the ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf as bytes
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) Raw() json.RawMessage {
+	return p.union
 }
 
-func (p *ProcessPaymentBody_D_AllOf0_AnyOf) MarshalJSON() ([]byte, error) {
-	data := p.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
+// AsBool returns the union data inside the ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf as a bool
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) AsBool() (bool, error) {
+	return UnmarshalAs[bool](p.union)
 }
 
-func (p *ProcessPaymentBody_D_AllOf0_AnyOf) UnmarshalJSON(data []byte) error {
-	return p.Unmarshal(data)
+// FromBool overwrites any union data inside the ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf as the provided bool
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) FromBool(v bool) error {
+	bts, err := json.Marshal(v)
+	p.union = bts
+	return err
 }
 
-type ProcessPaymentBody_D_AllOf1_AnyOf struct {
-	runtime.Either[bool, float32]
+// AsFloat32 returns the union data inside the ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf as a float32
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) AsFloat32() (float32, error) {
+	return UnmarshalAs[float32](p.union)
 }
 
-func (p *ProcessPaymentBody_D_AllOf1_AnyOf) MarshalJSON() ([]byte, error) {
-	data := p.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
+// FromFloat32 overwrites any union data inside the ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf as the provided float32
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) FromFloat32(v float32) error {
+	bts, err := json.Marshal(v)
+	p.union = bts
+	return err
 }
 
-func (p *ProcessPaymentBody_D_AllOf1_AnyOf) UnmarshalJSON(data []byte) error {
-	return p.Unmarshal(data)
+// AsString returns the union data inside the ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf as a string
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) AsString() (string, error) {
+	return UnmarshalAs[string](p.union)
+}
+
+// FromString overwrites any union data inside the ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf as the provided string
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) FromString(v string) error {
+	bts, err := json.Marshal(v)
+	p.union = bts
+	return err
+}
+
+func (p ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) MarshalJSON() ([]byte, error) {
+	bts, err := p.union.MarshalJSON()
+
+	return bts, err
+}
+
+func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) UnmarshalJSON(bts []byte) error {
+	err := p.union.UnmarshalJSON(bts)
+
+	return err
 }

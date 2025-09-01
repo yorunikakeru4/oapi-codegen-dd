@@ -129,8 +129,12 @@ func genFieldsFromProperties(props []Property, options ParseOptions) []string {
 			fieldTags["validate"] = strings.Join(c.ValidationTags, ",")
 		}
 
-		fieldTags["json"] = p.JsonFieldName
-		if omitEmpty {
+		jsonFieldName := p.JsonFieldName
+		if jsonFieldName == "" {
+			jsonFieldName = "-"
+		}
+		fieldTags["json"] = jsonFieldName
+		if omitEmpty && jsonFieldName != "-" {
 			fieldTags["json"] += ",omitempty"
 		}
 

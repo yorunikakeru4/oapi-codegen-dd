@@ -69,23 +69,6 @@ type GetUserUnion2_Response_OneOf struct {
 	runtime.Either[User, string]
 }
 
-func (g *GetUserUnion2_Response_OneOf) MarshalJSON() ([]byte, error) {
-	data := g.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (g *GetUserUnion2_Response_OneOf) UnmarshalJSON(data []byte) error {
-	return g.Unmarshal(data)
-}
-
 type GetUserUnion3_Response_OneOf struct {
 	union json.RawMessage
 }

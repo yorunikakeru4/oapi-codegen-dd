@@ -3,6 +3,7 @@
 package gen
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -116,7 +117,7 @@ const (
 )
 
 type GetFilesResponse []struct {
-	GetFiles_Response_OneOf *GetFiles_Response_OneOf `json:",omitempty"`
+	GetFiles_Response_OneOf *GetFiles_Response_OneOf `json:"-"`
 }
 
 var schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
@@ -137,11 +138,47 @@ func (f File) Validate() error {
 }
 
 type File_Author struct {
-	File_Author_AnyOf *File_Author_AnyOf `json:",omitempty"`
+	File_Author_AnyOf *File_Author_AnyOf `json:"-"`
 }
 
 func (f File_Author) Validate() error {
 	return schemaTypesValidate.Struct(f)
+}
+
+func (f File_Author) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(f.File_Author_AnyOf)
+		if err != nil {
+			return nil, fmt.Errorf("File_Author_AnyOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (f *File_Author) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if f.File_Author_AnyOf == nil {
+		f.File_Author_AnyOf = &File_Author_AnyOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, f.File_Author_AnyOf); err != nil {
+		return fmt.Errorf("File_Author_AnyOf unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 type File_Links struct {
@@ -170,11 +207,47 @@ func (f FileLink) Validate() error {
 }
 
 type FileLink_File struct {
-	FileLink_File_AnyOf *FileLink_File_AnyOf `json:",omitempty"`
+	FileLink_File_AnyOf *FileLink_File_AnyOf `json:"-"`
 }
 
 func (f FileLink_File) Validate() error {
 	return schemaTypesValidate.Struct(f)
+}
+
+func (f FileLink_File) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(f.FileLink_File_AnyOf)
+		if err != nil {
+			return nil, fmt.Errorf("FileLink_File_AnyOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (f *FileLink_File) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if f.FileLink_File_AnyOf == nil {
+		f.FileLink_File_AnyOf = &FileLink_File_AnyOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, f.FileLink_File_AnyOf); err != nil {
+		return fmt.Errorf("FileLink_File_AnyOf unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 type User struct {
@@ -187,11 +260,47 @@ func (u User) Validate() error {
 }
 
 type User_Avatar struct {
-	User_Avatar_AnyOf *User_Avatar_AnyOf `json:",omitempty"`
+	User_Avatar_AnyOf *User_Avatar_AnyOf `json:"-"`
 }
 
 func (u User_Avatar) Validate() error {
 	return schemaTypesValidate.Struct(u)
+}
+
+func (u User_Avatar) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(u.User_Avatar_AnyOf)
+		if err != nil {
+			return nil, fmt.Errorf("User_Avatar_AnyOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (u *User_Avatar) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if u.User_Avatar_AnyOf == nil {
+		u.User_Avatar_AnyOf = &User_Avatar_AnyOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, u.User_Avatar_AnyOf); err != nil {
+		return fmt.Errorf("User_Avatar_AnyOf unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -221,82 +330,14 @@ type File_Author_AnyOf struct {
 	runtime.Either[User, string]
 }
 
-func (f *File_Author_AnyOf) MarshalJSON() ([]byte, error) {
-	data := f.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (f *File_Author_AnyOf) UnmarshalJSON(data []byte) error {
-	return f.Unmarshal(data)
-}
-
 type FileLink_File_AnyOf struct {
 	runtime.Either[string, File]
-}
-
-func (f *FileLink_File_AnyOf) MarshalJSON() ([]byte, error) {
-	data := f.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (f *FileLink_File_AnyOf) UnmarshalJSON(data []byte) error {
-	return f.Unmarshal(data)
 }
 
 type User_Avatar_AnyOf struct {
 	runtime.Either[File, string]
 }
 
-func (u *User_Avatar_AnyOf) MarshalJSON() ([]byte, error) {
-	data := u.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (u *User_Avatar_AnyOf) UnmarshalJSON(data []byte) error {
-	return u.Unmarshal(data)
-}
-
 type GetFiles_Response_OneOf struct {
 	runtime.Either[string, File]
-}
-
-func (g *GetFiles_Response_OneOf) MarshalJSON() ([]byte, error) {
-	data := g.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (g *GetFiles_Response_OneOf) UnmarshalJSON(data []byte) error {
-	return g.Unmarshal(data)
 }

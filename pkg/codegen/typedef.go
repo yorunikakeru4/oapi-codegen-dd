@@ -21,12 +21,15 @@ const (
 // Name is the name of the type in the schema, eg, type <...> Person.
 // JsonName is the name of the corresponding JSON description, as it will sometimes
 // differ due to invalid characters.
-// GoSchema is the GoSchema object used to populate the type description.
+// Schema is the GoSchema object used to populate the type description.
+// SpecLocation indicates where in the OpenAPI spec this type was defined.
+// NeedsMarshaler indicates whether this type needs a custom marshaler/unmarshaler.
 type TypeDefinition struct {
-	Name         string
-	JsonName     string
-	Schema       GoSchema
-	SpecLocation SpecLocation
+	Name           string
+	JsonName       string
+	Schema         GoSchema
+	SpecLocation   SpecLocation
+	NeedsMarshaler bool
 }
 
 func (t TypeDefinition) IsAlias() bool {

@@ -3,7 +3,6 @@ package codegen
 import (
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
 	"github.com/pb33f/libopenapi/orderedmap"
@@ -52,11 +51,15 @@ func createFromCombinator(schema *base.Schema, options ParseOptions) (GoSchema, 
 		anyOfFields := genFieldsFromProperties(anyOfSchema.Properties, options)
 		anyOfSchema.GoType = anyOfSchema.createGoStruct(anyOfFields)
 
+		needsMarshaler := len(anyOfSchema.UnionElements) == 0
+
 		anyOfName := pathToTypeName(anyOfPath)
 		td := TypeDefinition{
-			Name:         anyOfName,
-			Schema:       anyOfSchema,
-			SpecLocation: SpecLocationUnion,
+			Name:           anyOfName,
+			Schema:         anyOfSchema,
+			SpecLocation:   SpecLocationUnion,
+			JsonName:       "-",
+			NeedsMarshaler: needsMarshaler,
 		}
 		additionalTypes = append(additionalTypes, td)
 		options.AddType(td)
@@ -78,11 +81,15 @@ func createFromCombinator(schema *base.Schema, options ParseOptions) (GoSchema, 
 		oneOfFields := genFieldsFromProperties(oneOfSchema.Properties, options)
 		oneOfSchema.GoType = oneOfSchema.createGoStruct(oneOfFields)
 
+		needsMarshaler := len(oneOfSchema.UnionElements) == 0
+
 		oneOfName := pathToTypeName(oneOfPath)
 		additionalTypes = append(additionalTypes, TypeDefinition{
-			Name:         oneOfName,
-			Schema:       oneOfSchema,
-			SpecLocation: SpecLocationUnion,
+			Name:           oneOfName,
+			Schema:         oneOfSchema,
+			SpecLocation:   SpecLocationUnion,
+			JsonName:       "-",
+			NeedsMarshaler: needsMarshaler,
 		})
 
 		out.Properties = append(out.Properties, Property{
@@ -187,21 +194,25 @@ func mergeAllOfSchemas(allOf []*base.SchemaProxy, options ParseOptions) (GoSchem
 			Constraints: Constraints{Nullable: true},
 		})
 
+		needsMarshaler := len(resolved.UnionElements) == 0
 		additionalTypes = append(additionalTypes, TypeDefinition{
-			Name:         fieldName,
-			Schema:       resolved,
-			SpecLocation: SpecLocationUnion,
+			Name:           fieldName,
+			Schema:         resolved,
+			SpecLocation:   SpecLocationUnion,
+			NeedsMarshaler: needsMarshaler,
 		})
 		additionalTypes = append(additionalTypes, resolved.AdditionalTypes...)
 	}
 
 	out.GoType = out.createGoStruct(genFieldsFromProperties(out.Properties, options))
 
+	needsMarshaler := len(out.UnionElements) == 0
+
 	td := TypeDefinition{
-		Name:         pathToTypeName(path),
-		JsonName:     strings.Join(path, "."),
-		Schema:       out,
-		SpecLocation: SpecLocationUnion,
+		Name:           pathToTypeName(path),
+		Schema:         out,
+		SpecLocation:   SpecLocationUnion,
+		NeedsMarshaler: needsMarshaler,
 	}
 	options.AddType(td)
 	out.AdditionalTypes = append(out.AdditionalTypes, td)

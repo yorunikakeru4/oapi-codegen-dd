@@ -9,13 +9,13 @@ type GetUserSingleResponse struct {
 }
 
 type GetUserUnion1Response struct {
-	GetUserUnion1_Response_OneOf *GetUserUnion1_Response_OneOf `json:",omitempty"`
+	GetUserUnion1_Response_OneOf *GetUserUnion1_Response_OneOf `json:"-"`
 }
 
 type GetUserUnion2Response struct {
-	GetUserUnion2_Response_OneOf *GetUserUnion2_Response_OneOf `json:",omitempty"`
+	GetUserUnion2_Response_OneOf *GetUserUnion2_Response_OneOf `json:"-"`
 }
 
 type GetUserUnion3Response struct {
-	GetUserUnion3_Response_OneOf *GetUserUnion3_Response_OneOf `json:",omitempty"`
+	GetUserUnion3_Response_OneOf *GetUserUnion3_Response_OneOf `json:"-"`
 }

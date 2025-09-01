@@ -26,12 +26,12 @@ paths:
                     - type: boolean
                 d:
                   allOf:
-                    - anyOf:
-                      - type: integer
-                      - type: string
-                    - anyOf:
-                      - type: boolean
-                      - type: number
+                    - oneOf:
+                      - anyOf:
+                        - type: boolean
+                        - type: number
+                        - type: string
+                      - type: object
       responses:
         '200':
           description: Successful operation

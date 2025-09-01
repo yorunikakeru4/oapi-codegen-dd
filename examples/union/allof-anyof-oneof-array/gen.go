@@ -3,6 +3,7 @@
 package union
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -36,20 +37,163 @@ type CreateUserBody_Pages struct {
 	Limit                      int                         `json:"limit" validate:"required"`
 	Tag1                       *string                     `json:"tag1,omitempty"`
 	Tag2                       *string                     `json:"tag2,omitempty"`
-	CreateUserBody_Pages_AnyOf *CreateUserBody_Pages_AnyOf `json:",omitempty"`
-	CreateUserBody_Pages_OneOf *CreateUserBody_Pages_OneOf `json:",omitempty"`
+	CreateUserBody_Pages_AnyOf *CreateUserBody_Pages_AnyOf `json:"-"`
+	CreateUserBody_Pages_OneOf *CreateUserBody_Pages_OneOf `json:"-"`
 }
 
 func (c CreateUserBody_Pages) Validate() error {
 	return schemaTypesValidate.Struct(c)
 }
 
+func (c CreateUserBody_Pages) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	type _Alias_CreateUserBody_Pages CreateUserBody_Pages
+	baseJSON, err := json.Marshal((_Alias_CreateUserBody_Pages)(c))
+	if err != nil {
+		return nil, err
+	}
+	parts = append(parts, baseJSON)
+
+	{
+		b, err := runtime.MarshalJSON(c.CreateUserBody_Pages_AnyOf)
+		if err != nil {
+			return nil, fmt.Errorf("CreateUserBody_Pages_AnyOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	{
+		b, err := runtime.MarshalJSON(c.CreateUserBody_Pages_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("CreateUserBody_Pages_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (c *CreateUserBody_Pages) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if len(trim) > 0 {
+		type _Alias_CreateUserBody_Pages CreateUserBody_Pages
+		var tmp _Alias_CreateUserBody_Pages
+		if err := json.Unmarshal(data, &tmp); err != nil {
+			return err
+		}
+		// copy named fields into receiver (unions stayed untouched)
+		*c = CreateUserBody_Pages(tmp)
+	}
+
+	if c.CreateUserBody_Pages_AnyOf == nil {
+		c.CreateUserBody_Pages_AnyOf = &CreateUserBody_Pages_AnyOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, c.CreateUserBody_Pages_AnyOf); err != nil {
+		return fmt.Errorf("CreateUserBody_Pages_AnyOf unmarshal: %w", err)
+	}
+
+	if c.CreateUserBody_Pages_OneOf == nil {
+		c.CreateUserBody_Pages_OneOf = &CreateUserBody_Pages_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, c.CreateUserBody_Pages_OneOf); err != nil {
+		return fmt.Errorf("CreateUserBody_Pages_OneOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
 type CreateUserBody_Pages_AnyOf_0 struct {
 	Offset int `json:"offset" validate:"required"`
 }
 
+func (c CreateUserBody_Pages_AnyOf_0) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	type _Alias_CreateUserBody_Pages_AnyOf_0 CreateUserBody_Pages_AnyOf_0
+	baseJSON, err := json.Marshal((_Alias_CreateUserBody_Pages_AnyOf_0)(c))
+	if err != nil {
+		return nil, err
+	}
+	parts = append(parts, baseJSON)
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (c *CreateUserBody_Pages_AnyOf_0) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if len(trim) > 0 {
+		type _Alias_CreateUserBody_Pages_AnyOf_0 CreateUserBody_Pages_AnyOf_0
+		var tmp _Alias_CreateUserBody_Pages_AnyOf_0
+		if err := json.Unmarshal(data, &tmp); err != nil {
+			return err
+		}
+		// copy named fields into receiver (unions stayed untouched)
+		*c = CreateUserBody_Pages_AnyOf_0(tmp)
+	}
+
+	return nil
+}
+
 type CreateUserBody_Pages_AnyOf_1 struct {
 	Query string `json:"query" validate:"required"`
+}
+
+func (c CreateUserBody_Pages_AnyOf_1) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	type _Alias_CreateUserBody_Pages_AnyOf_1 CreateUserBody_Pages_AnyOf_1
+	baseJSON, err := json.Marshal((_Alias_CreateUserBody_Pages_AnyOf_1)(c))
+	if err != nil {
+		return nil, err
+	}
+	parts = append(parts, baseJSON)
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (c *CreateUserBody_Pages_AnyOf_1) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if len(trim) > 0 {
+		type _Alias_CreateUserBody_Pages_AnyOf_1 CreateUserBody_Pages_AnyOf_1
+		var tmp _Alias_CreateUserBody_Pages_AnyOf_1
+		if err := json.Unmarshal(data, &tmp); err != nil {
+			return err
+		}
+		// copy named fields into receiver (unions stayed untouched)
+		*c = CreateUserBody_Pages_AnyOf_1(tmp)
+	}
+
+	return nil
 }
 
 type CreateUserBody_Pages_OneOf_0 struct {
@@ -57,8 +201,82 @@ type CreateUserBody_Pages_OneOf_0 struct {
 	Second int `json:"second" validate:"required"`
 }
 
+func (c CreateUserBody_Pages_OneOf_0) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	type _Alias_CreateUserBody_Pages_OneOf_0 CreateUserBody_Pages_OneOf_0
+	baseJSON, err := json.Marshal((_Alias_CreateUserBody_Pages_OneOf_0)(c))
+	if err != nil {
+		return nil, err
+	}
+	parts = append(parts, baseJSON)
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (c *CreateUserBody_Pages_OneOf_0) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if len(trim) > 0 {
+		type _Alias_CreateUserBody_Pages_OneOf_0 CreateUserBody_Pages_OneOf_0
+		var tmp _Alias_CreateUserBody_Pages_OneOf_0
+		if err := json.Unmarshal(data, &tmp); err != nil {
+			return err
+		}
+		// copy named fields into receiver (unions stayed untouched)
+		*c = CreateUserBody_Pages_OneOf_0(tmp)
+	}
+
+	return nil
+}
+
 type CreateUserBody_Pages_OneOf_1 struct {
 	Last int `json:"last" validate:"required"`
+}
+
+func (c CreateUserBody_Pages_OneOf_1) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	type _Alias_CreateUserBody_Pages_OneOf_1 CreateUserBody_Pages_OneOf_1
+	baseJSON, err := json.Marshal((_Alias_CreateUserBody_Pages_OneOf_1)(c))
+	if err != nil {
+		return nil, err
+	}
+	parts = append(parts, baseJSON)
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (c *CreateUserBody_Pages_OneOf_1) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if len(trim) > 0 {
+		type _Alias_CreateUserBody_Pages_OneOf_1 CreateUserBody_Pages_OneOf_1
+		var tmp _Alias_CreateUserBody_Pages_OneOf_1
+		if err := json.Unmarshal(data, &tmp); err != nil {
+			return err
+		}
+		// copy named fields into receiver (unions stayed untouched)
+		*c = CreateUserBody_Pages_OneOf_1(tmp)
+	}
+
+	return nil
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -88,40 +306,6 @@ type CreateUserBody_Pages_AnyOf struct {
 	runtime.Either[CreateUserBody_Pages_AnyOf_0, CreateUserBody_Pages_AnyOf_1]
 }
 
-func (c *CreateUserBody_Pages_AnyOf) MarshalJSON() ([]byte, error) {
-	data := c.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (c *CreateUserBody_Pages_AnyOf) UnmarshalJSON(data []byte) error {
-	return c.Unmarshal(data)
-}
-
 type CreateUserBody_Pages_OneOf struct {
 	runtime.Either[CreateUserBody_Pages_OneOf_0, CreateUserBody_Pages_OneOf_1]
-}
-
-func (c *CreateUserBody_Pages_OneOf) MarshalJSON() ([]byte, error) {
-	data := c.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (c *CreateUserBody_Pages_OneOf) UnmarshalJSON(data []byte) error {
-	return c.Unmarshal(data)
 }

@@ -3,6 +3,7 @@
 package union
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -23,12 +24,64 @@ func (o Order) Validate() error {
 }
 
 type Order_Client struct {
-	Order_Client_AnyOf *Order_Client_AnyOf `json:",omitempty"`
-	Order_Client_OneOf *Order_Client_OneOf `json:",omitempty"`
+	Order_Client_AnyOf *Order_Client_AnyOf `json:"-"`
+	Order_Client_OneOf *Order_Client_OneOf `json:"-"`
 }
 
 func (o Order_Client) Validate() error {
 	return schemaTypesValidate.Struct(o)
+}
+
+func (o Order_Client) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(o.Order_Client_AnyOf)
+		if err != nil {
+			return nil, fmt.Errorf("Order_Client_AnyOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	{
+		b, err := runtime.MarshalJSON(o.Order_Client_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("Order_Client_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (o *Order_Client) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if o.Order_Client_AnyOf == nil {
+		o.Order_Client_AnyOf = &Order_Client_AnyOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, o.Order_Client_AnyOf); err != nil {
+		return fmt.Errorf("Order_Client_AnyOf unmarshal: %w", err)
+	}
+
+	if o.Order_Client_OneOf == nil {
+		o.Order_Client_OneOf = &Order_Client_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, o.Order_Client_OneOf); err != nil {
+		return fmt.Errorf("Order_Client_OneOf unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 type Identity struct {
@@ -91,40 +144,6 @@ type Order_Client_AnyOf struct {
 	runtime.Either[Identity, Verification]
 }
 
-func (o *Order_Client_AnyOf) MarshalJSON() ([]byte, error) {
-	data := o.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (o *Order_Client_AnyOf) UnmarshalJSON(data []byte) error {
-	return o.Unmarshal(data)
-}
-
 type Order_Client_OneOf struct {
 	runtime.Either[Address, Location]
-}
-
-func (o *Order_Client_OneOf) MarshalJSON() ([]byte, error) {
-	data := o.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (o *Order_Client_OneOf) UnmarshalJSON(data []byte) error {
-	return o.Unmarshal(data)
 }

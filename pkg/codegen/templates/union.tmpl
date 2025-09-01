@@ -107,16 +107,16 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
       {{ template "unionAdditionalProperties" (dict "Name" .Name "Schema" .Schema "alias" $alias) }}
     {{ else }}
         {{if $eitherType}}
-            {{ template "marshalEither" (dict "name" .Name "discriminator" $discriminator "alias" $alias) }}
+            {{ if $discriminator }}
+                {{ template "marshalEitherWithDiscriminator" (dict "name" .Name "discriminator" $discriminator "alias" $alias) }}
+            {{ end }}
         {{ else }}
             {{ template "marshalUnion" (dict "name" .Name "schema" .Schema "alias" $alias) }}
         {{ end }}
 
-        {{ if $eitherType }}
+        {{ if $eitherType  }}
             {{ if $discriminator }}
                 {{ template "unmarshalEitherTypeWithDiscriminator" (dict "discriminator" $discriminator "elements" .Schema.UnionElements "name" .Name "alias" $alias) }}
-            {{ else }}
-                {{ template "unmarshalEitherTypeWithoutDiscriminator" (dict "name" .Name "alias" $alias) }}
             {{ end }}
         {{ else }}
             {{ template "unmarshalUnion" (dict "name" .Name "schema" .Schema "alias" $alias) }}
@@ -126,34 +126,24 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
 {{end}}
 
 
-{{ define "marshalEither" }}
+{{ define "marshalEitherWithDiscriminator" }}
 {{- $args := . -}}
 func ({{$args.alias}} *{{$args.name}}) MarshalJSON() ([]byte, error) {
     data := {{$args.alias}}.Value()
     if data == nil {
-        return nil, nil
+        return []byte("null"), nil
     }
 
     obj, err := json.Marshal(data)
     if err != nil {
         return nil, err
     }
-    {{- if $args.discriminator }}
+
     disc, err := {{$args.alias}}.discriminator(obj)
     if err != nil {
         return nil, err
     }
     return marshalJSONWithDiscriminator(obj, "{{$args.discriminator.Property}}", disc)
-    {{ else }}
-        return obj, nil
-    {{ end -}}
-}
-{{ end }}
-
-{{ define "unmarshalEitherTypeWithoutDiscriminator" }}
-{{- $args := . -}}
-func ({{$args.alias}} *{{$args.name}}) UnmarshalJSON(data []byte) error {
-    return {{$args.alias}}.Unmarshal(data)
 }
 {{ end }}
 

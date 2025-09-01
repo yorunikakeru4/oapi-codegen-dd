@@ -13,7 +13,7 @@ import (
 var schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
 
 type ClientWithExtra struct {
-	ClientWithExtra_AnyOf *ClientWithExtra_AnyOf                          `json:",omitempty"`
+	ClientWithExtra_AnyOf *ClientWithExtra_AnyOf                          `json:"-"`
 	AdditionalProperties  map[string]ClientWithExtra_AdditionalProperties `json:"-"`
 }
 
@@ -115,21 +115,4 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
 
 type ClientWithExtra_AnyOf struct {
 	runtime.Either[string, bool]
-}
-
-func (c *ClientWithExtra_AnyOf) MarshalJSON() ([]byte, error) {
-	data := c.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (c *ClientWithExtra_AnyOf) UnmarshalJSON(data []byte) error {
-	return c.Unmarshal(data)
 }

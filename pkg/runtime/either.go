@@ -1,7 +1,9 @@
 package runtime
 
 import (
+	"bytes"
 	"encoding/json"
+	"reflect"
 )
 
 type Either[A, B any] struct {
@@ -39,24 +41,123 @@ func (t *Either[A, B]) Value() any {
 	return nil
 }
 
-func (t *Either[A, B]) Unmarshal(data []byte) error {
-	var a A
-	if err := json.Unmarshal(data, &a); err == nil {
-		t.A = a
-		var b B
-		t.B = b
-		t.N = 1
+// MarshalJSON implements json.Marshaler interface
+func (t Either[A, B]) MarshalJSON() ([]byte, error) {
+	switch t.N {
+	case 1:
+		return json.Marshal(t.A)
+	case 2:
+		return json.Marshal(t.B)
+	default:
+		return []byte("null"), nil
+	}
+}
+
+func (t *Either[A, B]) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if len(trim) == 0 || bytes.Equal(trim, []byte("null")) {
+		var zeroA A
+		var zeroB B
+		t.A, t.B, t.N = zeroA, zeroB, 0
 		return nil
 	}
+
+	var a A
+	errA := json.Unmarshal(data, &a)
 
 	var b B
-	if err := json.Unmarshal(data, &b); err == nil {
-		t.B = b
-		var a A
-		t.A = a
-		t.N = 2
-		return nil
-	}
+	errB := json.Unmarshal(data, &b)
 
-	return ErrFailedToUnmarshalAsAOrB
+	switch {
+	case errA == nil && errB != nil:
+		// Only A fits
+		var zeroB B
+		t.A, t.B, t.N = a, zeroB, 1
+		return nil
+
+	case errB == nil && errA != nil:
+		// Only B fits
+		var zeroA A
+		t.A, t.B, t.N = zeroA, b, 2
+		return nil
+
+	case errA == nil:
+		// Both decoded; apply zero/meaningfulness heuristics, then tie-break to A.
+
+		na := isNonZero(a)
+		nb := isNonZero(b)
+
+		// Prefer the one that looks non-zero if only one does.
+		if na && !nb {
+			var zeroB B
+			t.A, t.B, t.N = a, zeroB, 1
+			return nil
+		}
+		if nb && !na {
+			var zeroA A
+			t.A, t.B, t.N = zeroA, b, 2
+			return nil
+		}
+
+		// Tie (both zero or both non-zero/ambiguous): pick A
+		{
+			var zeroB B
+			t.A, t.B, t.N = a, zeroB, 1
+			return nil
+		}
+	default:
+		// Neither decoded
+		return ErrFailedToUnmarshalAsAOrB
+	}
+}
+
+type JSONNonZero interface {
+	JSONNonZero() bool
+}
+
+type isZeroer interface {
+	IsZero() bool
+}
+
+func isNonZero[T any](v T) bool {
+	switch x := any(v).(type) {
+	case nil:
+		return false
+
+	// hooks first
+	case JSONNonZero:
+		return x.JSONNonZero()
+	case isZeroer:
+		return !x.IsZero()
+
+	// primitives
+	case bool:
+		return x
+	case string:
+		return x != ""
+	case int, int8, int16, int32, int64:
+		return x != 0
+	case uint, uint8, uint16, uint32, uint64, uintptr:
+		return x != 0
+	case float32, float64:
+		return x != 0
+
+	// pointers to common primitives
+	case *bool, *string,
+		*int, *int8, *int16, *int32, *int64,
+		*uint, *uint8, *uint16, *uint32, *uint64, *uintptr,
+		*float32, *float64:
+		return x != nil
+
+	// common “any”-shaped collections
+	case []byte:
+		return len(x) > 0
+	case []any:
+		return len(x) > 0
+	case map[string]any:
+		return len(x) > 0
+
+	default:
+		return !reflect.ValueOf(v).IsZero()
+	}
 }

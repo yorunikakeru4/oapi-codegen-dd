@@ -43,7 +43,82 @@ var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructE
     {{ end }}
 
     {{ if $td.Schema.HasAdditionalProperties }}
-    {{ template "additionalProperties" (dict "typeDef" $td "alias" $alias) }}
+        {{ template "additionalProperties" (dict "typeDef" $td "alias" $alias) }}
+    {{ end }}
+
+    {{ if and $td.NeedsMarshaler (not $td.IsAlias) (not $td.Schema.HasAdditionalProperties) }}
+    func ({{$alias}} {{$td.Name}}) MarshalJSON() ([]byte, error) {
+        // Collect each branch as an object JSON ({} if nil/null).
+        var parts []json.RawMessage
+
+
+        {{/*1. Marshal the full struct via type alias (avoids recursion)*/}}
+        {{- $hasNamed := false }}
+        {{- range $td.Schema.Properties }}{{ if ne .JsonFieldName "" }}{{ $hasNamed = true }}{{ end }}{{ end }}
+        {{ if $hasNamed }}
+            type _Alias_{{$td.Name}} {{$td.Name}}
+            baseJSON, err := json.Marshal((_Alias_{{$td.Name}})({{$alias}}))
+            if err != nil {
+                return nil, err
+            }
+            parts = append(parts, baseJSON)
+        {{ end }}
+
+        {{/*2. Collect inline/union parts (those WITHOUT a JSON field name)*/}}
+        {{- range $td.Schema.Properties }}
+            {{ if eq .JsonFieldName "" }}
+            {
+                b, err := runtime.MarshalJSON({{$alias}}.{{ .GoName }})
+                if err != nil {
+                    return nil, fmt.Errorf("{{ .GoName }} marshal: %w", err)
+                }
+                parts = append(parts, b)
+            }
+            {{ end }}
+        {{- end }}
+
+        return runtime.CoalesceOrMerge(parts...)
+    }
+
+    func ({{$alias}} *{{$td.Name}}) UnmarshalJSON(data []byte) error {
+        trim := bytes.TrimSpace(data)
+        if bytes.Equal(trim, []byte("null")) {
+            // keep zero value (all branches nil)
+            return nil
+        }
+        if len(trim) == 0 {
+            return fmt.Errorf("JSON object expected, got %s", string(trim))
+        }
+
+        {{ if $hasNamed }}
+        {{/*// 1. Decode the named JSON fields via a type alias.*/}}
+        {{/*//    Union fields are tagged json:"-" so they are ignored by this step.*/}}
+            if len(trim) > 0 {
+                type _Alias_{{$td.Name}} {{$td.Name}}
+                var tmp _Alias_{{$td.Name}}
+                if err := json.Unmarshal(data, &tmp); err != nil {
+                    return err
+                }
+                // copy named fields into receiver (unions stayed untouched)
+                *{{$alias}} = {{$td.Name}}(tmp)
+            }
+        {{ end }}
+
+        {{- range $td.Schema.Properties }}
+            {{ if and .Schema.RefType}}
+                {{ if .Constraints.Nullable }}
+                    if {{$alias}}.{{ .GoName }} == nil {
+                        {{$alias}}.{{ .GoName }} = &{{ .Schema.RefType }}{}
+                    }
+                {{ end }}
+
+                if err := runtime.UnmarshalJSON(data, {{ if not .Constraints.Nullable }}&{{ end }}{{$alias}}.{{ .GoName }}); err != nil {
+                    return fmt.Errorf("{{ .GoName }} unmarshal: %w", err)
+                }
+            {{ end }}
+        {{- end }}
+        return nil
+    }
     {{ end }}
 {{ end }}
 

@@ -64,10 +64,14 @@ func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminat
 		if ref == "" && !primitives[elementSchema.GoType] {
 			elementName := pathToTypeName(elementPath)
 			if elementSchema.TypeDecl() != elementName {
+				needsMarshaler := len(elementSchema.UnionElements) == 0
+
 				td := TypeDefinition{
-					Schema:       elementSchema,
-					Name:         elementName,
-					SpecLocation: SpecLocationUnion,
+					Schema:         elementSchema,
+					Name:           elementName,
+					SpecLocation:   SpecLocationUnion,
+					JsonName:       "-",
+					NeedsMarshaler: needsMarshaler,
 				}
 				options.AddType(td)
 				outSchema.AdditionalTypes = append(outSchema.AdditionalTypes, td)

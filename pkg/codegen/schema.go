@@ -279,10 +279,19 @@ func replaceInlineTypes(src GoSchema, options ParseOptions) (GoSchema, string) {
 		src.ArrayType = nil
 	}
 
+	needsMarshaler := false
+	for _, prop := range src.Properties {
+		if prop.JsonFieldName == "" {
+			needsMarshaler = true
+		}
+	}
+
 	td := TypeDefinition{
-		Name:         name,
-		Schema:       src,
-		SpecLocation: SpecLocationSchema,
+		Name:           name,
+		Schema:         src,
+		SpecLocation:   SpecLocationSchema,
+		NeedsMarshaler: needsMarshaler,
+		JsonName:       "-",
 	}
 	options.AddType(td)
 

@@ -3,6 +3,7 @@
 package union
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -23,35 +24,179 @@ func (o Order) Validate() error {
 }
 
 type Order_Product struct {
-	Order_Product_OneOf *Order_Product_OneOf `json:",omitempty"`
+	Order_Product_OneOf *Order_Product_OneOf `json:"-"`
 }
 
 func (o Order_Product) Validate() error {
 	return schemaTypesValidate.Struct(o)
 }
 
+func (o Order_Product) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(o.Order_Product_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("Order_Product_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (o *Order_Product) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if o.Order_Product_OneOf == nil {
+		o.Order_Product_OneOf = &Order_Product_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, o.Order_Product_OneOf); err != nil {
+		return fmt.Errorf("Order_Product_OneOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
 type Order_Product_OneOf_3_Description struct {
-	Order_Product_OneOf_3_Description_OneOf *Order_Product_OneOf_3_Description_OneOf `json:",omitempty"`
+	Order_Product_OneOf_3_Description_OneOf *Order_Product_OneOf_3_Description_OneOf `json:"-"`
 }
 
 func (o Order_Product_OneOf_3_Description) Validate() error {
 	return schemaTypesValidate.Struct(o)
 }
 
+func (o Order_Product_OneOf_3_Description) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(o.Order_Product_OneOf_3_Description_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("Order_Product_OneOf_3_Description_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (o *Order_Product_OneOf_3_Description) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if o.Order_Product_OneOf_3_Description_OneOf == nil {
+		o.Order_Product_OneOf_3_Description_OneOf = &Order_Product_OneOf_3_Description_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, o.Order_Product_OneOf_3_Description_OneOf); err != nil {
+		return fmt.Errorf("Order_Product_OneOf_3_Description_OneOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
 type Order_Description struct {
-	Order_Description_OneOf *Order_Description_OneOf `json:",omitempty"`
+	Order_Description_OneOf *Order_Description_OneOf `json:"-"`
 }
 
 func (o Order_Description) Validate() error {
 	return schemaTypesValidate.Struct(o)
 }
 
+func (o Order_Description) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(o.Order_Description_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("Order_Description_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (o *Order_Description) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if o.Order_Description_OneOf == nil {
+		o.Order_Description_OneOf = &Order_Description_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, o.Order_Description_OneOf); err != nil {
+		return fmt.Errorf("Order_Description_OneOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
 type Order_Images struct {
-	Order_Images_OneOf *Order_Images_OneOf `json:",omitempty"`
+	Order_Images_OneOf *Order_Images_OneOf `json:"-"`
 }
 
 func (o Order_Images) Validate() error {
 	return schemaTypesValidate.Struct(o)
+}
+
+func (o Order_Images) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(o.Order_Images_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("Order_Images_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (o *Order_Images) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if o.Order_Images_OneOf == nil {
+		o.Order_Images_OneOf = &Order_Images_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, o.Order_Images_OneOf); err != nil {
+		return fmt.Errorf("Order_Images_OneOf unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 type VersionA = string
@@ -66,6 +211,51 @@ type VersionE = string
 
 type Order_Product_OneOf_3 struct {
 	Description *Order_Product_OneOf_3_Description `json:"description,omitempty"`
+}
+
+func (o Order_Product_OneOf_3) MarshalJSON() ([]byte, error) {
+	// Collect each branch as an object JSON ({} if nil/null).
+	var parts []json.RawMessage
+
+	type _Alias_Order_Product_OneOf_3 Order_Product_OneOf_3
+	baseJSON, err := json.Marshal((_Alias_Order_Product_OneOf_3)(o))
+	if err != nil {
+		return nil, err
+	}
+	parts = append(parts, baseJSON)
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (o *Order_Product_OneOf_3) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		// keep zero value (all branches nil)
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("JSON object expected, got %s", string(trim))
+	}
+
+	if len(trim) > 0 {
+		type _Alias_Order_Product_OneOf_3 Order_Product_OneOf_3
+		var tmp _Alias_Order_Product_OneOf_3
+		if err := json.Unmarshal(data, &tmp); err != nil {
+			return err
+		}
+		// copy named fields into receiver (unions stayed untouched)
+		*o = Order_Product_OneOf_3(tmp)
+	}
+
+	if o.Description == nil {
+		o.Description = &Order_Product_OneOf_3_Description{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, o.Description); err != nil {
+		return fmt.Errorf("Description unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -164,61 +354,10 @@ type Order_Product_OneOf_3_Description_OneOf struct {
 	runtime.Either[VersionC, VersionD]
 }
 
-func (o *Order_Product_OneOf_3_Description_OneOf) MarshalJSON() ([]byte, error) {
-	data := o.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (o *Order_Product_OneOf_3_Description_OneOf) UnmarshalJSON(data []byte) error {
-	return o.Unmarshal(data)
-}
-
 type Order_Description_OneOf struct {
 	runtime.Either[bool, string]
 }
 
-func (o *Order_Description_OneOf) MarshalJSON() ([]byte, error) {
-	data := o.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (o *Order_Description_OneOf) UnmarshalJSON(data []byte) error {
-	return o.Unmarshal(data)
-}
-
 type Order_Images_OneOf struct {
 	runtime.Either[string, VersionE]
-}
-
-func (o *Order_Images_OneOf) MarshalJSON() ([]byte, error) {
-	data := o.Value()
-	if data == nil {
-		return nil, nil
-	}
-
-	obj, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return obj, nil
-}
-
-func (o *Order_Images_OneOf) UnmarshalJSON(data []byte) error {
-	return o.Unmarshal(data)
 }

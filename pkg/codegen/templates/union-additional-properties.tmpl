@@ -50,13 +50,13 @@ func ({{$args.alias}} {{$args.Name}}) MarshalJSON() ([]byte, error) {
     {{- if $eitherType }}
     union := {{$args.alias}}.Value()
     if union == nil {
-        return nil, nil
+        return []byte("null"), nil
     }
     b, err := json.Marshal(union)
     {{ else }}
     union := {{$args.alias}}.union
     if union == nil {
-        return nil, nil
+        return []byte("null"), nil
     }
     b, err := union.MarshalJSON()
     {{ end }}

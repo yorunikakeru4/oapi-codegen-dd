@@ -12,7 +12,7 @@ import (
 var bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
 
 type ProcessPaymentBody struct {
-	ProcessPaymentBody_OneOf *ProcessPaymentBody_OneOf `json:",omitempty"`
+	ProcessPaymentBody_OneOf *ProcessPaymentBody_OneOf `json:"-"`
 }
 
 func (p ProcessPaymentBody) Validate() error {
