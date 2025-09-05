@@ -20,7 +20,6 @@ type ProcessPaymentResponse struct {
 }
 
 func (p ProcessPaymentResponse) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -37,11 +36,10 @@ func (p ProcessPaymentResponse) MarshalJSON() ([]byte, error) {
 func (p *ProcessPaymentResponse) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if p.ProcessPayment_Response_OneOf == nil {

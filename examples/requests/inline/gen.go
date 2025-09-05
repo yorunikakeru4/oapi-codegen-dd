@@ -35,7 +35,6 @@ func (p ProcessPaymentBody_C) Validate() error {
 }
 
 func (p ProcessPaymentBody_C) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -52,11 +51,10 @@ func (p ProcessPaymentBody_C) MarshalJSON() ([]byte, error) {
 func (p *ProcessPaymentBody_C) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if p.ProcessPaymentBody_C_OneOf == nil {
@@ -79,7 +77,6 @@ func (p ProcessPaymentBody_D1) Validate() error {
 }
 
 func (p ProcessPaymentBody_D1) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -96,11 +93,10 @@ func (p ProcessPaymentBody_D1) MarshalJSON() ([]byte, error) {
 func (p *ProcessPaymentBody_D1) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if p.ProcessPaymentBody_D_AllOf0 == nil {
@@ -119,7 +115,6 @@ type ProcessPaymentBody_D struct {
 }
 
 func (p ProcessPaymentBody_D) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -136,11 +131,10 @@ func (p ProcessPaymentBody_D) MarshalJSON() ([]byte, error) {
 func (p *ProcessPaymentBody_D) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if p.ProcessPaymentBody_D_AllOf0 == nil {
@@ -159,7 +153,6 @@ type ProcessPaymentBody_D_AllOf0 struct {
 }
 
 func (p ProcessPaymentBody_D_AllOf0) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -176,11 +169,10 @@ func (p ProcessPaymentBody_D_AllOf0) MarshalJSON() ([]byte, error) {
 func (p *ProcessPaymentBody_D_AllOf0) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if p.ProcessPaymentBody_D_AllOf0_OneOf == nil {
@@ -199,7 +191,6 @@ type ProcessPaymentBody_D_AllOf0_OneOf_0 struct {
 }
 
 func (p ProcessPaymentBody_D_AllOf0_OneOf_0) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -216,11 +207,10 @@ func (p ProcessPaymentBody_D_AllOf0_OneOf_0) MarshalJSON() ([]byte, error) {
 func (p *ProcessPaymentBody_D_AllOf0_OneOf_0) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if p.ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf == nil {

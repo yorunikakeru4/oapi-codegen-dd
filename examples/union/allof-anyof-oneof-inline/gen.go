@@ -46,7 +46,6 @@ func (c CreateUserBody_Pages) Validate() error {
 }
 
 func (c CreateUserBody_Pages) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	type _Alias_CreateUserBody_Pages CreateUserBody_Pages
@@ -78,11 +77,10 @@ func (c CreateUserBody_Pages) MarshalJSON() ([]byte, error) {
 func (c *CreateUserBody_Pages) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if len(trim) > 0 {
@@ -91,7 +89,6 @@ func (c *CreateUserBody_Pages) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &tmp); err != nil {
 			return err
 		}
-		// copy named fields into receiver (unions stayed untouched)
 		*c = CreateUserBody_Pages(tmp)
 	}
 

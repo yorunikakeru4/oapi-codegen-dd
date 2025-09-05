@@ -40,7 +40,6 @@ func (r Rendering_Options) Validate() error {
 }
 
 func (r Rendering_Options) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -57,11 +56,10 @@ func (r Rendering_Options) MarshalJSON() ([]byte, error) {
 func (r *Rendering_Options) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if r.Rendering_Options_AnyOf == nil {

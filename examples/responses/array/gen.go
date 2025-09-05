@@ -127,7 +127,6 @@ func (g GetFiles_Response) Validate() error {
 }
 
 func (g GetFiles_Response) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -144,11 +143,10 @@ func (g GetFiles_Response) MarshalJSON() ([]byte, error) {
 func (g *GetFiles_Response) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if g.GetFiles_Response_OneOf == nil {

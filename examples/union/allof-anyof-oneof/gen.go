@@ -35,7 +35,6 @@ func (o Order_Client) Validate() error {
 }
 
 func (o Order_Client) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	type _Alias_Order_Client Order_Client
@@ -67,11 +66,10 @@ func (o Order_Client) MarshalJSON() ([]byte, error) {
 func (o *Order_Client) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if len(trim) > 0 {
@@ -80,7 +78,6 @@ func (o *Order_Client) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &tmp); err != nil {
 			return err
 		}
-		// copy named fields into receiver (unions stayed untouched)
 		*o = Order_Client(tmp)
 	}
 

@@ -21,7 +21,6 @@ type GetUserUnion1Response struct {
 }
 
 func (g GetUserUnion1Response) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -38,11 +37,10 @@ func (g GetUserUnion1Response) MarshalJSON() ([]byte, error) {
 func (g *GetUserUnion1Response) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if g.GetUserUnion1_Response_OneOf == nil {
@@ -61,7 +59,6 @@ type GetUserUnion2Response struct {
 }
 
 func (g GetUserUnion2Response) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -78,11 +75,10 @@ func (g GetUserUnion2Response) MarshalJSON() ([]byte, error) {
 func (g *GetUserUnion2Response) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if g.GetUserUnion2_Response_OneOf == nil {
@@ -101,7 +97,6 @@ type GetUserUnion3Response struct {
 }
 
 func (g GetUserUnion3Response) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -118,11 +113,10 @@ func (g GetUserUnion3Response) MarshalJSON() ([]byte, error) {
 func (g *GetUserUnion3Response) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if g.GetUserUnion3_Response_OneOf == nil {

@@ -33,7 +33,6 @@ func (o Order_Product1) Validate() error {
 }
 
 func (o Order_Product1) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -58,11 +57,10 @@ func (o Order_Product1) MarshalJSON() ([]byte, error) {
 func (o *Order_Product1) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if o.Order_Product_AllOf0 == nil {
@@ -110,7 +108,6 @@ type Order_Product struct {
 }
 
 func (o Order_Product) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -135,11 +132,10 @@ func (o Order_Product) MarshalJSON() ([]byte, error) {
 func (o *Order_Product) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if o.Order_Product_AllOf0 == nil {
@@ -162,7 +158,6 @@ type Order_Product_AllOf0 struct {
 }
 
 func (o Order_Product_AllOf0) MarshalJSON() ([]byte, error) {
-	// Collect each branch as an object JSON ({} if nil/null).
 	var parts []json.RawMessage
 
 	{
@@ -179,11 +174,10 @@ func (o Order_Product_AllOf0) MarshalJSON() ([]byte, error) {
 func (o *Order_Product_AllOf0) UnmarshalJSON(data []byte) error {
 	trim := bytes.TrimSpace(data)
 	if bytes.Equal(trim, []byte("null")) {
-		// keep zero value (all branches nil)
 		return nil
 	}
 	if len(trim) == 0 {
-		return fmt.Errorf("JSON object expected, got %s", string(trim))
+		return fmt.Errorf("empty JSON input")
 	}
 
 	if o.Order_Product_AllOf0_AnyOf == nil {

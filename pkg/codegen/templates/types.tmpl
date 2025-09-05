@@ -48,9 +48,7 @@ var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructE
 
     {{ if and $td.NeedsMarshaler (not $td.IsAlias) (not $td.Schema.HasAdditionalProperties) }}
     func ({{$alias}} {{$td.Name}}) MarshalJSON() ([]byte, error) {
-        // Collect each branch as an object JSON ({} if nil/null).
         var parts []json.RawMessage
-
 
         {{/*1. Marshal the full struct via type alias (avoids recursion)*/}}
         {{- $hasNamed := false }}
@@ -83,11 +81,10 @@ var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructE
     func ({{$alias}} *{{$td.Name}}) UnmarshalJSON(data []byte) error {
         trim := bytes.TrimSpace(data)
         if bytes.Equal(trim, []byte("null")) {
-            // keep zero value (all branches nil)
             return nil
         }
         if len(trim) == 0 {
-            return fmt.Errorf("JSON object expected, got %s", string(trim))
+            return fmt.Errorf("empty JSON input")
         }
 
         {{ if $hasNamed }}
@@ -99,7 +96,6 @@ var {{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructE
                 if err := json.Unmarshal(data, &tmp); err != nil {
                     return err
                 }
-                // copy named fields into receiver (unions stayed untouched)
                 *{{$alias}} = {{$td.Name}}(tmp)
             }
         {{ end }}
