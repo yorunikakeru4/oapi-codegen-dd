@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: API
-  description: An example of `oneOf` in responses
+  description: An example of `oneOf` schema in responses
   version: 1.0.0
 
 paths:
@@ -14,16 +14,18 @@ paths:
         content:
           application/x-www-form-urlencoded:
             schema:
-              oneOf:
-                - $ref: '#/components/schemas/PayloadA'
-                - $ref: '#/components/schemas/PayloadB'
-                - $ref: '#/components/schemas/PayloadC'
+              $ref: '#/components/schemas/Payload'
       responses:
         '200':
           description: Successful operation
 
 components:
   schemas:
+    Payload:
+      oneOf:
+        - $ref: '#/components/schemas/PayloadA'
+        - $ref: '#/components/schemas/PayloadB'
+        - $ref: '#/components/schemas/PayloadC'
     PayloadA:
       type: object
       properties:

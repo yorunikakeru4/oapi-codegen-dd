@@ -99,9 +99,10 @@ func createBodyDefinition(operationID string, body *v3high.RequestBody, options 
 	}
 
 	td := TypeDefinition{
-		Name:         bodyTypeName,
-		Schema:       bodySchema,
-		SpecLocation: SpecLocationBody,
+		Name:           bodyTypeName,
+		Schema:         bodySchema,
+		SpecLocation:   SpecLocationBody,
+		NeedsMarshaler: needsMarshaler(bodySchema),
 	}
 	options.AddType(td)
 

@@ -214,9 +214,10 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string, op
 			pSchema.RefType = propRefName
 
 			td := TypeDefinition{
-				Name:         propRefName,
-				Schema:       param.Schema,
-				SpecLocation: specLocation,
+				Name:           propRefName,
+				Schema:         param.Schema,
+				SpecLocation:   specLocation,
+				NeedsMarshaler: needsMarshaler(param.Schema),
 			}
 			typeDefs = append(typeDefs, td)
 			options.AddType(td)

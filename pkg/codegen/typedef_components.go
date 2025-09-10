@@ -32,10 +32,11 @@ func getComponentsSchemas(schemas *orderedmap.Map[string, *base.SchemaProxy], op
 		}
 
 		td := TypeDefinition{
-			JsonName:     schemaName,
-			Name:         goTypeName,
-			Schema:       goSchema,
-			SpecLocation: SpecLocationSchema,
+			JsonName:       schemaName,
+			Name:           goTypeName,
+			Schema:         goSchema,
+			SpecLocation:   SpecLocationSchema,
+			NeedsMarshaler: needsMarshaler(goSchema),
 		}
 		types = append(types, td)
 		opts.AddType(td)
@@ -62,10 +63,11 @@ func getComponentParameters(params *orderedmap.Map[string, *v3high.Parameter], o
 		}
 
 		typeDef := TypeDefinition{
-			JsonName:     paramName,
-			Schema:       goType,
-			Name:         goTypeName,
-			SpecLocation: SpecLocation(strings.ToLower(paramOrRef.In)),
+			JsonName:       paramName,
+			Schema:         goType,
+			Name:           goTypeName,
+			SpecLocation:   SpecLocation(strings.ToLower(paramOrRef.In)),
+			NeedsMarshaler: needsMarshaler(goType),
 		}
 		options.AddType(typeDef)
 
@@ -118,10 +120,11 @@ func getComponentsRequestBodies(bodies *orderedmap.Map[string, *v3high.RequestBo
 			}
 
 			typeDef := TypeDefinition{
-				JsonName:     requestBodyName,
-				Schema:       goType,
-				Name:         goTypeName,
-				SpecLocation: SpecLocationBody,
+				JsonName:       requestBodyName,
+				Schema:         goType,
+				Name:           goTypeName,
+				SpecLocation:   SpecLocationBody,
+				NeedsMarshaler: needsMarshaler(goType),
 			}
 			options.AddType(typeDef)
 
@@ -169,10 +172,11 @@ func getComponentResponses(responses *orderedmap.Map[string, *v3high.Response], 
 			}
 
 			typeDef := TypeDefinition{
-				JsonName:     responseName,
-				Schema:       goType,
-				Name:         goTypeName,
-				SpecLocation: SpecLocationResponse,
+				JsonName:       responseName,
+				Schema:         goType,
+				Name:           goTypeName,
+				SpecLocation:   SpecLocationResponse,
+				NeedsMarshaler: needsMarshaler(goType),
 			}
 			options.AddType(typeDef)
 

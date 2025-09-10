@@ -99,12 +99,80 @@ func (c ClientOrID) Validate() error {
 	return schemaTypesValidate.Struct(c)
 }
 
+func (c ClientOrID) MarshalJSON() ([]byte, error) {
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(c.ClientOrID_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("ClientOrID_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (c *ClientOrID) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("empty JSON input")
+	}
+
+	if c.ClientOrID_OneOf == nil {
+		c.ClientOrID_OneOf = &ClientOrID_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, c.ClientOrID_OneOf); err != nil {
+		return fmt.Errorf("ClientOrID_OneOf unmarshal: %w", err)
+	}
+
+	return nil
+}
+
 type ClientOrIdentityWithDiscriminator struct {
 	ClientOrIdentityWithDiscriminator_OneOf *ClientOrIdentityWithDiscriminator_OneOf `json:"-"`
 }
 
 func (c ClientOrIdentityWithDiscriminator) Validate() error {
 	return schemaTypesValidate.Struct(c)
+}
+
+func (c ClientOrIdentityWithDiscriminator) MarshalJSON() ([]byte, error) {
+	var parts []json.RawMessage
+
+	{
+		b, err := runtime.MarshalJSON(c.ClientOrIdentityWithDiscriminator_OneOf)
+		if err != nil {
+			return nil, fmt.Errorf("ClientOrIdentityWithDiscriminator_OneOf marshal: %w", err)
+		}
+		parts = append(parts, b)
+	}
+
+	return runtime.CoalesceOrMerge(parts...)
+}
+
+func (c *ClientOrIdentityWithDiscriminator) UnmarshalJSON(data []byte) error {
+	trim := bytes.TrimSpace(data)
+	if bytes.Equal(trim, []byte("null")) {
+		return nil
+	}
+	if len(trim) == 0 {
+		return fmt.Errorf("empty JSON input")
+	}
+
+	if c.ClientOrIdentityWithDiscriminator_OneOf == nil {
+		c.ClientOrIdentityWithDiscriminator_OneOf = &ClientOrIdentityWithDiscriminator_OneOf{}
+	}
+
+	if err := runtime.UnmarshalJSON(data, c.ClientOrIdentityWithDiscriminator_OneOf); err != nil {
+		return fmt.Errorf("ClientOrIdentityWithDiscriminator_OneOf unmarshal: %w", err)
+	}
+
+	return nil
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
