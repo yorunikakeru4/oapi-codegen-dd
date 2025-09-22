@@ -33,6 +33,10 @@ func (m *MockHttpRequestDoer) Do(_ context.Context, _ *http.Request) (*http.Resp
 	return m.response, m.err
 }
 
+func ptr[T any](v T) *T {
+	return &v
+}
+
 func TestClient_GetBaseURL(t *testing.T) {
 	client := &Client{baseURL: "https://foo.bar"}
 	assert.Equal(t, "https://foo.bar", client.GetBaseURL())
@@ -51,28 +55,32 @@ func TestClient_CreateRequest(t *testing.T) {
 			params: RequestOptionsParameters{
 				Options: mockRequestOptions{
 					pathParams: map[string]any{"id": "123"},
-					query:      map[string]any{"filter": "active"},
+					query:      map[string]any{"filter": "active", "tags": []string{"a", "b"}},
 				},
 				RequestURL:  "https://api.example.com/users/{id}",
 				Method:      "GET",
 				ContentType: "application/json",
+				QueryEncoding: map[string]QueryEncoding{
+					"tags": {Style: "deepObject", Explode: ptr(true)},
+				},
 			},
 			expectedMethod: "GET",
-			expectedURL:    "https://api.example.com/users/123?filter=active",
+			expectedURL:    "https://api.example.com/users/123?filter=active&tags%5B%5D=a&tags%5B%5D=b",
 			expectedError:  false,
 		},
 		{
 			name: "creates POST request with body",
 			params: RequestOptionsParameters{
 				Options: mockRequestOptions{
-					body: map[string]string{"name": "test"},
+					body:  map[string]string{"name": "test"},
+					query: map[string]any{"foo": "bar", "tags": []string{"a", "b"}},
 				},
 				RequestURL:  "https://api.example.com/users",
 				Method:      "POST",
 				ContentType: "application/json",
 			},
 			expectedMethod: "POST",
-			expectedURL:    "https://api.example.com/users",
+			expectedURL:    "https://api.example.com/users?foo=bar&tags=a&tags=b",
 			expectedError:  false,
 		},
 		{

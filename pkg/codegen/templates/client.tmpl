@@ -50,6 +50,17 @@ func (c *{{$clientName}}) {{$op.ID}}(ctx context.Context{{ if $op.HasRequestOpti
             }
         {{- end }}
     {{- end }}
+    {{- if and $op.Query $op.Query.Encoding }}
+        queryEncoding := make(map[string]runtime.QueryEncoding)
+        {{- range $key, $value := $op.Query.Encoding }}
+            queryEncoding["{{$key}}"] = runtime.QueryEncoding{
+                Style:       "{{$value.Style}}",
+                {{- if ne $value.Explode nil }}
+                Explode: &[]bool{ {{$value.Explode}} }[0],
+                {{- end }}
+            }
+        {{- end }}
+    {{- end }}
     reqParams := runtime.RequestOptionsParameters{
         RequestURL:  c.apiClient.GetBaseURL() + "{{$op.Path}}",
         Method:  "{{$op.Method}}",{{- if $op.HasRequestOptions }}
@@ -57,6 +68,9 @@ func (c *{{$clientName}}) {{$op.ID}}(ctx context.Context{{ if $op.HasRequestOpti
         ContentType: "{{$op.Body.ContentType}}",{{- end }}
         {{- if and $op.Body $op.Body.Encoding }}
         BodyEncoding: bodyEncoding,
+        {{- end }}
+        {{- if and $op.Query $op.Query.Encoding }}
+        QueryEncoding: queryEncoding,
         {{- end }}
     }
 

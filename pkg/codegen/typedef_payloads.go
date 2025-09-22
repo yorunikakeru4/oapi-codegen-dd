@@ -23,7 +23,7 @@ type RequestBodyDefinition struct {
 	NameTag     string
 	ContentType string
 	Default     bool
-	Encoding    map[string]*RequestBodyEncoding
+	Encoding    map[string]RequestBodyEncoding
 }
 
 // TypeDef returns the Go type definition for a request body
@@ -125,9 +125,9 @@ func createBodyDefinition(operationID string, body *v3high.RequestBody, options 
 	}
 
 	if content.Encoding.Len() != 0 {
-		bd.Encoding = make(map[string]*RequestBodyEncoding)
+		bd.Encoding = make(map[string]RequestBodyEncoding)
 		for k, v := range content.Encoding.FromOldest() {
-			enc := &RequestBodyEncoding{
+			enc := RequestBodyEncoding{
 				ContentType: v.ContentType,
 				Style:       v.Style,
 				Explode:     v.Explode,

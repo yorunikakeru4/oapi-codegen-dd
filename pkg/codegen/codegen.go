@@ -189,7 +189,6 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 		for method, operation := range pathItem.GetOperations().FromOldest() {
 			var (
 				headerDef     *TypeDefinition
-				queryDef      *TypeDefinition
 				pathParamsDef *TypeDefinition
 			)
 
@@ -218,33 +217,32 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 			// the path, not in the openapi spec, and validate that the parameter
 			// names match, as downstream code depends on that.
 			pathParameters := filterParameterDefinitionByType(allParams, "path")
-			pathDefs, pathSchemas := generateParamsTypes(pathParameters, operationID+"Path", options)
-			if len(pathDefs) > 0 {
-				pathParamsDef = &pathDefs[len(pathDefs)-1]
+			reqParamsDef, pathDefs, pathSchemas := generateParamsTypes(pathParameters, operationID+"Path", options)
+			if reqParamsDef != nil {
+				pathParamsDef = &reqParamsDef.TypeDef
 				typeDefs = append(typeDefs, pathDefs...)
-			}
-			if len(pathSchemas) > 0 {
-				importSchemas = append(importSchemas, pathSchemas...)
+				if len(pathSchemas) > 0 {
+					importSchemas = append(importSchemas, pathSchemas...)
+				}
 			}
 
 			queryParams := filterParameterDefinitionByType(allParams, "query")
-			queryDefs, querySchemas := generateParamsTypes(queryParams, operationID+"Query", options)
-			if len(queryDefs) > 0 {
-				queryDef = &queryDefs[len(queryDefs)-1]
+			queryParamsDef, queryDefs, querySchemas := generateParamsTypes(queryParams, operationID+"Query", options)
+			if queryParamsDef != nil {
 				typeDefs = append(typeDefs, queryDefs...)
-			}
-			if len(querySchemas) > 0 {
-				importSchemas = append(importSchemas, querySchemas...)
+				if len(querySchemas) > 0 {
+					importSchemas = append(importSchemas, querySchemas...)
+				}
 			}
 
 			headerParams := filterParameterDefinitionByType(allParams, "header")
-			headerDefs, headerSchemas := generateParamsTypes(headerParams, operationID+"Headers", options)
-			if len(headerDefs) > 0 {
-				headerDef = &headerDefs[len(headerDefs)-1]
+			headerParamsDef, headerDefs, headerSchemas := generateParamsTypes(headerParams, operationID+"Headers", options)
+			if headerParamsDef != nil {
+				headerDef = &headerParamsDef.TypeDef
 				typeDefs = append(typeDefs, headerDefs...)
-			}
-			if len(headerSchemas) > 0 {
-				importSchemas = append(importSchemas, headerSchemas...)
+				if len(headerSchemas) > 0 {
+					importSchemas = append(importSchemas, headerSchemas...)
+				}
 			}
 
 			// Process Request Body
@@ -288,7 +286,7 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 				Path:       path,
 				PathParams: pathParamsDef,
 				Header:     headerDef,
-				Query:      queryDef,
+				Query:      queryParamsDef,
 				Response:   response,
 				Body:       bodyDefinition,
 			})

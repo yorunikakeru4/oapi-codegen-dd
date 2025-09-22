@@ -1,0 +1,221 @@
+package runtime
+
+import (
+	"fmt"
+	"net/url"
+	"sort"
+	"strings"
+)
+
+type QueryEncoding struct {
+	Style   string
+	Explode *bool
+}
+
+// EncodeQueryFields builds a query string for query params per OAS 3.1 style matrix.
+//
+// Arrays (name=expand, vals=[a,b]):
+// - form, explode=true     => expand=a&expand=b
+// - form, explode=false    => expand=a,b
+// - spaceDelimited         => expand=a%20b
+// - pipeDelimited          => expand=a%7Cb
+// - deepObject (custom)    => expand%5B%5D=a&expand%5B%5D=b
+//
+// Objects (name=color, vals={R:100,G:200,B:150}):
+// - form, explode=true     => R=100&G=200&B=150
+// - form, explode=false    => color=R,100,G,200,B,150
+// - spaceDelimited         => color=R%20100%20G%20200%20B%20150
+// - pipeDelimited          => color=R%7C100%7CG%7C200%7CB%7C150
+// - deepObject (spec)      => color%5BR%5D=100&color%5BG%5D=200&color%5BB%5D=150
+//
+// Scalars (name=x, val=v): always x=v (style choice irrelevant).
+func EncodeQueryFields(data any, encoding map[string]QueryEncoding) (string, error) {
+	m, ok := data.(map[string]any)
+	if !ok {
+		return "", ErrMustBeMap
+	}
+
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var pairs [][2]string
+
+	for _, name := range keys {
+		val := m[name]
+		enc := QueryEncoding{}
+		if encoding != nil {
+			enc = encoding[name]
+		}
+
+		style := strings.ToLower(enc.Style)
+		if style == "" {
+			style = "form"
+		}
+		explode := defaultExplode(style, enc.Explode)
+
+		if obj, isObj, err := toStringMap(val); err != nil {
+			return "", fmt.Errorf("param %q: %w", name, err)
+		} else if isObj {
+			propKeys := make([]string, 0, len(obj))
+			for k := range obj {
+				propKeys = append(propKeys, k)
+			}
+			sort.Strings(propKeys)
+
+			switch style {
+			case "form":
+				if explode {
+					for _, k := range propKeys {
+						pairs = append(pairs, [2]string{k, obj[k]})
+					}
+				} else {
+					seq := make([]string, 0, len(propKeys)*2)
+					for _, k := range propKeys {
+						seq = append(seq, k, obj[k])
+					}
+					pairs = append(pairs, [2]string{name, strings.Join(seq, ",")})
+				}
+			case "spacedelimited":
+				seq := make([]string, 0, len(propKeys)*2)
+				for _, k := range propKeys {
+					seq = append(seq, k, obj[k])
+				}
+				pairs = append(pairs, [2]string{name, strings.Join(seq, " ")})
+			case "pipedelimited":
+				seq := make([]string, 0, len(propKeys)*2)
+				for _, k := range propKeys {
+					seq = append(seq, k, obj[k])
+				}
+				pairs = append(pairs, [2]string{name, strings.Join(seq, "|")})
+			case "deepobject":
+				for _, k := range propKeys {
+					pairs = append(pairs, [2]string{name + "[" + k + "]", obj[k]})
+				}
+			default:
+				return "", fmt.Errorf("param %q: unsupported style %q for object", name, style)
+			}
+			continue
+		}
+
+		ss, isArray, err := toStringSlice(val)
+		if err != nil {
+			return "", fmt.Errorf("param %q: %w", name, err)
+		}
+
+		switch style {
+		case "form":
+			if isArray {
+				if explode {
+					for _, v := range ss {
+						pairs = append(pairs, [2]string{name, v})
+					}
+				} else {
+					pairs = append(pairs, [2]string{name, strings.Join(ss, ",")})
+				}
+			} else {
+				pairs = append(pairs, [2]string{name, ss[0]})
+			}
+		case "spacedelimited":
+			if isArray {
+				pairs = append(pairs, [2]string{name, strings.Join(ss, " ")})
+			} else {
+				pairs = append(pairs, [2]string{name, ss[0]})
+			}
+		case "pipedelimited":
+			if isArray {
+				pairs = append(pairs, [2]string{name, strings.Join(ss, "|")})
+			} else {
+				pairs = append(pairs, [2]string{name, ss[0]})
+			}
+		case "deepobject":
+			// Not defined for arrays in OAS. Custom bracketed repeat as discussed.
+			br := name + "[]"
+			if isArray {
+				for _, v := range ss {
+					pairs = append(pairs, [2]string{br, v})
+				}
+			} else {
+				pairs = append(pairs, [2]string{br, ss[0]})
+			}
+		default:
+			return "", fmt.Errorf("param %q: unsupported style %q", name, style)
+		}
+	}
+
+	values := url.Values{}
+	for _, kv := range pairs {
+		values.Add(kv[0], kv[1])
+	}
+	return values.Encode(), nil
+}
+
+func defaultExplode(style string, ptr *bool) bool {
+	if ptr != nil {
+		return *ptr
+	}
+	return style == "form"
+}
+
+func toStringSlice(v any) ([]string, bool, error) {
+	switch t := v.(type) {
+	case nil:
+		return []string{""}, false, nil
+	case string:
+		return []string{t}, false, nil
+	case fmt.Stringer:
+		return []string{t.String()}, false, nil
+	case bool:
+		if t {
+			return []string{"true"}, false, nil
+		}
+		return []string{"false"}, false, nil
+	case int, int8, int16, int32, int64:
+		return []string{fmt.Sprintf("%d", t)}, false, nil
+	case uint, uint8, uint16, uint32, uint64:
+		return []string{fmt.Sprintf("%d", t)}, false, nil
+	case float32, float64:
+		return []string{fmt.Sprintf("%v", t)}, false, nil
+	case []string:
+		cp := make([]string, len(t))
+		copy(cp, t)
+		return cp, true, nil
+	case []any:
+		out := make([]string, len(t))
+		for i, e := range t {
+			ss, _, err := toStringSlice(e)
+			if err != nil {
+				return nil, false, err
+			}
+			out[i] = ss[0]
+		}
+		return out, true, nil
+	default:
+		return []string{fmt.Sprintf("%v", t)}, false, nil
+	}
+}
+
+func toStringMap(v any) (map[string]string, bool, error) {
+	switch t := v.(type) {
+	case map[string]string:
+		cp := make(map[string]string, len(t))
+		for k, v := range t {
+			cp[k] = v
+		}
+		return cp, true, nil
+	case map[string]any:
+		out := make(map[string]string, len(t))
+		for k, vv := range t {
+			ss, _, err := toStringSlice(vv)
+			if err != nil {
+				return nil, false, err
+			}
+			out[k] = ss[0]
+		}
+		return out, true, nil
+	default:
+		return nil, false, nil
+	}
+}

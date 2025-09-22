@@ -1,0 +1,41 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Generate models
+paths:
+  /order/{id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - description: >-
+          in: query
+          name: client_secret
+          required: false
+          schema:
+            type: string
+          style: form
+        - description: Specifies which fields in the response should be expanded.
+          explode: true
+          in: query
+          name: expand
+          required: false
+          schema:
+            items:
+              type: string
+            type: array
+          style: deepObject
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        200:
+          description:
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  schemas:

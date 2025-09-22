@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 )
@@ -21,11 +20,12 @@ type RequestOptions interface {
 
 // RequestOptionsParameters holds the parameters for creating a request.
 type RequestOptionsParameters struct {
-	Options      RequestOptions
-	RequestURL   string
-	Method       string
-	ContentType  string
-	BodyEncoding map[string]FieldEncoding
+	Options       RequestOptions
+	RequestURL    string
+	Method        string
+	ContentType   string
+	BodyEncoding  map[string]FieldEncoding
+	QueryEncoding map[string]QueryEncoding
 }
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
@@ -196,11 +196,11 @@ func createRequest(ctx context.Context, params RequestOptionsParameters) (*http.
 	reqURL = replacePathPlaceholders(reqURL, pathParams)
 
 	if len(queryParams) > 0 {
-		values := url.Values{}
-		for k, v := range queryParams {
-			values.Set(k, fmt.Sprintf("%v", v))
+		queryValue, err := EncodeQueryFields(queryParams, params.QueryEncoding)
+		if err != nil {
+			return nil, fmt.Errorf("error encoding query params: %w", err)
 		}
-		reqURL = fmt.Sprintf("%s?%s", reqURL, values.Encode())
+		reqURL = fmt.Sprintf("%s?%s", reqURL, queryValue)
 	}
 
 	contentType := "application/json"

@@ -24,7 +24,7 @@ type OperationDefinition struct {
 	Path        string
 	PathParams  *TypeDefinition
 	Header      *TypeDefinition
-	Query       *TypeDefinition
+	Query       *RequestParametersDefinition
 
 	TypeDefinitions []TypeDefinition
 	// TODO: check if can be removed

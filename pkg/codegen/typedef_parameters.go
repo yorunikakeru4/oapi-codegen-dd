@@ -10,6 +10,22 @@ import (
 	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
+type RequestParametersDefinition struct {
+	Name     string
+	Encoding map[string]ParameterEncoding
+	Params   []ParameterDefinition
+	TypeDef  TypeDefinition
+}
+
+// ParameterEncoding describes the encoding options for a request body.
+// @see https://spec.openapis.org/oas/v3.1.0#style-examples
+type ParameterEncoding struct {
+	Style         string
+	Explode       *bool
+	Required      bool
+	AllowReserved bool
+}
+
 // ParameterDefinition is a struct that represents a parameter in an operation.
 // Name is the original json parameter name, eg param_name
 // In is where the parameter is defined - path, header, cookie, query
@@ -197,15 +213,19 @@ func combineOperationParameters(globalParams []ParameterDefinition, localParams 
 }
 
 // generateParamsTypes defines the schema for a parameters definition object.
-func generateParamsTypes(objectParams []ParameterDefinition, typeName string, options ParseOptions) ([]TypeDefinition, []GoSchema) {
+func generateParamsTypes(objectParams []ParameterDefinition, typeName string, options ParseOptions) (*RequestParametersDefinition, []TypeDefinition, []GoSchema) {
 	if len(objectParams) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 	specLocation := SpecLocation(strings.ToLower(objectParams[0].In))
 
-	var typeDefs []TypeDefinition
-	var properties []Property
-	var imports []GoSchema
+	var (
+		typeDefs   []TypeDefinition
+		properties []Property
+		imports    []GoSchema
+	)
+
+	encodings := map[string]ParameterEncoding{}
 
 	for _, param := range objectParams {
 		pSchema := param.Schema
@@ -244,6 +264,12 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string, op
 			}),
 		})
 		imports = append(imports, pSchema)
+		encodings[param.ParamName] = ParameterEncoding{
+			Style:         param.Spec.Style,
+			Explode:       param.Spec.Explode,
+			Required:      param.Required,
+			AllowReserved: param.Spec.AllowReserved,
+		}
 	}
 
 	s := GoSchema{
@@ -259,7 +285,14 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string, op
 	}
 	options.AddType(td)
 
-	return append(typeDefs, td), imports
+	res := &RequestParametersDefinition{
+		Name:     typeName,
+		Encoding: encodings,
+		Params:   objectParams,
+		TypeDef:  td,
+	}
+
+	return res, append(typeDefs, td), imports
 }
 
 // This constructs a Go type for a parameter, looking at either the schema or

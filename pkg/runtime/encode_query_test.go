@@ -1,0 +1,168 @@
+package runtime
+
+import (
+	"testing"
+)
+
+func b(v bool) *bool { return &v }
+
+func TestEncodeQueryFields_Arrays(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]any
+		enc      map[string]QueryEncoding
+		expected string
+	}{
+		{
+			name:     "form explode=true",
+			data:     map[string]any{"expand": []string{"a", "b"}},
+			enc:      map[string]QueryEncoding{"expand": {Style: "form", Explode: b(true)}},
+			expected: "expand=a&expand=b",
+		},
+		{
+			name:     "form explode=false",
+			data:     map[string]any{"expand": []string{"a", "b"}},
+			enc:      map[string]QueryEncoding{"expand": {Style: "form", Explode: b(false)}},
+			expected: "expand=a%2Cb",
+		},
+		{
+			name:     "spaceDelimited",
+			data:     map[string]any{"expand": []string{"a", "b"}},
+			enc:      map[string]QueryEncoding{"expand": {Style: "spaceDelimited"}},
+			expected: "expand=a+b",
+		},
+		{
+			name:     "pipeDelimited",
+			data:     map[string]any{"expand": []string{"a", "b"}},
+			enc:      map[string]QueryEncoding{"expand": {Style: "pipeDelimited"}},
+			expected: "expand=a%7Cb",
+		},
+		{
+			name:     "deepObject array -> brackets",
+			data:     map[string]any{"expand": []string{"a", "b"}},
+			enc:      map[string]QueryEncoding{"expand": {Style: "deepObject"}},
+			expected: "expand%5B%5D=a&expand%5B%5D=b",
+		},
+		{
+			name:     "defaults (nil enc) form+explode=true",
+			data:     map[string]any{"expand": []string{"a", "b"}},
+			enc:      nil,
+			expected: "expand=a&expand=b",
+		},
+		{
+			name:     "deepObject scalar -> single bracketed",
+			data:     map[string]any{"expand": "a"},
+			enc:      map[string]QueryEncoding{"expand": {Style: "deepObject"}},
+			expected: "expand%5B%5D=a",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := EncodeQueryFields(tt.data, tt.enc)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if got != tt.expected {
+				t.Fatalf("%s: got %q, want %q", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEncodeQueryFields_Objects(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]any
+		enc      map[string]QueryEncoding
+		expected string
+	}{
+		{
+			name:     "form explode=true",
+			data:     map[string]any{"color": map[string]any{"R": "100", "G": "200", "B": "150"}},
+			enc:      map[string]QueryEncoding{"color": {Style: "form", Explode: b(true)}},
+			expected: "B=150&G=200&R=100",
+		},
+		{
+			name:     "form explode=false",
+			data:     map[string]any{"color": map[string]any{"R": "100", "G": "200", "B": "150"}},
+			enc:      map[string]QueryEncoding{"color": {Style: "form", Explode: b(false)}},
+			expected: "color=B%2C150%2CG%2C200%2CR%2C100",
+		},
+		{
+			name:     "spaceDelimited",
+			data:     map[string]any{"color": map[string]any{"R": "100", "G": "200", "B": "150"}},
+			enc:      map[string]QueryEncoding{"color": {Style: "spaceDelimited"}},
+			expected: "color=B+150+G+200+R+100",
+		},
+		{
+			name:     "pipeDelimited",
+			data:     map[string]any{"color": map[string]any{"R": "100", "G": "200", "B": "150"}},
+			enc:      map[string]QueryEncoding{"color": {Style: "pipeDelimited"}},
+			expected: "color=B%7C150%7CG%7C200%7CR%7C100",
+		},
+		{
+			name:     "deepObject (spec)",
+			data:     map[string]any{"color": map[string]any{"R": "100", "G": "200", "B": "150"}},
+			enc:      map[string]QueryEncoding{"color": {Style: "deepObject"}},
+			expected: "color%5BB%5D=150&color%5BG%5D=200&color%5BR%5D=100",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := EncodeQueryFields(tt.data, tt.enc)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if got != tt.expected {
+				t.Fatalf("%s: got %q, want %q", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEncodeQueryFields_ScalarsAndMultiParams(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string]any
+		enc      map[string]QueryEncoding
+		expected string
+	}{
+		{
+			name:     "scalar default",
+			data:     map[string]any{"x": "v"},
+			enc:      nil,
+			expected: "x=v",
+		},
+		{
+			name: "multiple params sorted keys",
+			data: map[string]any{
+				"expand": []string{"a", "b"},
+				"color":  map[string]any{"R": "100", "B": "150"},
+				"x":      "v",
+			},
+			enc: map[string]QueryEncoding{
+				"expand": {Style: "form", Explode: b(true)},
+				"color":  {Style: "deepObject"},
+			},
+			expected: "color%5BB%5D=150&color%5BR%5D=100&expand=a&expand=b&x=v",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := EncodeQueryFields(tt.data, tt.enc)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
+			if got != tt.expected {
+				t.Fatalf("%s: got %q, want %q", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEncodeQueryFields_UnsupportedStyle(t *testing.T) {
+	_, err := EncodeQueryFields(map[string]any{"a": []string{"x"}}, map[string]QueryEncoding{"a": {Style: "weird"}})
+	if err == nil {
+		t.Fatalf("expected error")
+	}
+}

@@ -1,0 +1,5 @@
+# yaml-language-server: $schema=../../../configuration-schema.json
+package: example4
+generate:
+  client: true
+  omit-description: true
