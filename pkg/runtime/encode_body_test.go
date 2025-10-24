@@ -21,6 +21,7 @@ func TestEncodeFormFields(t *testing.T) {
 	}
 
 	type User struct {
+		ID        int      `json:"id"`
 		Name      string   `json:"name"`
 		Age       int      `json:"age"`
 		Address   Address  `json:"address"`
@@ -28,6 +29,7 @@ func TestEncodeFormFields(t *testing.T) {
 	}
 
 	payload := User{
+		ID:   123456789,
 		Name: "Jane Doe",
 		Age:  30,
 		Address: Address{
@@ -51,7 +53,7 @@ func TestEncodeFormFields(t *testing.T) {
 
 		resDecoded, _ := url.QueryUnescape(res)
 		require.NoError(t, err)
-		expected := "address.city=Berlin&address.coordinates.latitude=52.52&address.coordinates.longitude=13.405&address.country=DE&age=30&name=Jane Doe&nicknames=JD&nicknames=Janie"
+		expected := "address.city=Berlin&address.coordinates.latitude=52.52&address.coordinates.longitude=13.405&address.country=DE&age=30&id=123456789&name=Jane Doe&nicknames=JD&nicknames=Janie"
 		assert.Equal(t, expected, resDecoded)
 	})
 
@@ -67,7 +69,25 @@ func TestEncodeFormFields(t *testing.T) {
 
 		resDecoded, _ := url.QueryUnescape(res)
 		require.NoError(t, err)
-		expected := "address[city]=Berlin&address[coordinates][latitude]=52.52&address[coordinates][longitude]=13.405&address[country]=DE&age=30&name=Jane Doe&nicknames[0]=JD&nicknames[1]=Janie"
+		expected := "address[city]=Berlin&address[coordinates][latitude]=52.52&address[coordinates][longitude]=13.405&address[country]=DE&age=30&id=123456789&name=Jane Doe&nicknames[0]=JD&nicknames[1]=Janie"
+		assert.Equal(t, expected, resDecoded)
+	})
+
+	t.Run("different types", func(t *testing.T) {
+		data := map[string]any{
+			"v1": 1,
+			"v2": 1.2,
+			"v3": true,
+			"v4": "test",
+			"v5": 123456789,
+			"v6": 123.456789,
+			"v7": int64(12345678901234),
+		}
+		res, err := EncodeFormFields(data, map[string]FieldEncoding{})
+
+		resDecoded, _ := url.QueryUnescape(res)
+		require.NoError(t, err)
+		expected := "v1=1&v2=1.2&v3=true&v4=test&v5=123456789&v6=123.456789&v7=12345678901234"
 		assert.Equal(t, expected, resDecoded)
 	})
 }

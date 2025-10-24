@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -23,8 +24,11 @@ func EncodeFormFields(data any, encoding map[string]FieldEncoding) (string, erro
 	if err != nil {
 		return "", err
 	}
+
 	var root map[string]any
-	if err := json.Unmarshal(b, &root); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.UseNumber()
+	if err := dec.Decode(&root); err != nil {
 		return "", err
 	}
 
