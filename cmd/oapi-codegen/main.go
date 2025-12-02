@@ -20,6 +20,12 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
+const (
+	// File and directory permissions for generated code
+	generatedDirPerm  = 0755
+	generatedFilePerm = 0644
+)
+
 var (
 	flagConfigFile string
 	flagPrintUsage bool
@@ -44,6 +50,7 @@ func main() {
 
 	// Read the spec file
 	filePath := flag.Arg(0)
+	// #nosec G304 -- CLI tool intentionally reads user-specified OpenAPI spec files
 	specContents, err := os.ReadFile(filePath)
 	if err != nil {
 		errExit("Error reading file: %v", err)
@@ -52,6 +59,7 @@ func main() {
 	// Read the config file
 	cfg := codegen.Configuration{}
 	if flagConfigFile != "" {
+		// #nosec G304 -- CLI tool intentionally reads user-specified config files
 		cfgContents, err := os.ReadFile(flagConfigFile)
 		if err != nil {
 			errExit("Error reading config file: %v", err)
@@ -74,7 +82,7 @@ func main() {
 	destFile := ""
 	if cfg.Output != nil {
 		destDir = filepath.Join(cfg.Output.Directory)
-		err = os.MkdirAll(destDir, os.ModePerm)
+		err = os.MkdirAll(destDir, generatedDirPerm)
 		if err != nil {
 			errExit("Error creating directory: %v", err)
 		}
@@ -82,7 +90,7 @@ func main() {
 			destFile = filepath.Join(destDir, cfg.Output.Filename)
 		} else {
 			destDir = filepath.Join(destDir, cfg.PackageName)
-			err = os.MkdirAll(destDir, os.ModePerm)
+			err = os.MkdirAll(destDir, generatedDirPerm)
 			if err != nil {
 				errExit("Error creating directory: %v", err)
 			}
@@ -90,13 +98,13 @@ func main() {
 	}
 
 	if destFile != "" {
-		err = os.WriteFile(destFile, []byte(code.GetCombined()), 0644)
+		err = os.WriteFile(destFile, []byte(code.GetCombined()), generatedFilePerm)
 		if err != nil {
 			errExit("Error writing file: %v", err)
 		}
 	} else if destDir != "" {
 		for name, contents := range code {
-			err = os.WriteFile(filepath.Join(destDir, name+".go"), []byte(contents), 0644)
+			err = os.WriteFile(filepath.Join(destDir, name+".go"), []byte(contents), generatedFilePerm)
 			if err != nil {
 				errExit("Error writing file: %v", err)
 			}

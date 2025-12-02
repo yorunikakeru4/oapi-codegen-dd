@@ -15,3 +15,6 @@ tidy:
 
 tidy-ci:
 	tidied -verbose
+
+gosec:
+	gosec ./...

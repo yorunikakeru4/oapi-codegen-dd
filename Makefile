@@ -69,3 +69,10 @@ check-all: generate lint test test-integration
 		echo >&2 "ERROR: generate command should not produce extra code"; \
 		exit 1; \
 	fi
+
+gosec-examples:
+	cd examples && make gosec
+
+# go install github.com/securego/gosec/v2/cmd/gosec@latest
+gosec: gosec-examples
+	gosec -exclude-dir=.data -exclude-dir=examples ./...

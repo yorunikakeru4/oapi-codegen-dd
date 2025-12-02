@@ -9,25 +9,25 @@ import (
 type Type string
 
 const (
-	TypeACHDebit                    Type = "ach_debit"
-	TypeSourceTypeACHCreditTransfer Type = "source_type_ach_credit_transfer"
+	TypeDebit      Type = "debit"
+	TypeSourceType Type = "source_type"
 )
 
 var schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
 
 type Source struct {
-	ACHCreditTransfer *SourceTypeACHCreditTransfer `json:"ach_credit_transfer,omitempty"`
+	CreditTransfer *SourceType `json:"credit_transfer,omitempty"`
 }
 
 func (s Source) Validate() error {
 	return schemaTypesValidate.Struct(s)
 }
 
-type SourceTypeACHCreditTransfer struct {
-	AccountNumber *string `json:"account_number,omitempty"`
-	BankName      *string `json:"bank_name,omitempty"`
+type SourceType struct {
+	Name    *string `json:"name,omitempty"`
+	Address *string `json:"address,omitempty"`
 }
 
-func (s SourceTypeACHCreditTransfer) Validate() error {
+func (s SourceType) Validate() error {
 	return schemaTypesValidate.Struct(s)
 }

@@ -409,6 +409,7 @@ func getUserTemplateText(inputData string) (template string, err error) {
 	}
 
 	// load data from file
+	// #nosec G304 -- CLI tool intentionally reads user-specified template files
 	data, err := os.ReadFile(inputData)
 	// return data if found and loaded
 	if err == nil {

@@ -7,15 +7,15 @@ components:
     source:
       type: object
       properties:
-        ach_credit_transfer:
-          $ref: '#/components/schemas/source_type_ach_credit_transfer'
+        credit_transfer:
+          $ref: '#/components/schemas/source_type'
 
-    source_type_ach_credit_transfer:
+    source_type:
       properties:
-        account_number:
+        name:
           nullable: true
           type: string
-        bank_name:
+        address:
           nullable: true
           type: string
 
@@ -23,5 +23,5 @@ components:
       type: string
       enum:
         # prefix will be added to avoid conflict
-        - source_type_ach_credit_transfer
-        - ach_debit
+        - source_type
+        - debit

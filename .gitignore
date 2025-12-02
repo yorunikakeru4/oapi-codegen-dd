@@ -5,3 +5,4 @@ bin/
 .data/
 *.iml
 .go-version
+gosec-report*.json
