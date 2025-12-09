@@ -76,3 +76,7 @@ gosec-examples:
 # go install github.com/securego/gosec/v2/cmd/gosec@latest
 gosec: gosec-examples
 	gosec -exclude-dir=.data -exclude-dir=examples ./...
+
+build-ci: lint-ci tidy-ci
+
+test-ci: test test-integration
