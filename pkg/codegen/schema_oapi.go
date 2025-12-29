@@ -112,12 +112,23 @@ func oapiSchemaToGoType(schema *base.Schema, options ParseOptions) (GoSchema, er
 
 	if slices.Contains(t, "number") {
 		// We default to float for "number"
+		// Some specs incorrectly use type: number with format: integer
+		// We handle this for compatibility with lenient validators
 		var goType string
 		switch f {
 		case "double":
 			goType = "float64"
 		case "float":
 			goType = "float32"
+		case "integer":
+			// Treat type: number, format: integer as integer type
+			goType = options.DefaultIntType
+			if goType == "" {
+				goType = "int"
+			}
+		case "int32", "int64":
+			// Also handle int32/int64 formats on number type
+			goType = f
 		case "":
 			goType = "float32"
 		default:
