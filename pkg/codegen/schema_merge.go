@@ -12,6 +12,7 @@ package codegen
 
 import (
 	"fmt"
+	"log"
 	"slices"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
@@ -154,7 +155,7 @@ func mergeAllOfSchemas(allOf []*base.SchemaProxy, options ParseOptions) (GoSchem
 			var err error
 			merged, err = mergeOpenapiSchemas(merged, s)
 			if err != nil {
-				return GoSchema{}, fmt.Errorf("error merging schemas for allOf: %w", err)
+				return GoSchema{}, fmt.Errorf("error merging schemas for allOf: %w at path %v", err, path)
 			}
 		}
 
@@ -248,7 +249,20 @@ func mergeOpenapiSchemas(s1, s2 *base.Schema) (*base.Schema, error) {
 
 	t1 := getSchemaType(s1)
 	t2 := getSchemaType(s2)
+
+	// Handle empty schemas - treat them as no-op
+	if len(t2) == 0 && s2.Properties == nil && s2.Items == nil && len(s2.AllOf) == 0 && len(s2.AnyOf) == 0 && len(s2.OneOf) == 0 {
+		return s1, nil
+	}
+	if len(t1) == 0 && s1.Properties == nil && s1.Items == nil && len(s1.AllOf) == 0 && len(s1.AnyOf) == 0 && len(s1.OneOf) == 0 {
+		return s2, nil
+	}
+
 	if !slices.Equal(t1, t2) {
+		log.Printf("DEBUG: ===== MERGE FAILURE =====")
+		log.Printf("DEBUG: Schema 1 - type=%v, hasProps=%v, hasItems=%v, title=%s", t1, s1.Properties != nil, s1.Items != nil, s1.Title)
+		log.Printf("DEBUG: Schema 2 - type=%v, hasProps=%v, hasItems=%v, title=%s", t2, s2.Properties != nil, s2.Items != nil, s2.Title)
+		log.Printf("DEBUG: =========================")
 		return nil, fmt.Errorf("can not merge incompatible types: %v, %v", t1, t2)
 	}
 
