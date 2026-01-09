@@ -159,14 +159,12 @@ func TestUsersWithRequiredFields_Validate(t *testing.T) {
 		}
 		err := obj.Validate()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Email")
-		assert.Contains(t, err.Error(), "required")
+		assert.Equal(t, "user1 Email is required", err.Error())
 		// Check that it's a ValidationError with the key as the field
 		var ve runtime.ValidationError
 		assert.ErrorAs(t, err, &ve)
 		assert.Equal(t, "user1", ve.Field)
-		assert.Contains(t, ve.Message, "Email")
-		assert.Contains(t, ve.Message, "required")
+		assert.Equal(t, "Email is required", ve.Message)
 	})
 }
 
@@ -238,12 +236,12 @@ func TestTagsWithLength_Validate(t *testing.T) {
 		}
 		err := obj.Validate()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "key2")
-		assert.Contains(t, err.Error(), "max")
+		assert.Equal(t, "key2 length must be less than or equal to 50", err.Error())
 		// Check that it's a ValidationError
 		var ve runtime.ValidationError
 		assert.ErrorAs(t, err, &ve)
 		assert.Equal(t, "key2", ve.Field)
+		assert.Equal(t, "length must be less than or equal to 50", ve.Message)
 	})
 
 	t.Run("invalid - multiple values exceed constraints", func(t *testing.T) {
@@ -324,8 +322,7 @@ func TestTagsWithBothConstraints_Validate(t *testing.T) {
 		}
 		err := obj.Validate()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "key2")
-		assert.Contains(t, err.Error(), "max")
+		assert.Equal(t, "key2 length must be less than or equal to 50", err.Error())
 	})
 
 	t.Run("invalid - valid count but empty value (minLength: 1)", func(t *testing.T) {

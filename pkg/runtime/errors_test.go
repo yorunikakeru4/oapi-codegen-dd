@@ -132,6 +132,11 @@ func TestNewValidationErrorFromError(t *testing.T) {
 
 		validationErr := NewValidationErrorFromError("Name", err)
 
+		// Check that message is converted using convertFieldErrorMessage
+		assert.Equal(t, "Name", validationErr.Field)
+		assert.Equal(t, "length must be greater than or equal to 3", validationErr.Message)
+		assert.Equal(t, "Name length must be greater than or equal to 3", validationErr.Error())
+
 		// Check that we can unwrap to the original validator error
 		assert.NotNil(t, validationErr.Err)
 		assert.Equal(t, err, validationErr.Unwrap())
@@ -149,6 +154,73 @@ func TestNewValidationErrorFromError(t *testing.T) {
 		assert.Equal(t, "required", validationErr.Message)
 		assert.Equal(t, "required", validationErr.Error())
 		assert.Equal(t, originalErr, validationErr.Err)
+	})
+
+	t.Run("converts validator.FieldError messages", func(t *testing.T) {
+		validate := validator.New()
+
+		testCases := []struct {
+			name            string
+			value           any
+			tag             string
+			expectedMessage string
+		}{
+			{"required", "", "required", "is required"},
+			{"email", "invalid", "email", "must be a valid email"},
+			{"gt", 5, "gt=10", "must be greater than 10"},
+			{"gte", 5, "gte=10", "must be greater than or equal to 10"},
+			{"lt", 15, "lt=10", "must be less than 10"},
+			{"lte", 15, "lte=10", "must be less than or equal to 10"},
+			{"min", "ab", "min=3", "length must be greater than or equal to 3"},
+			{"max", "abcdef", "max=3", "length must be less than or equal to 3"},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				err := validate.Var(tc.value, tc.tag)
+				require.Error(t, err)
+
+				validationErr := NewValidationErrorFromError("TestField", err)
+
+				assert.Equal(t, "TestField", validationErr.Field)
+				assert.Equal(t, tc.expectedMessage, validationErr.Message)
+				assert.Equal(t, "TestField "+tc.expectedMessage, validationErr.Error())
+				assert.Equal(t, err, validationErr.Err)
+			})
+		}
+	})
+
+	t.Run("validates Amount field with gte=0", func(t *testing.T) {
+		validate := validator.New()
+
+		type Payment struct {
+			Amount int64 `json:"amount" validate:"gte=0"`
+		}
+
+		t.Run("valid - positive amount", func(t *testing.T) {
+			payment := Payment{Amount: 100}
+			err := validate.Var(payment.Amount, "gte=0")
+			assert.NoError(t, err)
+		})
+
+		t.Run("valid - zero amount", func(t *testing.T) {
+			payment := Payment{Amount: 0}
+			err := validate.Var(payment.Amount, "gte=0")
+			assert.NoError(t, err)
+		})
+
+		t.Run("invalid - negative amount", func(t *testing.T) {
+			payment := Payment{Amount: -10}
+			err := validate.Var(payment.Amount, "gte=0")
+			require.Error(t, err)
+
+			validationErr := NewValidationErrorFromError("Amount", err)
+
+			assert.Equal(t, "Amount", validationErr.Field)
+			assert.Equal(t, "must be greater than or equal to 0", validationErr.Message)
+			assert.Equal(t, "Amount must be greater than or equal to 0", validationErr.Error())
+			assert.Equal(t, err, validationErr.Err)
+		})
 	})
 }
 

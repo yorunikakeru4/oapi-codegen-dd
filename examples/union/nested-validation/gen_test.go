@@ -108,7 +108,7 @@ func TestInvalid_DoubleNesting_InvalidRelativeDuration(t *testing.T) {
 
 	err := request.Validate()
 	assert.Error(t, err, "Expected validation error for duration < 2")
-	assert.Contains(t, err.Error(), "gte")
+	assert.Equal(t, "Location Duration must be greater than or equal to 2", err.Error())
 }
 
 func TestInvalid_SingleNesting_InvalidDistance(t *testing.T) {
@@ -117,7 +117,7 @@ func TestInvalid_SingleNesting_InvalidDistance(t *testing.T) {
 
 	err := request.Validate()
 	assert.Error(t, err, "Expected validation error for negative distance")
-	assert.Contains(t, err.Error(), "gte")
+	assert.Equal(t, "Location Distance must be greater than or equal to 0", err.Error())
 }
 
 func TestCritical_InactiveVariantsNotValidated(t *testing.T) {

@@ -92,6 +92,21 @@ func NewValidationError(field, message string) ValidationError {
 
 // NewValidationErrorFromError creates a ValidationError that wraps an underlying error
 func NewValidationErrorFromError(field string, err error) ValidationError {
+	var validationErrors validator.ValidationErrors
+	if errors.As(err, &validationErrors) && len(validationErrors) > 0 {
+		// Get the first field error and convert its message
+		// Include the nested field name in the message
+		nestedField := validationErrors[0].Field()
+		message := convertFieldErrorMessage(validationErrors[0])
+		if nestedField != "" {
+			message = fmt.Sprintf("%s %s", nestedField, message)
+		}
+		return ValidationError{
+			Field:   field,
+			Message: message,
+			Err:     err,
+		}
+	}
 	return ValidationError{Field: field, Message: err.Error(), Err: err}
 }
 
