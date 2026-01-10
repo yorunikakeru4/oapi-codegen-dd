@@ -83,8 +83,6 @@ func (c *Client) CreateUser(ctx context.Context, options *CreateUserRequestOptio
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // CreateUserRequestOptions is the options needed to make a request to CreateUser.
 type CreateUserRequestOptions struct {
 	Body *CreateUserBody
@@ -129,13 +127,6 @@ func (o *CreateUserRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type CreateUserBody = CreateUserRequest
 
 type CreateUserResponse struct {
@@ -154,23 +145,13 @@ type CreateUserErrorResponseJSON struct{}
 
 type CreateUserErrorResponseJSON500 struct{}
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type CreateUserRequest struct {
 	Username string `json:"username" validate:"required"`
 	Email    string `json:"email" validate:"required"`
 }
 
 func (c CreateUserRequest) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type User struct {
@@ -180,10 +161,7 @@ type User struct {
 }
 
 func (u User) Validate() error {
-	if err := schemaTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 type BadRequestException struct{}
@@ -191,3 +169,10 @@ type BadRequestException struct{}
 type ConflictException struct{}
 
 type InternalServerException struct{}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
+}

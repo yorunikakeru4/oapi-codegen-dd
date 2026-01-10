@@ -4,15 +4,7 @@ package example1
 
 import (
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 )
-
-var headerTypesValidate *validator.Validate
-
-func init() {
-	headerTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(headerTypesValidate)
-}
 
 type MSN = string
 
@@ -21,10 +13,7 @@ type GetClientHeaders struct {
 }
 
 func (g GetClientHeaders) Validate() error {
-	if err := headerTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type UpdateClientHeaders struct {
@@ -32,8 +21,5 @@ type UpdateClientHeaders struct {
 }
 
 func (u UpdateClientHeaders) Validate() error {
-	if err := headerTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }

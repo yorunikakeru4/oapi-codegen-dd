@@ -111,8 +111,6 @@ func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestO
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // UpdateClientRequestOptions is the options needed to make a request to UpdateClient.
 type UpdateClientRequestOptions struct {
 	Body *UpdateClientBody
@@ -157,13 +155,6 @@ func (o *UpdateClientRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type UpdateClientBody = Person
 
 type GetClientResponse struct {
@@ -186,13 +177,6 @@ func (r UpdateClientErrorResponse) Error() string {
 	return res0
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Person struct {
 	Name       string `json:"name" validate:"required"`
 	Age        *int   `json:"age,omitempty"`
@@ -201,7 +185,7 @@ type Person struct {
 
 func (p Person) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(p.Name, "required"); err != nil {
+	if err := typesValidator.Var(p.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if p.Employment != nil {
@@ -222,10 +206,7 @@ type Job struct {
 }
 
 func (j Job) Validate() error {
-	if err := schemaTypesValidate.Struct(j); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(j))
 }
 
 type UpdateClient_ErrorResponse_Data struct {
@@ -234,4 +215,11 @@ type UpdateClient_ErrorResponse_Data struct {
 
 	// Message Error message
 	Message *string `json:"message,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

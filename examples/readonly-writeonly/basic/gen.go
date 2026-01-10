@@ -9,13 +9,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type CreateUserBody struct {
 	// ID Auto-generated user ID
 	ID    *string `json:"id,omitempty"`
@@ -27,10 +20,7 @@ type CreateUserBody struct {
 }
 
 func (c CreateUserBody) Validate() error {
-	if err := bodyTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type CreateUserResponse struct {
@@ -41,13 +31,6 @@ type CreateUserResponse struct {
 
 	// CreatedAt Auto-generated timestamp
 	CreatedAt time.Time `json:"createdAt" validate:"required"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type User struct {
@@ -61,8 +44,12 @@ type User struct {
 }
 
 func (u User) Validate() error {
-	if err := schemaTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

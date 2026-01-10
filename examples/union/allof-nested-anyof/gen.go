@@ -13,13 +13,6 @@ import (
 
 type GetFooResponse = map[string]any
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Order struct {
 	Product *Order_Product1 `json:"product,omitempty"`
 }
@@ -115,10 +108,7 @@ type Base struct {
 }
 
 func (b Base) Validate() error {
-	if err := schemaTypesValidate.Struct(b); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(b))
 }
 
 type VariantA struct {
@@ -127,13 +117,6 @@ type VariantA struct {
 
 type VariantB struct {
 	Country *string `json:"country,omitempty"`
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 type Order_Product struct {
@@ -299,4 +282,11 @@ func (o *Order_Product_AllOf0_AnyOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

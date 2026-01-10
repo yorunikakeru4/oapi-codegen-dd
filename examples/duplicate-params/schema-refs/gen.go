@@ -7,13 +7,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var queryTypesValidate *validator.Validate
-
-func init() {
-	queryTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(queryTypesValidate)
-}
-
 type Headquarters = struct {
 	Name    *string `json:"name,omitempty"`
 	Phone   *string `json:"phone,omitempty"`
@@ -51,13 +44,6 @@ type UpdateOrganizationResponse struct {
 	Message *string `json:"message,omitempty"`
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Establishments_Item struct {
 	Name    *string `json:"name,omitempty"`
 	Phone   *string `json:"phone,omitempty"`
@@ -67,4 +53,11 @@ type Establishments_Item struct {
 
 type Arrangements_Item struct {
 	Name *string `json:"name,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

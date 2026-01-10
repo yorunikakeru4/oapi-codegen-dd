@@ -17,19 +17,14 @@ const (
 	ResponsePredefinedC ResponsePredefined = "C"
 )
 
-// validResponsePredefinedValues is a map of valid values for ResponsePredefined
-var validResponsePredefinedValues = map[ResponsePredefined]bool{
-	ResponsePredefinedA: true,
-	ResponsePredefinedB: true,
-	ResponsePredefinedC: true,
-}
-
 // Validate checks if the ResponsePredefined value is valid
 func (r ResponsePredefined) Validate() error {
-	if !validResponsePredefinedValues[r] {
+	switch r {
+	case ResponsePredefinedA, ResponsePredefinedB, ResponsePredefinedC:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ResponsePredefined value, got: %v", r))
 	}
-	return nil
 }
 
 type Predefined string
@@ -40,26 +35,14 @@ const (
 	PredefinedC2 Predefined = "C2"
 )
 
-// validPredefinedValues is a map of valid values for Predefined
-var validPredefinedValues = map[Predefined]bool{
-	PredefinedA2: true,
-	PredefinedB2: true,
-	PredefinedC2: true,
-}
-
 // Validate checks if the Predefined value is valid
 func (p Predefined) Validate() error {
-	if !validPredefinedValues[p] {
+	switch p {
+	case PredefinedA2, PredefinedB2, PredefinedC2:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid Predefined value, got: %v", p))
 	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type Response struct {
@@ -79,22 +62,22 @@ type Response struct {
 func (r Response) Validate() error {
 	var errors runtime.ValidationErrors
 	if r.Msn1 != nil {
-		if err := schemaTypesValidate.Var(r.Msn1, "omitempty,max=7,min=4"); err != nil {
+		if err := typesValidator.Var(r.Msn1, "omitempty,max=7,min=4"); err != nil {
 			errors = errors.Append("Msn1", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(r.MsnReqWithConstraints, "required,max=7,min=4"); err != nil {
+	if err := typesValidator.Var(r.MsnReqWithConstraints, "required,max=7,min=4"); err != nil {
 		errors = errors.Append("MsnReqWithConstraints", err)
 	}
-	if err := schemaTypesValidate.Var(r.MsnReqWithoutConstraints, "required"); err != nil {
+	if err := typesValidator.Var(r.MsnReqWithoutConstraints, "required"); err != nil {
 		errors = errors.Append("MsnReqWithoutConstraints", err)
 	}
 	if r.Msn3 != nil {
-		if err := schemaTypesValidate.Var(r.Msn3, "omitempty,gte=1,lte=100"); err != nil {
+		if err := typesValidator.Var(r.Msn3, "omitempty,gte=1,lte=100"); err != nil {
 			errors = errors.Append("Msn3", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(r.MsnFloat, "required"); err != nil {
+	if err := typesValidator.Var(r.MsnFloat, "required"); err != nil {
 		errors = errors.Append("MsnFloat", err)
 	}
 	if v, ok := any(r.UserRequired).(runtime.Validator); ok {
@@ -153,4 +136,11 @@ type MsnBool = bool
 type User struct {
 	Name *string `json:"name,omitempty"`
 	Age  *int    `json:"age,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

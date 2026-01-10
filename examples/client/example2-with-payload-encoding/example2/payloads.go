@@ -4,15 +4,7 @@ package example2
 
 import (
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 )
-
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
 
 type CreateOrderBody struct {
 	UserID     *string     `json:"user_id,omitempty"`

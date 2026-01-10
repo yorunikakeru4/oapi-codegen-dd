@@ -70,18 +70,9 @@ func (c *Client) GetClient(ctx context.Context, reqEditors ...runtime.RequestEdi
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 type GetClientResponse struct {
 	Name string `json:"name" validate:"required"`
 	Age  *int   `json:"age,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type Person struct {
@@ -90,8 +81,12 @@ type Person struct {
 }
 
 func (p Person) Validate() error {
-	if err := schemaTypesValidate.Struct(p); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(p))
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

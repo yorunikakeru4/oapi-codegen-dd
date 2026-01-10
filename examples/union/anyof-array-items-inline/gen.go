@@ -17,17 +17,14 @@ const (
 	SpecificErrorIssuesAnyOf0IssueERRORA SpecificErrorIssuesAnyOf0Issue = "ERROR_A"
 )
 
-// validSpecificErrorIssuesAnyOf0IssueValues is a map of valid values for SpecificErrorIssuesAnyOf0Issue
-var validSpecificErrorIssuesAnyOf0IssueValues = map[SpecificErrorIssuesAnyOf0Issue]bool{
-	SpecificErrorIssuesAnyOf0IssueERRORA: true,
-}
-
 // Validate checks if the SpecificErrorIssuesAnyOf0Issue value is valid
 func (s SpecificErrorIssuesAnyOf0Issue) Validate() error {
-	if !validSpecificErrorIssuesAnyOf0IssueValues[s] {
+	switch s {
+	case SpecificErrorIssuesAnyOf0IssueERRORA:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SpecificErrorIssuesAnyOf0Issue value, got: %v", s))
 	}
-	return nil
 }
 
 type SpecificErrorIssuesAnyOf0Description string
@@ -36,17 +33,14 @@ const (
 	SpecificErrorIssuesAnyOf0DescriptionThisIsErrorTypeA SpecificErrorIssuesAnyOf0Description = "This is error type A"
 )
 
-// validSpecificErrorIssuesAnyOf0DescriptionValues is a map of valid values for SpecificErrorIssuesAnyOf0Description
-var validSpecificErrorIssuesAnyOf0DescriptionValues = map[SpecificErrorIssuesAnyOf0Description]bool{
-	SpecificErrorIssuesAnyOf0DescriptionThisIsErrorTypeA: true,
-}
-
 // Validate checks if the SpecificErrorIssuesAnyOf0Description value is valid
 func (s SpecificErrorIssuesAnyOf0Description) Validate() error {
-	if !validSpecificErrorIssuesAnyOf0DescriptionValues[s] {
+	switch s {
+	case SpecificErrorIssuesAnyOf0DescriptionThisIsErrorTypeA:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SpecificErrorIssuesAnyOf0Description value, got: %v", s))
 	}
-	return nil
 }
 
 type SpecificErrorIssuesAnyOf1Issue string
@@ -55,17 +49,14 @@ const (
 	SpecificErrorIssuesAnyOf1IssueERRORB SpecificErrorIssuesAnyOf1Issue = "ERROR_B"
 )
 
-// validSpecificErrorIssuesAnyOf1IssueValues is a map of valid values for SpecificErrorIssuesAnyOf1Issue
-var validSpecificErrorIssuesAnyOf1IssueValues = map[SpecificErrorIssuesAnyOf1Issue]bool{
-	SpecificErrorIssuesAnyOf1IssueERRORB: true,
-}
-
 // Validate checks if the SpecificErrorIssuesAnyOf1Issue value is valid
 func (s SpecificErrorIssuesAnyOf1Issue) Validate() error {
-	if !validSpecificErrorIssuesAnyOf1IssueValues[s] {
+	switch s {
+	case SpecificErrorIssuesAnyOf1IssueERRORB:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SpecificErrorIssuesAnyOf1Issue value, got: %v", s))
 	}
-	return nil
 }
 
 type SpecificErrorIssuesAnyOf1Description string
@@ -74,17 +65,14 @@ const (
 	SpecificErrorIssuesAnyOf1DescriptionThisIsErrorTypeB SpecificErrorIssuesAnyOf1Description = "This is error type B"
 )
 
-// validSpecificErrorIssuesAnyOf1DescriptionValues is a map of valid values for SpecificErrorIssuesAnyOf1Description
-var validSpecificErrorIssuesAnyOf1DescriptionValues = map[SpecificErrorIssuesAnyOf1Description]bool{
-	SpecificErrorIssuesAnyOf1DescriptionThisIsErrorTypeB: true,
-}
-
 // Validate checks if the SpecificErrorIssuesAnyOf1Description value is valid
 func (s SpecificErrorIssuesAnyOf1Description) Validate() error {
-	if !validSpecificErrorIssuesAnyOf1DescriptionValues[s] {
+	switch s {
+	case SpecificErrorIssuesAnyOf1DescriptionThisIsErrorTypeB:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SpecificErrorIssuesAnyOf1Description value, got: %v", s))
 	}
-	return nil
 }
 
 type SpecificErrorIssuesAnyOf2Issue string
@@ -93,17 +81,14 @@ const (
 	SpecificErrorIssuesAnyOf2IssueERRORC SpecificErrorIssuesAnyOf2Issue = "ERROR_C"
 )
 
-// validSpecificErrorIssuesAnyOf2IssueValues is a map of valid values for SpecificErrorIssuesAnyOf2Issue
-var validSpecificErrorIssuesAnyOf2IssueValues = map[SpecificErrorIssuesAnyOf2Issue]bool{
-	SpecificErrorIssuesAnyOf2IssueERRORC: true,
-}
-
 // Validate checks if the SpecificErrorIssuesAnyOf2Issue value is valid
 func (s SpecificErrorIssuesAnyOf2Issue) Validate() error {
-	if !validSpecificErrorIssuesAnyOf2IssueValues[s] {
+	switch s {
+	case SpecificErrorIssuesAnyOf2IssueERRORC:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SpecificErrorIssuesAnyOf2Issue value, got: %v", s))
 	}
-	return nil
 }
 
 type SpecificErrorIssuesAnyOf2Description string
@@ -112,17 +97,14 @@ const (
 	SpecificErrorIssuesAnyOf2DescriptionThisIsErrorTypeC SpecificErrorIssuesAnyOf2Description = "This is error type C"
 )
 
-// validSpecificErrorIssuesAnyOf2DescriptionValues is a map of valid values for SpecificErrorIssuesAnyOf2Description
-var validSpecificErrorIssuesAnyOf2DescriptionValues = map[SpecificErrorIssuesAnyOf2Description]bool{
-	SpecificErrorIssuesAnyOf2DescriptionThisIsErrorTypeC: true,
-}
-
 // Validate checks if the SpecificErrorIssuesAnyOf2Description value is valid
 func (s SpecificErrorIssuesAnyOf2Description) Validate() error {
-	if !validSpecificErrorIssuesAnyOf2DescriptionValues[s] {
+	switch s {
+	case SpecificErrorIssuesAnyOf2DescriptionThisIsErrorTypeC:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SpecificErrorIssuesAnyOf2Description value, got: %v", s))
 	}
-	return nil
 }
 
 type CombinedErrorIssuesAnyOf0Issue string
@@ -131,17 +113,14 @@ const (
 	CombinedErrorIssuesAnyOf0IssueERRORA CombinedErrorIssuesAnyOf0Issue = "ERROR_A"
 )
 
-// validCombinedErrorIssuesAnyOf0IssueValues is a map of valid values for CombinedErrorIssuesAnyOf0Issue
-var validCombinedErrorIssuesAnyOf0IssueValues = map[CombinedErrorIssuesAnyOf0Issue]bool{
-	CombinedErrorIssuesAnyOf0IssueERRORA: true,
-}
-
 // Validate checks if the CombinedErrorIssuesAnyOf0Issue value is valid
 func (c CombinedErrorIssuesAnyOf0Issue) Validate() error {
-	if !validCombinedErrorIssuesAnyOf0IssueValues[c] {
+	switch c {
+	case CombinedErrorIssuesAnyOf0IssueERRORA:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CombinedErrorIssuesAnyOf0Issue value, got: %v", c))
 	}
-	return nil
 }
 
 type CombinedErrorIssuesAnyOf0Description string
@@ -150,17 +129,14 @@ const (
 	CombinedErrorIssuesAnyOf0DescriptionThisIsErrorTypeA CombinedErrorIssuesAnyOf0Description = "This is error type A"
 )
 
-// validCombinedErrorIssuesAnyOf0DescriptionValues is a map of valid values for CombinedErrorIssuesAnyOf0Description
-var validCombinedErrorIssuesAnyOf0DescriptionValues = map[CombinedErrorIssuesAnyOf0Description]bool{
-	CombinedErrorIssuesAnyOf0DescriptionThisIsErrorTypeA: true,
-}
-
 // Validate checks if the CombinedErrorIssuesAnyOf0Description value is valid
 func (c CombinedErrorIssuesAnyOf0Description) Validate() error {
-	if !validCombinedErrorIssuesAnyOf0DescriptionValues[c] {
+	switch c {
+	case CombinedErrorIssuesAnyOf0DescriptionThisIsErrorTypeA:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CombinedErrorIssuesAnyOf0Description value, got: %v", c))
 	}
-	return nil
 }
 
 type CombinedErrorIssuesAnyOf1Issue string
@@ -169,17 +145,14 @@ const (
 	CombinedErrorIssuesAnyOf1IssueERRORB CombinedErrorIssuesAnyOf1Issue = "ERROR_B"
 )
 
-// validCombinedErrorIssuesAnyOf1IssueValues is a map of valid values for CombinedErrorIssuesAnyOf1Issue
-var validCombinedErrorIssuesAnyOf1IssueValues = map[CombinedErrorIssuesAnyOf1Issue]bool{
-	CombinedErrorIssuesAnyOf1IssueERRORB: true,
-}
-
 // Validate checks if the CombinedErrorIssuesAnyOf1Issue value is valid
 func (c CombinedErrorIssuesAnyOf1Issue) Validate() error {
-	if !validCombinedErrorIssuesAnyOf1IssueValues[c] {
+	switch c {
+	case CombinedErrorIssuesAnyOf1IssueERRORB:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CombinedErrorIssuesAnyOf1Issue value, got: %v", c))
 	}
-	return nil
 }
 
 type CombinedErrorIssuesAnyOf1Description string
@@ -188,17 +161,14 @@ const (
 	CombinedErrorIssuesAnyOf1DescriptionThisIsErrorTypeB CombinedErrorIssuesAnyOf1Description = "This is error type B"
 )
 
-// validCombinedErrorIssuesAnyOf1DescriptionValues is a map of valid values for CombinedErrorIssuesAnyOf1Description
-var validCombinedErrorIssuesAnyOf1DescriptionValues = map[CombinedErrorIssuesAnyOf1Description]bool{
-	CombinedErrorIssuesAnyOf1DescriptionThisIsErrorTypeB: true,
-}
-
 // Validate checks if the CombinedErrorIssuesAnyOf1Description value is valid
 func (c CombinedErrorIssuesAnyOf1Description) Validate() error {
-	if !validCombinedErrorIssuesAnyOf1DescriptionValues[c] {
+	switch c {
+	case CombinedErrorIssuesAnyOf1DescriptionThisIsErrorTypeB:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CombinedErrorIssuesAnyOf1Description value, got: %v", c))
 	}
-	return nil
 }
 
 type CombinedErrorIssuesAnyOf2Issue string
@@ -207,17 +177,14 @@ const (
 	CombinedErrorIssuesAnyOf2IssueERRORC CombinedErrorIssuesAnyOf2Issue = "ERROR_C"
 )
 
-// validCombinedErrorIssuesAnyOf2IssueValues is a map of valid values for CombinedErrorIssuesAnyOf2Issue
-var validCombinedErrorIssuesAnyOf2IssueValues = map[CombinedErrorIssuesAnyOf2Issue]bool{
-	CombinedErrorIssuesAnyOf2IssueERRORC: true,
-}
-
 // Validate checks if the CombinedErrorIssuesAnyOf2Issue value is valid
 func (c CombinedErrorIssuesAnyOf2Issue) Validate() error {
-	if !validCombinedErrorIssuesAnyOf2IssueValues[c] {
+	switch c {
+	case CombinedErrorIssuesAnyOf2IssueERRORC:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CombinedErrorIssuesAnyOf2Issue value, got: %v", c))
 	}
-	return nil
 }
 
 type CombinedErrorIssuesAnyOf2Description string
@@ -226,34 +193,17 @@ const (
 	CombinedErrorIssuesAnyOf2DescriptionThisIsErrorTypeC CombinedErrorIssuesAnyOf2Description = "This is error type C"
 )
 
-// validCombinedErrorIssuesAnyOf2DescriptionValues is a map of valid values for CombinedErrorIssuesAnyOf2Description
-var validCombinedErrorIssuesAnyOf2DescriptionValues = map[CombinedErrorIssuesAnyOf2Description]bool{
-	CombinedErrorIssuesAnyOf2DescriptionThisIsErrorTypeC: true,
-}
-
 // Validate checks if the CombinedErrorIssuesAnyOf2Description value is valid
 func (c CombinedErrorIssuesAnyOf2Description) Validate() error {
-	if !validCombinedErrorIssuesAnyOf2DescriptionValues[c] {
+	switch c {
+	case CombinedErrorIssuesAnyOf2DescriptionThisIsErrorTypeC:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CombinedErrorIssuesAnyOf2Description value, got: %v", c))
 	}
-	return nil
-}
-
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
 }
 
 type TestEndpointBody = CombinedError
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type BaseError struct {
 	Name    *string           `json:"name,omitempty"`
@@ -467,13 +417,6 @@ func (c *CombinedError_Issues_Item) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 type SpecificError_Issues_AnyOf_0 struct {
@@ -943,4 +886,11 @@ func (c *CombinedError_Issues_AnyOf) UnmarshalJSON(bts []byte) error {
 	err := c.union.UnmarshalJSON(bts)
 
 	return err
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

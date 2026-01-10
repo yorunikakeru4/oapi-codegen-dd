@@ -79,12 +79,10 @@ func (o Configuration) WithDefaults() Configuration {
 
 	if o.Generate == nil {
 		o.Generate = defaults.Generate
-		if o.Generate == nil {
-			o.Generate = &GenerateOptions{
-				Client:                 defaults.Generate.Client,
-				AlwaysPrefixEnumValues: defaults.Generate.AlwaysPrefixEnumValues,
-				DefaultIntType:         defaults.Generate.DefaultIntType,
-			}
+	} else {
+		// Fill in missing Generate fields from defaults
+		if o.Generate.DefaultIntType == "" {
+			o.Generate.DefaultIntType = defaults.Generate.DefaultIntType
 		}
 	}
 
@@ -150,6 +148,16 @@ func (o Configuration) OverwriteWith(other Configuration) Configuration {
 			}
 			if other.Generate.AlwaysPrefixEnumValues {
 				o.Generate.AlwaysPrefixEnumValues = other.Generate.AlwaysPrefixEnumValues
+			}
+			// Overwrite Validation options
+			if other.Generate.Validation.Skip {
+				o.Generate.Validation.Skip = other.Generate.Validation.Skip
+			}
+			if other.Generate.Validation.Simple {
+				o.Generate.Validation.Simple = other.Generate.Validation.Simple
+			}
+			if other.Generate.Validation.Response {
+				o.Generate.Validation.Response = other.Generate.Validation.Response
 			}
 		}
 	}
@@ -243,9 +251,21 @@ type GenerateOptions struct {
 	// AlwaysPrefixEnumValues specifies whether to always prefix enum values with the schema name. Defaults to true.
 	AlwaysPrefixEnumValues bool `yaml:"always-prefix-enum-values"`
 
-	// ResponseValidators specifies whether to generate Validate() methods for response types.
+	// Validation specifies options for Validate() method generation.
+	Validation ValidationOptions `yaml:"validation"`
+}
+
+type ValidationOptions struct {
+	// Skip specifies whether to skip Validation method generation. Defaults to false.
+	Skip bool `yaml:"skip"`
+
+	// Simple specifies whether to use the simple validation approach. Defaults to false.
+	// Simple validation uses validate.Struct() for all types, whereas complex validation generates custom Validate() methods.
+	Simple bool `yaml:"simple"`
+
+	// Response specifies whether to generate Validate() methods for response types.
 	// Useful for contract testing to ensure responses match the OpenAPI spec. Defaults to false.
-	ResponseValidators bool `yaml:"response-validators"`
+	Response bool `yaml:"response"`
 }
 
 type Output struct {
@@ -267,6 +287,7 @@ func NewDefaultConfiguration() Configuration {
 		Generate: &GenerateOptions{
 			DefaultIntType:         "int",
 			AlwaysPrefixEnumValues: true,
+			Validation:             ValidationOptions{},
 		},
 		Output: &Output{
 			Directory:     ".",

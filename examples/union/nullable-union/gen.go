@@ -7,13 +7,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type PostUsersBody = User
 
 type GetUsersResponse struct {
@@ -30,13 +23,6 @@ type PostUsersResponse struct {
 	Address *Address `json:"address,omitempty"`
 	Contact *Contact `json:"contact,omitempty"`
 	ID      *string  `json:"id,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type User struct {
@@ -78,4 +64,11 @@ type Address struct {
 type Contact struct {
 	Email *string `json:"email,omitempty"`
 	Phone *string `json:"phone,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

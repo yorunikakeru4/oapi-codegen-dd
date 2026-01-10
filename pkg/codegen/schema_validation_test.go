@@ -457,12 +457,7 @@ func TestGoSchema_ValidateDecl_StructWithValidatorStruct(t *testing.T) {
 	}
 
 	result := schema.ValidateDecl("s", "validate")
-	expected := `
-		if err := validate.Struct(s); err != nil {
-			return runtime.ConvertValidatorError(err)
-		}
-		return nil
-	`
+	expected := `return runtime.ConvertValidatorError(validate.Struct(s))`
 	assertCodeEqual(t, expected, result)
 }
 
@@ -550,12 +545,7 @@ func TestGoSchema_ValidateDecl_StructWithValidationTagsProperty(t *testing.T) {
 
 	result := schema.ValidateDecl("s", "validate")
 	// Primitive types with validation tags use validate.Struct()
-	expected := `
-		if err := validate.Struct(s); err != nil {
-			return runtime.ConvertValidatorError(err)
-		}
-		return nil
-	`
+	expected := `return runtime.ConvertValidatorError(validate.Struct(s))`
 	assertCodeEqual(t, expected, result)
 }
 
@@ -579,12 +569,7 @@ func TestGoSchema_ValidateDecl_StructWithPointerValidationTagsProperty(t *testin
 
 	result := schema.ValidateDecl("s", "validate")
 	// Primitive types with validation tags use validate.Struct()
-	expected := `
-		if err := validate.Struct(s); err != nil {
-			return runtime.ConvertValidatorError(err)
-		}
-		return nil
-	`
+	expected := `return runtime.ConvertValidatorError(validate.Struct(s))`
 	assertCodeEqual(t, expected, result)
 }
 
@@ -686,12 +671,7 @@ func TestGoSchema_ValidateDecl_NoValidation(t *testing.T) {
 
 	result := schema.ValidateDecl("s", "validate")
 	// No validation tags, no RefType, so use validate.Struct()
-	expected := `
-		if err := validate.Struct(s); err != nil {
-			return runtime.ConvertValidatorError(err)
-		}
-		return nil
-	`
+	expected := `return runtime.ConvertValidatorError(validate.Struct(s))`
 	assertCodeEqual(t, expected, result)
 }
 
@@ -953,12 +933,7 @@ func TestGoSchema_ValidateDecl_NoTypeAliasDelegation_Struct(t *testing.T) {
 
 	result := schema.ValidateDecl("s", "validate")
 	// Should use validate.Struct, not delegation
-	expected := `
-		if err := validate.Struct(s); err != nil {
-			return runtime.ConvertValidatorError(err)
-		}
-		return nil
-	`
+	expected := `return runtime.ConvertValidatorError(validate.Struct(s))`
 	assertCodeEqual(t, expected, result)
 }
 

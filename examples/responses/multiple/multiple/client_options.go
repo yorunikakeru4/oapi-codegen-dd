@@ -4,10 +4,7 @@ package multiple
 
 import (
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 )
-
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
 
 // CreateBookingRequestOptions is the options needed to make a request to CreateBooking.
 type CreateBookingRequestOptions struct {

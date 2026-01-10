@@ -27,13 +27,6 @@ type TestErrorResponseJSON struct {
 	Items *Test_ErrorResponse_Items1 `json:"items,omitempty"`
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type TypeA struct {
 	A *string `json:"a,omitempty"`
 }
@@ -208,13 +201,6 @@ func (t Test_ErrorResponse_Items1) Validate() error {
 	return errors
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
 	var res T
 	err := json.Unmarshal(v, &res)
@@ -272,4 +258,11 @@ func (t *Test_ErrorResponse_Items_AnyOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

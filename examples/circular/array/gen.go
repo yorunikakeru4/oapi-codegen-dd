@@ -7,23 +7,13 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var pathTypesValidate *validator.Validate
-
-func init() {
-	pathTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(pathTypesValidate)
-}
-
 type GetNodesIDPath struct {
 	// ID The ID of the node
 	ID int `json:"id" validate:"required"`
 }
 
 func (g GetNodesIDPath) Validate() error {
-	if err := pathTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type GetNodesIDResponse struct {
@@ -32,15 +22,15 @@ type GetNodesIDResponse struct {
 	Children []Node  `json:"children,omitempty"`
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Node struct {
 	ID       *int    `json:"id,omitempty"`
 	Name     *string `json:"name,omitempty"`
 	Children []Node  `json:"children,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

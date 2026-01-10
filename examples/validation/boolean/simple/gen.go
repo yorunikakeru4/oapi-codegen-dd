@@ -7,21 +7,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type PostUsersBody = User
-
-var responseTypesValidate *validator.Validate
-
-func init() {
-	responseTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(responseTypesValidate)
-}
 
 type PostUsersResponse struct {
 	Name string `json:"name" validate:"required"`
@@ -34,17 +20,7 @@ type PostUsersResponse struct {
 }
 
 func (p PostUsersResponse) Validate() error {
-	if err := responseTypesValidate.Struct(p); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
+	return runtime.ConvertValidatorError(typesValidator.Struct(p))
 }
 
 type User struct {
@@ -58,8 +34,12 @@ type User struct {
 }
 
 func (u User) Validate() error {
-	if err := schemaTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

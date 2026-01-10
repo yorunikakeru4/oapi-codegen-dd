@@ -230,7 +230,7 @@ func genFieldsFromProperties(props []Property, options ParseOptions) []string {
 
 		fieldTags := make(map[string]string)
 
-		if len(p.Constraints.ValidationTags) > 0 {
+		if !options.SkipValidation && len(p.Constraints.ValidationTags) > 0 {
 			fieldTags["validate"] = strings.Join(c.ValidationTags, ",")
 		}
 

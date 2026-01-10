@@ -18,31 +18,19 @@ const (
 	OrgModelTypeOrganization OrgModelType = "Organization"
 )
 
-// validOrgModelTypeValues is a map of valid values for OrgModelType
-var validOrgModelTypeValues = map[OrgModelType]bool{
-	OrgModelTypeDepartment:   true,
-	OrgModelTypeDivision:     true,
-	OrgModelTypeOrganization: true,
-}
-
 // Validate checks if the OrgModelType value is valid
 func (o OrgModelType) Validate() error {
-	if !validOrgModelTypeValues[o] {
+	switch o {
+	case OrgModelTypeDepartment, OrgModelTypeDivision, OrgModelTypeOrganization:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid OrgModelType value, got: %v", o))
 	}
-	return nil
 }
 
 type AcctstructureResponse struct {
 	Response *OrgModel `json:"response,omitempty"`
 	Success  *bool     `json:"success,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type OrgByIDResponseWrapperModel struct {
@@ -92,4 +80,11 @@ func (o OrgModel) Validate() error {
 		return nil
 	}
 	return errors
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

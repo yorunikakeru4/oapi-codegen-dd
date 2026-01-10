@@ -17,17 +17,14 @@ const (
 	FileTypeFile FileType = "file"
 )
 
-// validFileTypeValues is a map of valid values for FileType
-var validFileTypeValues = map[FileType]bool{
-	FileTypeFile: true,
-}
-
 // Validate checks if the FileType value is valid
 func (f FileType) Validate() error {
-	if !validFileTypeValues[f] {
+	switch f {
+	case FileTypeFile:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid FileType value, got: %v", f))
 	}
-	return nil
 }
 
 type FolderType string
@@ -36,17 +33,14 @@ const (
 	FolderTypeFolder FolderType = "folder"
 )
 
-// validFolderTypeValues is a map of valid values for FolderType
-var validFolderTypeValues = map[FolderType]bool{
-	FolderTypeFolder: true,
-}
-
 // Validate checks if the FolderType value is valid
 func (f FolderType) Validate() error {
-	if !validFolderTypeValues[f] {
+	switch f {
+	case FolderTypeFolder:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid FolderType value, got: %v", f))
 	}
-	return nil
 }
 
 type WebLinkType string
@@ -55,17 +49,14 @@ const (
 	WebLinkTypeWebLink WebLinkType = "web_link"
 )
 
-// validWebLinkTypeValues is a map of valid values for WebLinkType
-var validWebLinkTypeValues = map[WebLinkType]bool{
-	WebLinkTypeWebLink: true,
-}
-
 // Validate checks if the WebLinkType value is valid
 func (w WebLinkType) Validate() error {
-	if !validWebLinkTypeValues[w] {
+	switch w {
+	case WebLinkTypeWebLink:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid WebLinkType value, got: %v", w))
 	}
-	return nil
 }
 
 type CollaborationRole string
@@ -76,19 +67,14 @@ const (
 	CollaborationRoleViewer CollaborationRole = "viewer"
 )
 
-// validCollaborationRoleValues is a map of valid values for CollaborationRole
-var validCollaborationRoleValues = map[CollaborationRole]bool{
-	CollaborationRoleEditor: true,
-	CollaborationRoleOwner:  true,
-	CollaborationRoleViewer: true,
-}
-
 // Validate checks if the CollaborationRole value is valid
 func (c CollaborationRole) Validate() error {
-	if !validCollaborationRoleValues[c] {
+	switch c {
+	case CollaborationRoleEditor, CollaborationRoleOwner, CollaborationRoleViewer:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CollaborationRole value, got: %v", c))
 	}
-	return nil
 }
 
 type GetCollaborationResponseRole string
@@ -99,32 +85,20 @@ const (
 	GetCollaborationResponseRoleViewer GetCollaborationResponseRole = "viewer"
 )
 
-// validGetCollaborationResponseRoleValues is a map of valid values for GetCollaborationResponseRole
-var validGetCollaborationResponseRoleValues = map[GetCollaborationResponseRole]bool{
-	GetCollaborationResponseRoleEditor: true,
-	GetCollaborationResponseRoleOwner:  true,
-	GetCollaborationResponseRoleViewer: true,
-}
-
 // Validate checks if the GetCollaborationResponseRole value is valid
 func (g GetCollaborationResponseRole) Validate() error {
-	if !validGetCollaborationResponseRoleValues[g] {
+	switch g {
+	case GetCollaborationResponseRoleEditor, GetCollaborationResponseRoleOwner, GetCollaborationResponseRoleViewer:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid GetCollaborationResponseRole value, got: %v", g))
 	}
-	return nil
 }
 
 type GetCollaborationResponse struct {
 	ID   string                           `json:"id" validate:"required"`
 	Item *GetCollaboration_Response_Item1 `json:"item,omitempty"`
 	Role *GetCollaborationResponseRole    `json:"role,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type File struct {
@@ -140,7 +114,7 @@ func (f File) Validate() error {
 			errors = errors.Append("Type", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(f.ID, "required"); err != nil {
+	if err := typesValidator.Var(f.ID, "required"); err != nil {
 		errors = errors.Append("ID", err)
 	}
 	if len(errors) == 0 {
@@ -162,7 +136,7 @@ func (f Folder) Validate() error {
 			errors = errors.Append("Type", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(f.ID, "required"); err != nil {
+	if err := typesValidator.Var(f.ID, "required"); err != nil {
 		errors = errors.Append("ID", err)
 	}
 	if len(errors) == 0 {
@@ -184,7 +158,7 @@ func (w WebLink) Validate() error {
 			errors = errors.Append("Type", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(w.ID, "required"); err != nil {
+	if err := typesValidator.Var(w.ID, "required"); err != nil {
 		errors = errors.Append("ID", err)
 	}
 	if len(errors) == 0 {
@@ -201,7 +175,7 @@ type Collaboration struct {
 
 func (c Collaboration) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(c.ID, "required"); err != nil {
+	if err := typesValidator.Var(c.ID, "required"); err != nil {
 		errors = errors.Append("ID", err)
 	}
 	if c.Item != nil {
@@ -328,13 +302,6 @@ func (g *GetCollaboration_Response_Item1) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 type Collaboration_Item struct {
@@ -854,4 +821,11 @@ func (g *GetCollaboration_Response_Item_AllOf0_OneOf) UnmarshalJSON(bts []byte) 
 	err := g.union.UnmarshalJSON(bts)
 
 	return err
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

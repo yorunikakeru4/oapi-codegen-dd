@@ -10,13 +10,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type ClientWithExtra struct {
 	ClientWithExtra_AnyOf *ClientWithExtra_AnyOf                          `json:"-"`
 	AdditionalProperties  map[string]ClientWithExtra_AdditionalProperties `json:"-"`
@@ -102,13 +95,6 @@ func (c ClientWithExtra) MarshalJSON() ([]byte, error) {
 	return json.Marshal(object)
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 type ClientWithExtra_AdditionalProperties struct {
 	Extra *string `json:"extra,omitempty"`
 }
@@ -152,4 +138,11 @@ func (c *ClientWithExtra_AnyOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

@@ -9,22 +9,12 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var pathTypesValidate *validator.Validate
-
-func init() {
-	pathTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(pathTypesValidate)
-}
-
 type GetUserPath struct {
 	ID string `json:"id" validate:"required"`
 }
 
 func (g GetUserPath) Validate() error {
-	if err := pathTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type UpdateUserPath struct {
@@ -32,17 +22,7 @@ type UpdateUserPath struct {
 }
 
 func (u UpdateUserPath) Validate() error {
-	if err := pathTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
-}
-
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 type CreateUserBody struct {
@@ -81,7 +61,7 @@ type CreateUserBody struct {
 
 func (c CreateUserBody) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := bodyTypesValidate.Var(c.Name, "required"); err != nil {
+	if err := typesValidator.Var(c.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if v, ok := any(c.Email).(runtime.Validator); ok {
@@ -89,7 +69,7 @@ func (c CreateUserBody) Validate() error {
 			errors = errors.Append("Email", err)
 		}
 	}
-	if err := bodyTypesValidate.Var(c.Password, "required"); err != nil {
+	if err := typesValidator.Var(c.Password, "required"); err != nil {
 		errors = errors.Append("Password", err)
 	}
 	if len(errors) == 0 {
@@ -134,7 +114,7 @@ type UpdateUserBody struct {
 
 func (u UpdateUserBody) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := bodyTypesValidate.Var(u.Name, "required"); err != nil {
+	if err := typesValidator.Var(u.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if v, ok := any(u.Email).(runtime.Validator); ok {
@@ -142,7 +122,7 @@ func (u UpdateUserBody) Validate() error {
 			errors = errors.Append("Email", err)
 		}
 	}
-	if err := bodyTypesValidate.Var(u.Password, "required"); err != nil {
+	if err := typesValidator.Var(u.Password, "required"); err != nil {
 		errors = errors.Append("Password", err)
 	}
 	if len(errors) == 0 {
@@ -255,13 +235,6 @@ type UpdateUserResponse struct {
 	LastLogin *time.Time `json:"lastLogin,omitempty"`
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type User struct {
 	// ID Auto-generated user ID. This is readOnly AND required.
 	// - In request bodies (POST, PATCH): should be optional (pointer with omitempty)
@@ -298,10 +271,10 @@ type User struct {
 
 func (u User) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(u.ID, "required"); err != nil {
+	if err := typesValidator.Var(u.ID, "required"); err != nil {
 		errors = errors.Append("ID", err)
 	}
-	if err := schemaTypesValidate.Var(u.Name, "required"); err != nil {
+	if err := typesValidator.Var(u.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if v, ok := any(u.Email).(runtime.Validator); ok {
@@ -309,14 +282,21 @@ func (u User) Validate() error {
 			errors = errors.Append("Email", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(u.Password, "required"); err != nil {
+	if err := typesValidator.Var(u.Password, "required"); err != nil {
 		errors = errors.Append("Password", err)
 	}
-	if err := schemaTypesValidate.Var(u.CreatedAt, "required"); err != nil {
+	if err := typesValidator.Var(u.CreatedAt, "required"); err != nil {
 		errors = errors.Append("CreatedAt", err)
 	}
 	if len(errors) == 0 {
 		return nil
 	}
 	return errors
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

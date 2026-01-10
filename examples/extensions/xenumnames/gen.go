@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
+	"github.com/go-playground/validator/v10"
 )
 
 type ClientType string
@@ -15,18 +16,14 @@ const (
 	EXP ClientType = "EXP"
 )
 
-// validClientTypeValues is a map of valid values for ClientType
-var validClientTypeValues = map[ClientType]bool{
-	ACT: true,
-	EXP: true,
-}
-
 // Validate checks if the ClientType value is valid
 func (c ClientType) Validate() error {
-	if !validClientTypeValues[c] {
+	switch c {
+	case ACT, EXP:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ClientType value, got: %v", c))
 	}
-	return nil
 }
 
 type ClientTypeWithNamesExtension string
@@ -36,16 +33,19 @@ const (
 	Expired ClientTypeWithNamesExtension = "EXP"
 )
 
-// validClientTypeWithNamesExtensionValues is a map of valid values for ClientTypeWithNamesExtension
-var validClientTypeWithNamesExtensionValues = map[ClientTypeWithNamesExtension]bool{
-	Active:  true,
-	Expired: true,
-}
-
 // Validate checks if the ClientTypeWithNamesExtension value is valid
 func (c ClientTypeWithNamesExtension) Validate() error {
-	if !validClientTypeWithNamesExtensionValues[c] {
+	switch c {
+	case Active, Expired:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ClientTypeWithNamesExtension value, got: %v", c))
 	}
-	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

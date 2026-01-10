@@ -16,18 +16,14 @@ const (
 	OrderDirectionDesc OrderDirection = "desc"
 )
 
-// validOrderDirectionValues is a map of valid values for OrderDirection
-var validOrderDirectionValues = map[OrderDirection]bool{
-	OrderDirectionAsc:  true,
-	OrderDirectionDesc: true,
-}
-
 // Validate checks if the OrderDirection value is valid
 func (o OrderDirection) Validate() error {
-	if !validOrderDirectionValues[o] {
+	switch o {
+	case OrderDirectionAsc, OrderDirectionDesc:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid OrderDirection value, got: %v", o))
 	}
-	return nil
 }
 
 type Priority string
@@ -38,19 +34,14 @@ const (
 	PriorityMedium Priority = "medium"
 )
 
-// validPriorityValues is a map of valid values for Priority
-var validPriorityValues = map[Priority]bool{
-	PriorityHigh:   true,
-	PriorityLow:    true,
-	PriorityMedium: true,
-}
-
 // Validate checks if the Priority value is valid
 func (p Priority) Validate() error {
-	if !validPriorityValues[p] {
+	switch p {
+	case PriorityHigh, PriorityLow, PriorityMedium:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid Priority value, got: %v", p))
 	}
-	return nil
 }
 
 type StatusCode int
@@ -61,19 +52,14 @@ const (
 	StatusCodeN500 StatusCode = 500
 )
 
-// validStatusCodeValues is a map of valid values for StatusCode
-var validStatusCodeValues = map[StatusCode]bool{
-	StatusCodeN200: true,
-	StatusCodeN404: true,
-	StatusCodeN500: true,
-}
-
 // Validate checks if the StatusCode value is valid
 func (s StatusCode) Validate() error {
-	if !validStatusCodeValues[s] {
+	switch s {
+	case StatusCodeN200, StatusCodeN404, StatusCodeN500:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid StatusCode value, got: %v", s))
 	}
-	return nil
 }
 
 type Color string
@@ -84,26 +70,14 @@ const (
 	ColorRed   Color = "red"
 )
 
-// validColorValues is a map of valid values for Color
-var validColorValues = map[Color]bool{
-	ColorBlue:  true,
-	ColorGreen: true,
-	ColorRed:   true,
-}
-
 // Validate checks if the Color value is valid
 func (c Color) Validate() error {
-	if !validColorValues[c] {
+	switch c {
+	case ColorBlue, ColorGreen, ColorRed:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid Color value, got: %v", c))
 	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type TestObject struct {
@@ -147,4 +121,11 @@ func (t TestObject) Validate() error {
 		return nil
 	}
 	return errors
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

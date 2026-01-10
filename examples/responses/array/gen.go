@@ -71,16 +71,7 @@ func (c *Client) GetFiles(ctx context.Context, reqEditors ...runtime.RequestEdit
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 type GetFilesResponse GetFiles_Response
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type VariantA struct {
 	A *string `json:"a,omitempty"`
@@ -167,13 +158,6 @@ func (g *GetFiles_Response_Item) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 type GetFiles_Response_OneOf_0 struct {
 	A *string `json:"a,omitempty"`
 	B *string `json:"b,omitempty"`
@@ -218,4 +202,11 @@ func (g *GetFiles_Response_OneOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

@@ -72,8 +72,6 @@ func (c *Client) GetTest1(ctx context.Context, options *GetTest1RequestOptions, 
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // GetTest1RequestOptions is the options needed to make a request to GetTest1.
 type GetTest1RequestOptions struct {
 	Query *GetTestQuery
@@ -118,13 +116,6 @@ func (o *GetTest1RequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var queryTypesValidate *validator.Validate
-
-func init() {
-	queryTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(queryTypesValidate)
-}
-
 type GetTestQuery struct {
 	QueryParam *string `json:"query_param,omitempty"`
 }
@@ -132,13 +123,6 @@ type GetTestQuery struct {
 type GetTestResponse struct {
 	Message *string                `json:"message,omitempty"`
 	Options *GetTestRequestOptions `json:"options,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type TestResponse struct {
@@ -163,4 +147,11 @@ func (t TestResponse) Validate() error {
 
 type GetTestRequestOptions struct {
 	Collision *string `json:"collision,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

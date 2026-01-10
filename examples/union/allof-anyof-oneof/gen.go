@@ -19,29 +19,17 @@ const (
 	OrderStatusShipped   OrderStatus = "shipped"
 )
 
-// validOrderStatusValues is a map of valid values for OrderStatus
-var validOrderStatusValues = map[OrderStatus]bool{
-	OrderStatusConfirmed: true,
-	OrderStatusPending:   true,
-	OrderStatusShipped:   true,
-}
-
 // Validate checks if the OrderStatus value is valid
 func (o OrderStatus) Validate() error {
-	if !validOrderStatusValues[o] {
+	switch o {
+	case OrderStatusConfirmed, OrderStatusPending, OrderStatusShipped:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid OrderStatus value, got: %v", o))
 	}
-	return nil
 }
 
 type GetFooResponse = map[string]any
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type Order struct {
 	Status *OrderStatus  `json:"status,omitempty"`
@@ -79,10 +67,10 @@ type Order_Client struct {
 
 func (o Order_Client) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(o.Name, "required"); err != nil {
+	if err := typesValidator.Var(o.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
-	if err := schemaTypesValidate.Var(o.ID, "required"); err != nil {
+	if err := typesValidator.Var(o.ID, "required"); err != nil {
 		errors = errors.Append("ID", err)
 	}
 	if o.Order_Client_AnyOf != nil {
@@ -176,10 +164,7 @@ type Client struct {
 }
 
 func (c Client) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type Identity struct {
@@ -187,10 +172,7 @@ type Identity struct {
 }
 
 func (i Identity) Validate() error {
-	if err := schemaTypesValidate.Struct(i); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(i))
 }
 
 type Verification struct {
@@ -204,13 +186,6 @@ type Address struct {
 
 type Location struct {
 	Description *string `json:"description,omitempty"`
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -270,4 +245,11 @@ func (o *Order_Client_OneOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

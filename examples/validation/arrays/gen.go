@@ -11,13 +11,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Users []Users_Item
 
 func (u Users) Validate() error {
@@ -224,13 +217,6 @@ type User struct {
 	Age  *int    `json:"age,omitempty"`
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 type Nested_Entity_OneOf_1 struct {
 	Name *Nested_Entity_OneOf_1_Name `json:"name,omitempty"`
 }
@@ -284,7 +270,7 @@ func (u *Users_OneOf) Validate() error {
 		}
 	}
 	if u.IsB() {
-		if err := unionTypesValidate.Var(u.B, "min=3"); err != nil {
+		if err := typesValidator.Var(u.B, "min=3"); err != nil {
 			return err
 		}
 	}
@@ -417,12 +403,12 @@ func (n *Nested_Entity_OneOf_1_Name_OneOf) FromUser(val User) error {
 
 // validateInt validates a int value
 func (n *Nested_Entity_OneOf_1_Name_OneOf) validateInt(val int) error {
-	return unionTypesValidate.Var(val, "gte=1")
+	return typesValidator.Var(val, "gte=1")
 }
 
 // validateString validates a string value
 func (n *Nested_Entity_OneOf_1_Name_OneOf) validateString(val string) error {
-	return unionTypesValidate.Var(val, "min=3")
+	return typesValidator.Var(val, "min=3")
 }
 
 // validateUser validates a User value
@@ -443,4 +429,11 @@ func (n *Nested_Entity_OneOf_1_Name_OneOf) UnmarshalJSON(bts []byte) error {
 	err := n.union.UnmarshalJSON(bts)
 
 	return err
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

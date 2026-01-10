@@ -228,7 +228,8 @@ func TestIntegration(t *testing.T) {
 			configContent := `package: integration
 generate:
   client: true
-  response-validators: true
+  validation:
+    response: true
 client:
   name: IntegrationClient
 output:

@@ -74,8 +74,6 @@ func (c *Client) PostPayments(ctx context.Context, options *PostPaymentsRequestO
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // PostPaymentsRequestOptions is the options needed to make a request to PostPayments.
 type PostPaymentsRequestOptions struct {
 	Body *PostPaymentsBody
@@ -120,23 +118,9 @@ func (o *PostPaymentsRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type PostPaymentsBody = Purchase
 
 type PostPaymentsResponse = string
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type Purchase struct {
 	User *User `json:"user,omitempty"`
@@ -159,4 +143,11 @@ func (p Purchase) Validate() error {
 
 type User struct {
 	Name *string `json:"name,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

@@ -10,13 +10,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Items []any
 
 type Location map[string]any
@@ -289,10 +282,7 @@ type UserProfile struct {
 }
 
 func (u UserProfile) Validate() error {
-	if err := schemaTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 type TagsWithLength map[string]string
@@ -300,7 +290,7 @@ type TagsWithLength map[string]string
 func (t TagsWithLength) Validate() error {
 	var errors runtime.ValidationErrors
 	for k, v := range t {
-		if err := schemaTypesValidate.Var(v, "omitempty,max=50,min=1"); err != nil {
+		if err := typesValidator.Var(v, "omitempty,max=50,min=1"); err != nil {
 			errors = errors.Append(k, err)
 		}
 	}
@@ -324,7 +314,7 @@ func (t TagsWithBothConstraints) Validate() error {
 		errors = errors.Add("Map", fmt.Sprintf("must have at most 5 properties, got %d", len(t)))
 	}
 	for k, v := range t {
-		if err := schemaTypesValidate.Var(v, "omitempty,max=50,min=1"); err != nil {
+		if err := typesValidator.Var(v, "omitempty,max=50,min=1"); err != nil {
 			errors = errors.Append(k, err)
 		}
 	}
@@ -332,13 +322,6 @@ func (t TagsWithBothConstraints) Validate() error {
 		return nil
 	}
 	return errors
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 type Pick1_AdditionalProperties struct {
@@ -367,10 +350,7 @@ type UsersWithRequiredFields_AdditionalProperties struct {
 }
 
 func (u UsersWithRequiredFields_AdditionalProperties) Validate() error {
-	if err := unionTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -412,4 +392,11 @@ func (p *Pick1_AdditionalProperties_OneOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

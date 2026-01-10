@@ -17,26 +17,14 @@ const (
 	ProductVariationsC ProductVariations = "C"
 )
 
-// validProductVariationsValues is a map of valid values for ProductVariations
-var validProductVariationsValues = map[ProductVariations]bool{
-	ProductVariationsA: true,
-	ProductVariationsB: true,
-	ProductVariationsC: true,
-}
-
 // Validate checks if the ProductVariations value is valid
 func (p ProductVariations) Validate() error {
-	if !validProductVariationsValues[p] {
+	switch p {
+	case ProductVariationsA, ProductVariationsB, ProductVariationsC:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ProductVariations value, got: %v", p))
 	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type Product struct {
@@ -56,4 +44,11 @@ func (p Product) Validate() error {
 		return nil
 	}
 	return errors
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

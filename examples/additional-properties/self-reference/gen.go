@@ -12,14 +12,14 @@ type GetTestResponse struct {
 	HourlyBreakDown map[string]AggregatedResult `json:"hourlyBreakDown,omitempty"`
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type AggregatedResult struct {
 	TotalClicks     *int                        `json:"totalClicks,omitempty"`
 	HourlyBreakDown map[string]AggregatedResult `json:"hourlyBreakDown,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

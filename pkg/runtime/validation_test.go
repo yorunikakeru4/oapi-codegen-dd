@@ -94,10 +94,16 @@ func TestConvertValidatorError(t *testing.T) {
 		assert.Nil(t, result)
 	})
 
-	t.Run("returns ValidationError as-is", func(t *testing.T) {
+	t.Run("converts ValidationError to ValidationErrors", func(t *testing.T) {
 		ve := NewValidationError("field", "message")
 		result := ConvertValidatorError(ve)
-		assert.Equal(t, ve, result)
+
+		// Should be converted to ValidationErrors for consistency
+		ves, ok := result.(ValidationErrors)
+		require.True(t, ok, "expected ValidationErrors")
+		require.Len(t, ves, 1)
+		assert.Equal(t, "field", ves[0].Field)
+		assert.Equal(t, "message", ves[0].Message)
 	})
 
 	t.Run("returns ValidationErrors as-is", func(t *testing.T) {
@@ -109,18 +115,20 @@ func TestConvertValidatorError(t *testing.T) {
 		assert.Equal(t, ves, result)
 	})
 
-	t.Run("handles wrapped ValidationError", func(t *testing.T) {
+	t.Run("converts wrapped ValidationError to ValidationErrors", func(t *testing.T) {
 		ve := NewValidationError("field", "message")
 		wrapped := fmt.Errorf("wrapped: %w", ve)
 
 		result := ConvertValidatorError(wrapped)
 
-		assert.Equal(t, wrapped, result)
-
-		var unwrapped ValidationError
-		assert.True(t, errors.As(result, &unwrapped))
-		assert.Equal(t, "field", unwrapped.Field)
-		assert.Equal(t, "message", unwrapped.Message)
+		// Should be converted to ValidationErrors for consistency
+		ves, ok := result.(ValidationErrors)
+		require.True(t, ok, "expected ValidationErrors")
+		require.Len(t, ves, 1)
+		// The wrapped error message becomes the message
+		assert.Contains(t, ves[0].Message, "wrapped")
+		assert.Contains(t, ves[0].Message, "field")
+		assert.Contains(t, ves[0].Message, "message")
 	})
 
 	t.Run("handles wrapped ValidationErrors", func(t *testing.T) {
@@ -186,7 +194,7 @@ func TestConvertValidatorError(t *testing.T) {
 		assert.Equal(t, genericErr, ves[0].Err)
 	})
 
-	t.Run("handles deeply wrapped ValidationError", func(t *testing.T) {
+	t.Run("converts deeply wrapped ValidationError to ValidationErrors", func(t *testing.T) {
 		ve := NewValidationError("field", "message")
 		wrapped1 := fmt.Errorf("layer1: %w", ve)
 		wrapped2 := fmt.Errorf("layer2: %w", wrapped1)
@@ -194,11 +202,14 @@ func TestConvertValidatorError(t *testing.T) {
 
 		result := ConvertValidatorError(wrapped3)
 
-		assert.Equal(t, wrapped3, result)
-
-		var unwrapped ValidationError
-		assert.True(t, errors.As(result, &unwrapped))
-		assert.Equal(t, "field", unwrapped.Field)
+		// Should be converted to ValidationErrors for consistency
+		ves, ok := result.(ValidationErrors)
+		require.True(t, ok, "expected ValidationErrors")
+		require.Len(t, ves, 1)
+		// The wrapped error message becomes the message
+		assert.Contains(t, ves[0].Message, "layer3")
+		assert.Contains(t, ves[0].Message, "layer2")
+		assert.Contains(t, ves[0].Message, "layer1")
 	})
 
 	t.Run("handles deeply wrapped ValidationErrors", func(t *testing.T) {

@@ -7,39 +7,15 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var pathTypesValidate *validator.Validate
-
-func init() {
-	pathTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(pathTypesValidate)
-}
-
 type PostBillingPortalConfigurationsConfigurationPath struct {
 	Configuration string `json:"configuration" validate:"required"`
 }
 
 func (p PostBillingPortalConfigurationsConfigurationPath) Validate() error {
-	if err := pathTypesValidate.Struct(p); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
-}
-
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
+	return runtime.ConvertValidatorError(typesValidator.Struct(p))
 }
 
 type PostUsersBody = User
-
-var responseTypesValidate *validator.Validate
-
-func init() {
-	responseTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(responseTypesValidate)
-}
 
 type PostUsersResponse struct {
 	Name string `json:"name" validate:"required"`
@@ -52,10 +28,7 @@ type PostUsersResponse struct {
 }
 
 func (p PostUsersResponse) Validate() error {
-	if err := responseTypesValidate.Struct(p); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(p))
 }
 
 type PostBillingPortalConfigurationsConfigurationResponse struct {
@@ -75,13 +48,6 @@ func (p PostBillingPortalConfigurationsConfigurationResponse) Validate() error {
 	return errors
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type User struct {
 	Name string `json:"name" validate:"required"`
 
@@ -93,10 +59,7 @@ type User struct {
 }
 
 func (u User) Validate() error {
-	if err := schemaTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 type PortalFeatures struct {
@@ -119,4 +82,11 @@ func (p PortalFeatures) Validate() error {
 type PortalInvoiceList struct {
 	// Enabled Whether invoice history is enabled
 	Enabled bool `json:"enabled"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

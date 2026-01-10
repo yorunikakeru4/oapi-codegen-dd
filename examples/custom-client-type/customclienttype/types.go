@@ -4,23 +4,12 @@ package customclienttype
 
 import (
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 )
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type Client struct {
 	Name string `json:"name" validate:"required"`
 }
 
 func (c Client) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }

@@ -7,13 +7,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Client struct {
 	Name         string               `json:"name" validate:"required"`
 	ComplexField *Client_ComplexField `json:"complexField,omitempty"`
@@ -21,7 +14,7 @@ type Client struct {
 
 func (c Client) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(c.Name, "required"); err != nil {
+	if err := typesValidator.Var(c.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if c.ComplexField != nil {
@@ -49,7 +42,7 @@ type ClientWithExtension struct {
 
 func (c ClientWithExtension) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(c.Name, "required"); err != nil {
+	if err := typesValidator.Var(c.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if c.ComplexField != nil {
@@ -68,4 +61,11 @@ func (c ClientWithExtension) Validate() error {
 type ClientWithExtension_ComplexField struct {
 	Name        *string `json:"name,omitempty"`
 	AccountName *string `json:"accountName,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

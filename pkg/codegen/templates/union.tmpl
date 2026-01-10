@@ -60,7 +60,7 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
         {{- $tagsB := filterOmitEmpty $elementB.Schema.Constraints.ValidationTags }}
         if {{$alias}}.IsA() {
             {{- if gt (len $tagsA) 0 }}
-            if err := unionTypesValidate.Var({{$alias}}.A, "{{join "," $tagsA}}"); err != nil {
+            if err := typesValidator.Var({{$alias}}.A, "{{join "," $tagsA}}"); err != nil {
                 return err
             }
             {{- else }}
@@ -71,7 +71,7 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
         }
         if {{$alias}}.IsB() {
             {{- if gt (len $tagsB) 0 }}
-            if err := unionTypesValidate.Var({{$alias}}.B, "{{join "," $tagsB}}"); err != nil {
+            if err := typesValidator.Var({{$alias}}.B, "{{join "," $tagsB}}"); err != nil {
                 return err
             }
             {{- else }}
@@ -152,7 +152,7 @@ func marshalJSONWithDiscriminator(data []byte, field, value string) ([]byte, err
         {{- if gt (len $tags) 0 }}
         // validate{{.Method}} validates a {{.TypeName}} value
         func ({{$alias}} *{{$typeName}}) validate{{.Method}}(val {{.TypeName}}) error {
-            return unionTypesValidate.Var(val, "{{join "," $tags}}")
+            return typesValidator.Var(val, "{{join "," $tags}}")
         }
         {{- else }}
         // validate{{.Method}} validates a {{.TypeName}} value

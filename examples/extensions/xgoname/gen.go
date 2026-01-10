@@ -72,8 +72,6 @@ func (c *CustomClientName) CreateClient(ctx context.Context, options *CreateClie
 
 var _ CustomClientNameInterface = (*CustomClientName)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // CreateClientRequestOptions is the options needed to make a request to CreateClient.
 type CreateClientRequestOptions struct {
 	Body *CreateClientBody
@@ -118,25 +116,11 @@ func (o *CreateClientRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type CreateClientBody = ClientRenamedByExtension
 
 type CreateClientResponse struct {
 	Name              string   `json:"name" validate:"required"`
 	AccountIdentifier *float32 `json:"id,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type Client struct {
@@ -145,10 +129,7 @@ type Client struct {
 }
 
 func (c Client) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type ClientRenamedByExtension struct {
@@ -157,8 +138,12 @@ type ClientRenamedByExtension struct {
 }
 
 func (c ClientRenamedByExtension) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

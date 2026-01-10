@@ -12,13 +12,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Response struct {
 	User   Response_User    `json:"user"`
 	Friend *Response_Friend `json:"friend,omitempty"`
@@ -163,7 +156,7 @@ func (p Payload) Validate() error {
 			errors = errors.Append("User", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(p.CreatedAt, "required"); err != nil {
+	if err := typesValidator.Var(p.CreatedAt, "required"); err != nil {
 		errors = errors.Append("CreatedAt", err)
 	}
 	if len(errors) == 0 {
@@ -230,13 +223,6 @@ type User struct {
 	Age  *int    `json:"age,omitempty"`
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
 	var res T
 	err := json.Unmarshal(v, &res)
@@ -271,7 +257,7 @@ func (r *Response_User_OneOf) Validate() error {
 		}
 	}
 	if r.IsB() {
-		if err := unionTypesValidate.Var(r.B, "min=3"); err != nil {
+		if err := typesValidator.Var(r.B, "min=3"); err != nil {
 			return err
 		}
 	}
@@ -394,12 +380,12 @@ func (r *Response_Friend_AnyOf) validateUser(val User) error {
 
 // validateString validates a string value
 func (r *Response_Friend_AnyOf) validateString(val string) error {
-	return unionTypesValidate.Var(val, "min=3")
+	return typesValidator.Var(val, "min=3")
 }
 
 // validateInt validates a int value
 func (r *Response_Friend_AnyOf) validateInt(val int) error {
-	return unionTypesValidate.Var(val, "gte=1")
+	return typesValidator.Var(val, "gte=1")
 }
 
 func (r Response_Friend_AnyOf) MarshalJSON() ([]byte, error) {
@@ -425,9 +411,16 @@ func (p *Payload_User_OneOf) Validate() error {
 		}
 	}
 	if p.IsB() {
-		if err := unionTypesValidate.Var(p.B, "min=10"); err != nil {
+		if err := typesValidator.Var(p.B, "min=10"); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

@@ -76,8 +76,6 @@ func (c *Client) GetOrder(ctx context.Context, options *GetOrderRequestOptions, 
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // GetOrderRequestOptions is the options needed to make a request to GetOrder.
 type GetOrderRequestOptions struct {
 	PathParams *GetOrderPath
@@ -131,29 +129,12 @@ func (o *GetOrderRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var pathTypesValidate *validator.Validate
-
-func init() {
-	pathTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(pathTypesValidate)
-}
-
 type GetOrderPath struct {
 	ID string `json:"id" validate:"required"`
 }
 
 func (g GetOrderPath) Validate() error {
-	if err := pathTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
-}
-
-var queryTypesValidate *validator.Validate
-
-func init() {
-	queryTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(queryTypesValidate)
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type GetOrderQuery struct {
@@ -162,3 +143,10 @@ type GetOrderQuery struct {
 }
 
 type GetOrderResponse = map[string]any
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
+}

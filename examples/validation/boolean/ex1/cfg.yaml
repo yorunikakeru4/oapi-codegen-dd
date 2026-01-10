@@ -2,4 +2,5 @@
 package: gen
 skip-prune: true
 generate:
-  response-validators: true
+  validation:
+    response: true

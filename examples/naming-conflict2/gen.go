@@ -16,18 +16,14 @@ const (
 	SourceTypeAlipay2           SourceType = "alipay"
 )
 
-// validSourceTypeValues is a map of valid values for SourceType
-var validSourceTypeValues = map[SourceType]bool{
-	SourceTypeACHCreditTransfer: true,
-	SourceTypeAlipay2:           true,
-}
-
 // Validate checks if the SourceType value is valid
 func (s SourceType) Validate() error {
-	if !validSourceTypeValues[s] {
+	switch s {
+	case SourceTypeACHCreditTransfer, SourceTypeAlipay2:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SourceType value, got: %v", s))
 	}
-	return nil
 }
 
 type PaymentSourceType string
@@ -37,25 +33,14 @@ const (
 	PaymentSourceTypeAlipay            PaymentSourceType = "alipay"
 )
 
-// validPaymentSourceTypeValues is a map of valid values for PaymentSourceType
-var validPaymentSourceTypeValues = map[PaymentSourceType]bool{
-	PaymentSourceTypeACHCreditTransfer: true,
-	PaymentSourceTypeAlipay:            true,
-}
-
 // Validate checks if the PaymentSourceType value is valid
 func (p PaymentSourceType) Validate() error {
-	if !validPaymentSourceTypeValues[p] {
+	switch p {
+	case PaymentSourceTypeACHCreditTransfer, PaymentSourceTypeAlipay:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid PaymentSourceType value, got: %v", p))
 	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type Payment struct {
@@ -102,4 +87,11 @@ type SourceTypeAlipay struct {
 	DataString          *string `json:"data_string,omitempty"`
 	NativeURL           *string `json:"native_url,omitempty"`
 	StatementDescriptor *string `json:"statement_descriptor,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

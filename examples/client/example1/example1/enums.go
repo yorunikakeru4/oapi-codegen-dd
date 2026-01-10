@@ -15,18 +15,14 @@ const (
 	ClientTypeTypeIndividual ClientTypeType = "individual"
 )
 
-// validClientTypeTypeValues is a map of valid values for ClientTypeType
-var validClientTypeTypeValues = map[ClientTypeType]bool{
-	ClientTypeTypeCompany:    true,
-	ClientTypeTypeIndividual: true,
-}
-
 // Validate checks if the ClientTypeType value is valid
 func (c ClientTypeType) Validate() error {
-	if !validClientTypeTypeValues[c] {
+	switch c {
+	case ClientTypeTypeCompany, ClientTypeTypeIndividual:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ClientTypeType value, got: %v", c))
 	}
-	return nil
 }
 
 type GetClientResponseType string
@@ -36,16 +32,12 @@ const (
 	GetClientResponseTypeIndividual GetClientResponseType = "individual"
 )
 
-// validGetClientResponseTypeValues is a map of valid values for GetClientResponseType
-var validGetClientResponseTypeValues = map[GetClientResponseType]bool{
-	GetClientResponseTypeCompany:    true,
-	GetClientResponseTypeIndividual: true,
-}
-
 // Validate checks if the GetClientResponseType value is valid
 func (g GetClientResponseType) Validate() error {
-	if !validGetClientResponseTypeValues[g] {
+	switch g {
+	case GetClientResponseTypeCompany, GetClientResponseTypeIndividual:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid GetClientResponseType value, got: %v", g))
 	}
-	return nil
 }

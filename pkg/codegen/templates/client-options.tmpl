@@ -16,9 +16,8 @@ limitations under the License.
 
 {{- template "header" $ }}
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 {{range .Operations}}{{$op := .}}
+{{ $skipValidation := $.Config.Generate.Validation.Skip }}
 
 {{ if $op.HasRequestOptions }}
 // {{$op.ID | ucFirst}}RequestOptions is the options needed to make a request to {{$op.ID}}.
@@ -40,6 +39,7 @@ type {{$op.ID | ucFirst}}RequestOptions struct {
     {{ end -}}
 }
 
+{{ if not $skipValidation }}
 // Validate validates all the fields in the options.
 // Use it if fields validation was not run.
 func (o *{{$op.ID | ucFirst}}RequestOptions) Validate() error {
@@ -91,6 +91,7 @@ func (o *{{$op.ID | ucFirst}}RequestOptions) Validate() error {
 
     return errors
 }
+{{ end }}
 
 // GetPathParams returns the path params as a map.
 func (o *{{$op.ID | ucFirst}}RequestOptions) GetPathParams() (map[string]any, error) {

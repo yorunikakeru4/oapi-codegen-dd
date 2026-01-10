@@ -8,23 +8,13 @@ import (
 	googleuuid "github.com/google/uuid"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Client struct {
 	Name string   `json:"name" validate:"required"`
 	ID   *float32 `json:"id,omitempty"`
 }
 
 func (c Client) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type ClientWithExtension struct {
@@ -43,4 +33,11 @@ func (c ClientWithExtension) Validate() error {
 		return nil
 	}
 	return errors
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

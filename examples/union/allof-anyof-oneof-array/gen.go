@@ -11,13 +11,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type CreateUserBody struct {
 	User  *CreateUserBody_User  `json:"user,omitempty"`
 	Pages *CreateUserBody_Pages `json:"pages,omitempty"`
@@ -45,23 +38,13 @@ func (c CreateUserBody) Validate() error {
 	return errors
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type CreateUserBody_User struct {
 	ID    int      `json:"id" validate:"required,gte=1,lte=999999"`
 	Score *float32 `json:"score,omitempty" validate:"omitempty,gte=0,lte=100"`
 }
 
 func (c CreateUserBody_User) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type CreateUserBody_Pages []CreateUserBody_Pages_Item
@@ -94,16 +77,16 @@ type CreateUserBody_Pages_Item struct {
 
 func (c CreateUserBody_Pages_Item) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(c.Limit, "required,gte=1,lte=1000"); err != nil {
+	if err := typesValidator.Var(c.Limit, "required,gte=1,lte=1000"); err != nil {
 		errors = errors.Append("Limit", err)
 	}
 	if c.Tag1 != nil {
-		if err := schemaTypesValidate.Var(c.Tag1, "omitempty,max=50"); err != nil {
+		if err := typesValidator.Var(c.Tag1, "omitempty,max=50"); err != nil {
 			errors = errors.Append("Tag1", err)
 		}
 	}
 	if c.Tag2 != nil {
-		if err := schemaTypesValidate.Var(c.Tag2, "omitempty,max=100,min=1"); err != nil {
+		if err := typesValidator.Var(c.Tag2, "omitempty,max=100,min=1"); err != nil {
 			errors = errors.Append("Tag2", err)
 		}
 	}
@@ -193,22 +176,12 @@ func (c *CreateUserBody_Pages_Item) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 type CreateUserBody_Pages_AnyOf_0 struct {
 	Offset int `json:"offset" validate:"required,gte=0"`
 }
 
 func (c CreateUserBody_Pages_AnyOf_0) Validate() error {
-	if err := unionTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type CreateUserBody_Pages_AnyOf_1 struct {
@@ -216,10 +189,7 @@ type CreateUserBody_Pages_AnyOf_1 struct {
 }
 
 func (c CreateUserBody_Pages_AnyOf_1) Validate() error {
-	if err := unionTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type CreateUserBody_Pages_OneOf_0 struct {
@@ -228,10 +198,7 @@ type CreateUserBody_Pages_OneOf_0 struct {
 }
 
 func (c CreateUserBody_Pages_OneOf_0) Validate() error {
-	if err := unionTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type CreateUserBody_Pages_OneOf_1 struct {
@@ -239,10 +206,7 @@ type CreateUserBody_Pages_OneOf_1 struct {
 }
 
 func (c CreateUserBody_Pages_OneOf_1) Validate() error {
-	if err := unionTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -302,4 +266,11 @@ func (c *CreateUserBody_Pages_OneOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

@@ -49,6 +49,7 @@ type ParseOptions struct {
 	OmitDescription        bool
 	DefaultIntType         string
 	AlwaysPrefixEnumValues bool
+	SkipValidation         bool
 
 	// runtime options
 	currentTypes map[string]TypeDefinition
@@ -109,8 +110,10 @@ type EnumContext struct {
 
 // TplTypeContext is the context passed to templates to generate code for type definitions.
 type TplTypeContext struct {
-	Types          []TypeDefinition
-	TypeSchemaMap  map[string]GoSchema // Map of type names to schemas for cross-referencing
+	Types []TypeDefinition
+
+	// Map of type names to schemas for cross-referencing
+	TypeSchemaMap  map[string]GoSchema
 	Imports        []string
 	SpecLocation   string
 	Config         Configuration
@@ -173,6 +176,19 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 			return nil, fmt.Errorf("error generating code for header: %w", err)
 		}
 		typesOut["header"] = out
+
+		// Generate validator declaration for single file mode
+		if !p.cfg.Generate.Validation.Skip {
+			out, err := p.ParseTemplates([]string{"common.tmpl"}, EnumContext{
+				Imports:    p.ctx.Imports,
+				Config:     p.cfg,
+				WithHeader: false,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("error generating code for validator: %w", err)
+			}
+			typesOut["validator"] = out
+		}
 	}
 
 	if len(p.ctx.Operations) > 0 && p.cfg.Generate.Client {
@@ -196,6 +212,23 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 			}
 			typesOut[strcase.ToSnake(tmpl)] = formatted
 		}
+	}
+
+	// Generate validator file if validation is not skipped and not using single file
+	if !useSingleFile && !p.cfg.Generate.Validation.Skip {
+		out, err := p.ParseTemplates([]string{"common.tmpl"}, EnumContext{
+			Imports:    p.ctx.Imports,
+			Config:     p.cfg,
+			WithHeader: withHeader,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error generating code for validator: %w", err)
+		}
+		formatted, err := FormatCode(out)
+		if err != nil {
+			return nil, err
+		}
+		typesOut["common"] = formatted
 	}
 
 	if len(p.ctx.Enums) > 0 {

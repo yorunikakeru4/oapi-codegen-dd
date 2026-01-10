@@ -7,29 +7,12 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var pathTypesValidate *validator.Validate
-
-func init() {
-	pathTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(pathTypesValidate)
-}
-
 type PostBillingPortalConfigurationsConfigurationPath struct {
 	Configuration string `json:"configuration" validate:"required"`
 }
 
 func (p PostBillingPortalConfigurationsConfigurationPath) Validate() error {
-	if err := pathTypesValidate.Struct(p); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
-}
-
-var responseTypesValidate *validator.Validate
-
-func init() {
-	responseTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(responseTypesValidate)
+	return runtime.ConvertValidatorError(typesValidator.Struct(p))
 }
 
 type PostBillingPortalConfigurationsConfigurationResponse struct {
@@ -47,13 +30,6 @@ func (p PostBillingPortalConfigurationsConfigurationResponse) Validate() error {
 		return nil
 	}
 	return errors
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type PortalFeatures struct {
@@ -77,4 +53,11 @@ func (p PortalFeatures) Validate() error {
 type PortalInvoiceList struct {
 	// Enabled Whether invoice history is enabled
 	Enabled bool `json:"enabled"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

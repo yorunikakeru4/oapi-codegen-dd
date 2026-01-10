@@ -15,16 +15,12 @@ const (
 	Individual ClientTypeType = "individual"
 )
 
-// validClientTypeTypeValues is a map of valid values for ClientTypeType
-var validClientTypeTypeValues = map[ClientTypeType]bool{
-	Company:    true,
-	Individual: true,
-}
-
 // Validate checks if the ClientTypeType value is valid
 func (c ClientTypeType) Validate() error {
-	if !validClientTypeTypeValues[c] {
+	switch c {
+	case Company, Individual:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ClientTypeType value, got: %v", c))
 	}
-	return nil
 }

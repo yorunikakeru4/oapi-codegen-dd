@@ -8,15 +8,7 @@ import (
 	"fmt"
 
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 )
-
-var responseTypesValidate *validator.Validate
-
-func init() {
-	responseTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(responseTypesValidate)
-}
 
 type GetUserSingleResponse struct {
 	ID      string  `json:"id" validate:"required"`
@@ -25,10 +17,7 @@ type GetUserSingleResponse struct {
 }
 
 func (g GetUserSingleResponse) Validate() error {
-	if err := responseTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type GetUserUnion1Response = User

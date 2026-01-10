@@ -11,21 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type ProcessPaymentBody = Payload
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type Payload struct {
 	Payload_OneOf *Payload_OneOf `json:"-"`
@@ -90,13 +76,6 @@ type PayloadB struct {
 
 type PayloadC struct {
 	C *string `json:"c,omitempty"`
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -262,4 +241,11 @@ func (p *Payload_OneOf) UnmarshalJSON(bts []byte) error {
 	err := p.union.UnmarshalJSON(bts)
 
 	return err
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

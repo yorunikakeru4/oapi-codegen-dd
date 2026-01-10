@@ -4,16 +4,8 @@ package multiple
 
 import (
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type LinksSelf struct {
 	Self *string `json:"self,omitempty"`

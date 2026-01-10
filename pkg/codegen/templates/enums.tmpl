@@ -17,6 +17,8 @@ limitations under the License.
 {{- template "header" $ }}
 
 {{- $root := . }}
+{{- $skipValidation := .Config.Generate.Validation.Skip }}
+{{- $simpleValidation := .Config.Generate.Validation.Simple }}
 {{range $Enum := .Enums}}
   {{- $alias := $Enum.Name | fst | lower }}
   {{- if and $Enum.Schema.Description (not $root.Config.Generate.OmitDescription)}}{{ toGoComment $Enum.Schema.Description $Enum.Name }}{{- end}}
@@ -30,18 +32,15 @@ limitations under the License.
       {{- end}}
     )
 
-    // valid{{$Enum.Name}}Values is a map of valid values for {{$Enum.Name}}
-    var valid{{$Enum.Name}}Values = map[{{$Enum.Name}}]bool{
-      {{- range $safeName := $safeNames}}
-        {{$safeName}}: true,
-      {{- end}}
-    }
-
+    {{ if and (not $skipValidation) (not $simpleValidation) }}
     // Validate checks if the {{$Enum.Name}} value is valid
     func ({{$alias}} {{$Enum.Name}}) Validate() error {
-        if !valid{{$Enum.Name}}Values[{{$alias}}] {
+        switch {{$alias}} {
+        case {{range $i, $safeName := $safeNames}}{{if $i}}, {{end}}{{$safeName}}{{end}}:
+            return nil
+        default:
             return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid {{$Enum.Name}} value, got: %v", {{$alias}}))
         }
-        return nil
     }
+    {{ end }}
 {{end}}

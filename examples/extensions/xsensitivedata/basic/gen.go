@@ -13,13 +13,6 @@ import (
 
 type GetUsersResponse []User
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type User struct {
 	ID         int64   `json:"id" validate:"required"`
 	Username   string  `json:"username" validate:"required"`
@@ -30,10 +23,7 @@ type User struct {
 }
 
 func (u User) Validate() error {
-	if err := schemaTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 func (u User) MarshalJSON() ([]byte, error) {
@@ -127,4 +117,11 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

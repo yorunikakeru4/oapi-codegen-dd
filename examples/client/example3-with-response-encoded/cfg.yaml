@@ -5,4 +5,5 @@ output:
 generate:
   client: true
   omit-description: true
-  response-validators: true
+  validation:
+    response: true

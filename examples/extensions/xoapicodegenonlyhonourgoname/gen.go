@@ -7,15 +7,15 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 // TypeWithUnexportedField A struct will be output where one of the fields is not exported
 type TypeWithUnexportedField struct {
 	Name              *string `json:"name,omitempty"`
 	accountIdentifier *string `json:"-"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

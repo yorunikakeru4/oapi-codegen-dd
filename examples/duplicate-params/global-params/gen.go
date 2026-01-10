@@ -7,13 +7,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var queryTypesValidate *validator.Validate
-
-func init() {
-	queryTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(queryTypesValidate)
-}
-
 type GetItemsQuery struct {
 	// Filter Filter items (first definition - string)
 	Filter *string `json:"filter,omitempty"`
@@ -26,4 +19,11 @@ type CreateItemQuery struct {
 
 type GetItemsResponse struct {
 	Items []string `json:"items,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

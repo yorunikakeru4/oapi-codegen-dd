@@ -11,13 +11,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Order struct {
 	Product     *Order_Product     `json:"product,omitempty"`
 	Description *Order_Description `json:"description,omitempty"`
@@ -295,13 +288,6 @@ type VersionD = string
 
 type VersionE = string
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 type Order_Product_OneOf_3 struct {
 	Description *Order_Product_OneOf_3_Description `json:"description,omitempty"`
 }
@@ -576,4 +562,11 @@ func (o *Order_Images_OneOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

@@ -79,8 +79,6 @@ func (c *Client) GetFiles(ctx context.Context, reqEditors ...runtime.RequestEdit
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 type InvalidRequestError struct {
 	ErrorData *ErrorData `json:"error,omitempty"`
 }
@@ -105,13 +103,6 @@ type GetFilesResponse struct {
 
 type GetFilesErrorResponse = InvalidRequestError
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Files struct {
 	Name *string `json:"name,omitempty"`
 }
@@ -126,8 +117,12 @@ type ErrorData struct {
 }
 
 func (e ErrorData) Validate() error {
-	if err := schemaTypesValidate.Struct(e); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(e))
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

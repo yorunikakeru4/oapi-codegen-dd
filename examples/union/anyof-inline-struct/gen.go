@@ -11,13 +11,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type UpdateConfigBody struct {
 	Config *UpdateConfigBody_Config `json:"config,omitempty"`
 }
@@ -72,13 +65,6 @@ type CreateFirewallResponse struct {
 	ID    *string                        `json:"id,omitempty"`
 	Name  *string                        `json:"name,omitempty"`
 	Rules *CreateFirewall_Response_Rules `json:"rules,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type GetConfig_Response_Config struct {
@@ -208,13 +194,6 @@ type CreateFirewall_Response_Rules_Item struct {
 	Port     *int    `json:"port,omitempty"`
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 type GetConfig_Response_Config_AnyOf_0 struct {
 	// BackupHour The hour of day (in UTC) when backup starts
 	BackupHour *int `json:"backup_hour,omitempty" validate:"omitempty,gte=0,lte=23"`
@@ -224,10 +203,7 @@ type GetConfig_Response_Config_AnyOf_0 struct {
 }
 
 func (g GetConfig_Response_Config_AnyOf_0) Validate() error {
-	if err := unionTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type GetConfig_Response_Config_AnyOf_1 struct {
@@ -236,10 +212,7 @@ type GetConfig_Response_Config_AnyOf_1 struct {
 }
 
 func (g GetConfig_Response_Config_AnyOf_1) Validate() error {
-	if err := unionTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type GetConfig_Response_Config_AnyOf_2 struct {
@@ -256,10 +229,7 @@ type UpdateConfigBody_Config_AnyOf_0 struct {
 }
 
 func (u UpdateConfigBody_Config_AnyOf_0) Validate() error {
-	if err := unionTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 type UpdateConfigBody_Config_AnyOf_1 struct {
@@ -268,10 +238,7 @@ type UpdateConfigBody_Config_AnyOf_1 struct {
 }
 
 func (u UpdateConfigBody_Config_AnyOf_1) Validate() error {
-	if err := unionTypesValidate.Struct(u); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
 }
 
 type UpdateConfigBody_Config_AnyOf_2 struct {
@@ -584,4 +551,11 @@ func (u *UpdateConfigBody_Config_AnyOf) UnmarshalJSON(bts []byte) error {
 	err := u.union.UnmarshalJSON(bts)
 
 	return err
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

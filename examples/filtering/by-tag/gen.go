@@ -105,19 +105,10 @@ func (c *Client) GetPurchase(ctx context.Context, reqEditors ...runtime.RequestE
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 type GetPurchasesResponse []Purchase
 
 type GetPurchaseResponse struct {
 	ID int `json:"id" validate:"required"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type Purchase struct {
@@ -125,8 +116,12 @@ type Purchase struct {
 }
 
 func (p Purchase) Validate() error {
-	if err := schemaTypesValidate.Struct(p); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(p))
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

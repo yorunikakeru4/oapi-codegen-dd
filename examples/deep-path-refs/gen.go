@@ -180,8 +180,6 @@ func (c *Client) CreateEvent(ctx context.Context, options *CreateEventRequestOpt
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // GetUserRequestOptions is the options needed to make a request to GetUser.
 type GetUserRequestOptions struct {
 	PathParams *GetUserPath
@@ -314,22 +312,12 @@ func (o *CreateEventRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var pathTypesValidate *validator.Validate
-
-func init() {
-	pathTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(pathTypesValidate)
-}
-
 type GetUserPath struct {
 	ID string `json:"id" validate:"required"`
 }
 
 func (g GetUserPath) Validate() error {
-	if err := pathTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type GetPostPath struct {
@@ -337,17 +325,7 @@ type GetPostPath struct {
 }
 
 func (g GetPostPath) Validate() error {
-	if err := pathTypesValidate.Struct(g); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
-}
-
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
 }
 
 type CreateEventBody struct {
@@ -410,13 +388,6 @@ type ListCommentsResponse ListComments_Response
 type CreateEventResponse struct {
 	ID     *string `json:"id,omitempty"`
 	Status *string `json:"status,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type GetUser_Response_Metadata struct {
@@ -504,4 +475,11 @@ func (l ListComments_Response_Item) Validate() error {
 type CreateEventBody_Metadata struct {
 	Tags  []string `json:"tags,omitempty"`
 	Score *int     `json:"score,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

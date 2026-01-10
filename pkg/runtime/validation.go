@@ -73,11 +73,6 @@ func ConvertValidatorError(err error) error {
 		return err
 	}
 
-	var ve ValidationError
-	if errors.As(err, &ve) {
-		return err
-	}
-
 	// Use the existing NewValidationErrorsFromError which handles validator errors properly
 	return NewValidationErrorsFromError(err)
 }

@@ -16,25 +16,14 @@ const (
 	TypeSourceType Type = "source_type"
 )
 
-// validTypeValues is a map of valid values for Type
-var validTypeValues = map[Type]bool{
-	TypeDebit:      true,
-	TypeSourceType: true,
-}
-
 // Validate checks if the Type value is valid
 func (t Type) Validate() error {
-	if !validTypeValues[t] {
+	switch t {
+	case TypeDebit, TypeSourceType:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid Type value, got: %v", t))
 	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type Source struct {
@@ -59,4 +48,11 @@ func (s Source) Validate() error {
 type SourceType struct {
 	Name    *string `json:"name,omitempty"`
 	Address *string `json:"address,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

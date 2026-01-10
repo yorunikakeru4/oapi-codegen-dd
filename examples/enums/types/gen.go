@@ -17,19 +17,14 @@ const (
 	StatusCodeN500 StatusCode = 500
 )
 
-// validStatusCodeValues is a map of valid values for StatusCode
-var validStatusCodeValues = map[StatusCode]bool{
-	StatusCodeN200: true,
-	StatusCodeN404: true,
-	StatusCodeN500: true,
-}
-
 // Validate checks if the StatusCode value is valid
 func (s StatusCode) Validate() error {
-	if !validStatusCodeValues[s] {
+	switch s {
+	case StatusCodeN200, StatusCodeN404, StatusCodeN500:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid StatusCode value, got: %v", s))
 	}
-	return nil
 }
 
 type Priority float32
@@ -40,19 +35,14 @@ const (
 	PriorityN50 Priority = 5.0
 )
 
-// validPriorityValues is a map of valid values for Priority
-var validPriorityValues = map[Priority]bool{
-	PriorityN10: true,
-	PriorityN25: true,
-	PriorityN50: true,
-}
-
 // Validate checks if the Priority value is valid
 func (p Priority) Validate() error {
-	if !validPriorityValues[p] {
+	switch p {
+	case PriorityN10, PriorityN25, PriorityN50:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid Priority value, got: %v", p))
 	}
-	return nil
 }
 
 type Color string
@@ -63,26 +53,14 @@ const (
 	ColorRed   Color = "red"
 )
 
-// validColorValues is a map of valid values for Color
-var validColorValues = map[Color]bool{
-	ColorBlue:  true,
-	ColorGreen: true,
-	ColorRed:   true,
-}
-
 // Validate checks if the Color value is valid
 func (c Color) Validate() error {
-	if !validColorValues[c] {
+	switch c {
+	case ColorBlue, ColorGreen, ColorRed:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid Color value, got: %v", c))
 	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type TestObject struct {
@@ -145,4 +123,11 @@ func (t TestObjectRequired) Validate() error {
 		return nil
 	}
 	return errors
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

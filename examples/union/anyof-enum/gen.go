@@ -19,29 +19,17 @@ const (
 	RenderingOptionsAnyOf0AmountTaxDisplayIncludeInclusiveTax RenderingOptionsAnyOf0AmountTaxDisplay = "include_inclusive_tax"
 )
 
-// validRenderingOptionsAnyOf0AmountTaxDisplayValues is a map of valid values for RenderingOptionsAnyOf0AmountTaxDisplay
-var validRenderingOptionsAnyOf0AmountTaxDisplayValues = map[RenderingOptionsAnyOf0AmountTaxDisplay]bool{
-	RenderingOptionsAnyOf0AmountTaxDisplayEmpty:               true,
-	RenderingOptionsAnyOf0AmountTaxDisplayExcludeTax:          true,
-	RenderingOptionsAnyOf0AmountTaxDisplayIncludeInclusiveTax: true,
-}
-
 // Validate checks if the RenderingOptionsAnyOf0AmountTaxDisplay value is valid
 func (r RenderingOptionsAnyOf0AmountTaxDisplay) Validate() error {
-	if !validRenderingOptionsAnyOf0AmountTaxDisplayValues[r] {
+	switch r {
+	case RenderingOptionsAnyOf0AmountTaxDisplayEmpty, RenderingOptionsAnyOf0AmountTaxDisplayExcludeTax, RenderingOptionsAnyOf0AmountTaxDisplayIncludeInclusiveTax:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid RenderingOptionsAnyOf0AmountTaxDisplay value, got: %v", r))
 	}
-	return nil
 }
 
 type GetFooResponse = map[string]any
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type Rendering struct {
 	Options *Rendering_Options `json:"options,omitempty"`
@@ -115,13 +103,6 @@ func (r *Rendering_Options) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
-
 type Rendering_Options_AnyOf_0 struct {
 	AmountTaxDisplay *RenderingOptionsAnyOf0AmountTaxDisplay `json:"amount_tax_display,omitempty"`
 	Template         *string                                 `json:"template,omitempty" validate:"omitempty,max=5000"`
@@ -137,7 +118,7 @@ func (r Rendering_Options_AnyOf_0) Validate() error {
 		}
 	}
 	if r.Template != nil {
-		if err := unionTypesValidate.Var(r.Template, "omitempty,max=5000"); err != nil {
+		if err := typesValidator.Var(r.Template, "omitempty,max=5000"); err != nil {
 			errors = errors.Append("Template", err)
 		}
 	}
@@ -186,4 +167,11 @@ func (r *Rendering_Options_AnyOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

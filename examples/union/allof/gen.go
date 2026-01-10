@@ -9,13 +9,6 @@ import (
 
 type GetFooResponse = map[string]any
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Order struct {
 	Client  *Order_Client `json:"client,omitempty"`
 	Address *string       `json:"address,omitempty"`
@@ -43,10 +36,7 @@ type Order_Client struct {
 }
 
 func (o Order_Client) Validate() error {
-	if err := schemaTypesValidate.Struct(o); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(o))
 }
 
 type Identity struct {
@@ -55,13 +45,17 @@ type Identity struct {
 }
 
 func (i Identity) Validate() error {
-	if err := schemaTypesValidate.Struct(i); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(i))
 }
 
 type Verification struct {
 	Same     *int    `json:"same,omitempty"`
 	Verifier *string `json:"verifier,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

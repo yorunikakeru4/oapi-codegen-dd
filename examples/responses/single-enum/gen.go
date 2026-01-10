@@ -15,17 +15,14 @@ const (
 	ProcessPaymentErrorResponseTextInternalServerError ProcessPaymentErrorResponseText = "Internal Server Error"
 )
 
-// validProcessPaymentErrorResponseTextValues is a map of valid values for ProcessPaymentErrorResponseText
-var validProcessPaymentErrorResponseTextValues = map[ProcessPaymentErrorResponseText]bool{
-	ProcessPaymentErrorResponseTextInternalServerError: true,
-}
-
 // Validate checks if the ProcessPaymentErrorResponseText value is valid
 func (p ProcessPaymentErrorResponseText) Validate() error {
-	if !validProcessPaymentErrorResponseTextValues[p] {
+	switch p {
+	case ProcessPaymentErrorResponseTextInternalServerError:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ProcessPaymentErrorResponseText value, got: %v", p))
 	}
-	return nil
 }
 
 type ProcessPaymentErrorResponse string
@@ -34,24 +31,21 @@ const (
 	ProcessPaymentErrorResponseInternalServerError ProcessPaymentErrorResponse = "Internal Server Error"
 )
 
-// validProcessPaymentErrorResponseValues is a map of valid values for ProcessPaymentErrorResponse
-var validProcessPaymentErrorResponseValues = map[ProcessPaymentErrorResponse]bool{
-	ProcessPaymentErrorResponseInternalServerError: true,
-}
-
 // Validate checks if the ProcessPaymentErrorResponse value is valid
 func (p ProcessPaymentErrorResponse) Validate() error {
-	if !validProcessPaymentErrorResponseValues[p] {
+	switch p {
+	case ProcessPaymentErrorResponseInternalServerError:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ProcessPaymentErrorResponse value, got: %v", p))
 	}
-	return nil
-}
-
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
 }
 
 type ProcessPaymentBody = map[string]any
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
+}

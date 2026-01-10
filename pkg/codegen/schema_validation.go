@@ -43,7 +43,7 @@ func returnNilIfEmptyErrors() string {
 }
 
 func returnNilIfNoError(validatorVar, alias string) string {
-	return fmt.Sprintf("if err := %s.Struct(%s); err != nil {\n    return runtime.ConvertValidatorError(err)\n}\nreturn nil", validatorVar, alias)
+	return fmt.Sprintf("return runtime.ConvertValidatorError(%s.Struct(%s))", validatorVar, alias)
 }
 
 func delegateToValidator(castExpr string) string {
@@ -59,6 +59,17 @@ func declareErrorsVar() string {
 // The alias parameter is the receiver variable name (e.g., "p" for "func (p Person) Validate()").
 // The validatorVar parameter is the name of the validator variable to use (e.g., "bodyTypesValidate").
 func (s GoSchema) ValidateDecl(alias string, validatorVar string) string {
+	return s.ValidateDeclWithOptions(alias, validatorVar, false)
+}
+
+// ValidateDeclWithOptions generates the body of the Validate() method for this schema with options.
+// The forceSimple parameter forces the use of simple validation (validate.Struct()) even for complex types.
+func (s GoSchema) ValidateDeclWithOptions(alias string, validatorVar string, forceSimple bool) string {
+	// If forceSimple is true, always use simple validation for structs
+	if forceSimple && s.isStructType() {
+		return s.generateSimpleStructValidation(alias, validatorVar)
+	}
+
 	// OPTIMIZATION: If this is a struct with no unions anywhere in its tree,
 	// AND no properties need custom validation (like RefTypes),
 	// we can use the simple validate.Struct() approach instead of custom validation.
@@ -387,6 +398,12 @@ func (s GoSchema) generateCustomPropertyValidation(alias, validatorVar string) s
 }
 
 // Helper predicates
+
+// isStructType checks if this schema represents a struct type
+func (s GoSchema) isStructType() bool {
+	typeDecl := s.TypeDecl()
+	return strings.HasPrefix(typeDecl, "struct") && len(s.Properties) > 0
+}
 
 // canUseSimpleStructValidation checks if we can use the optimized validator.Struct() approach
 func (s GoSchema) canUseSimpleStructValidation() bool {

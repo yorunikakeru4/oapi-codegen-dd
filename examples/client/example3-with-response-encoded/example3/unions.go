@@ -7,15 +7,7 @@ import (
 	"fmt"
 
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 )
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
-}
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
 	var res T

@@ -12,23 +12,9 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type CreatePointBody = PointRequest
 
 type CreatePointResponse = map[string]any
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type PointRequest struct {
 	Location PointRequestOneOf `json:"location"`
@@ -122,10 +108,7 @@ type DistanceBasedLocation struct {
 }
 
 func (d DistanceBasedLocation) Validate() error {
-	if err := schemaTypesValidate.Struct(d); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(d))
 }
 
 type TimeInterval struct {
@@ -204,10 +187,7 @@ type AbsoluteTimeRange struct {
 }
 
 func (a AbsoluteTimeRange) Validate() error {
-	if err := schemaTypesValidate.Struct(a); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(a))
 }
 
 type RelativeTimeDuration struct {
@@ -215,17 +195,7 @@ type RelativeTimeDuration struct {
 }
 
 func (r RelativeTimeDuration) Validate() error {
-	if err := schemaTypesValidate.Struct(r); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
+	return runtime.ConvertValidatorError(typesValidator.Struct(r))
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -285,4 +255,11 @@ func (t *TimeIntervalType_OneOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

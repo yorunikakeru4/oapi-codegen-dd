@@ -4,15 +4,7 @@ package example1
 
 import (
 	"github.com/doordash/oapi-codegen-dd/v3/pkg/runtime"
-	"github.com/go-playground/validator/v10"
 )
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type ClientType struct {
 	Name string          `json:"name" validate:"required"`
@@ -21,7 +13,7 @@ type ClientType struct {
 
 func (c ClientType) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(c.Name, "required"); err != nil {
+	if err := typesValidator.Var(c.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if c.Type != nil {

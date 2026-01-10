@@ -9,24 +9,10 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type ApplyFilterBody = FilterRequest
 
 type ApplyFilterResponse struct {
 	Result *string `json:"result,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type FilterRequest struct {
@@ -113,4 +99,11 @@ func (e Expressions) Validate() error {
 type DimensionValues struct {
 	Key    *string  `json:"Key,omitempty"`
 	Values []string `json:"Values,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

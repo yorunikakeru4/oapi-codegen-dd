@@ -74,8 +74,6 @@ func (c *Client) CreatePayment(ctx context.Context, options *CreatePaymentReques
 
 var _ ClientInterface = (*Client)(nil)
 
-var clientOptionsValidate = validator.New(validator.WithRequiredStructEnabled())
-
 // CreatePaymentRequestOptions is the options needed to make a request to CreatePayment.
 type CreatePaymentRequestOptions struct {
 	Body *CreatePaymentBody
@@ -120,25 +118,11 @@ func (o *CreatePaymentRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 // CreatePaymentBody The `CreatePaymentRequest` object.
 type CreatePaymentBody = CreatePaymentRequest
 
 type Payment struct {
 	ResponsePaymentID *string `json:"responsePaymentId,omitempty"`
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 // CreatePaymentRequest The `CreatePaymentRequest` object.
@@ -150,4 +134,11 @@ type CreatePaymentRequest struct {
 // CreatePaymentResponse Schema for The `CreatePaymentResponse` object.
 type CreatePaymentResponse struct {
 	RedirectURL *string `json:"redirectUrl,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

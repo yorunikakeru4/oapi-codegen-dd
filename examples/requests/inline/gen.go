@@ -11,13 +11,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type ProcessPaymentBody struct {
 	A *string                `json:"a,omitempty"`
 	B *string                `json:"b,omitempty"`
@@ -45,13 +38,6 @@ func (p ProcessPaymentBody) Validate() error {
 		return nil
 	}
 	return errors
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type ProcessPaymentBody_C struct {
@@ -158,13 +144,6 @@ func (p *ProcessPaymentBody_D1) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 type ProcessPaymentBody_D struct {
@@ -527,4 +506,11 @@ func (p *ProcessPaymentBody_D_AllOf0_OneOf_0_AnyOf) UnmarshalJSON(bts []byte) er
 	err := p.union.UnmarshalJSON(bts)
 
 	return err
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

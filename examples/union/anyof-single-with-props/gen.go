@@ -16,35 +16,17 @@ const (
 	INVALIDREQUEST SpecificIssueCode = "INVALID_REQUEST"
 )
 
-// validSpecificIssueCodeValues is a map of valid values for SpecificIssueCode
-var validSpecificIssueCodeValues = map[SpecificIssueCode]bool{
-	BUSINESSERROR:  true,
-	INVALIDREQUEST: true,
-}
-
 // Validate checks if the SpecificIssueCode value is valid
 func (s SpecificIssueCode) Validate() error {
-	if !validSpecificIssueCodeValues[s] {
+	switch s {
+	case BUSINESSERROR, INVALIDREQUEST:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid SpecificIssueCode value, got: %v", s))
 	}
-	return nil
-}
-
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
 }
 
 type TestEndpointBody = CombinedError
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
 
 type BaseError struct {
 	Name    *string       `json:"name,omitempty"`
@@ -86,4 +68,11 @@ type CombinedError struct {
 	Name    *string         `json:"name,omitempty"`
 	Message *string         `json:"message,omitempty"`
 	Issues  []SpecificIssue `json:"issues,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

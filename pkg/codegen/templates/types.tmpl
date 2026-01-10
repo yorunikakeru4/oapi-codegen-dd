@@ -16,19 +16,6 @@ limitations under the License.
 
 {{- template "header" $ }}
 
-{{ $isParam := or (eq .SpecLocation "path") (eq .SpecLocation "query") (eq .SpecLocation "header") (eq .SpecLocation "body") (eq .SpecLocation "schema") (eq .SpecLocation "union") }}
-{{ $isResponse := eq .SpecLocation "response" }}
-{{ $needsValidator := or $isParam (and $isResponse .Config.Generate.ResponseValidators) }}
-{{ $loc := str .SpecLocation }}
-{{ if $needsValidator }}
-var {{.SpecLocation}}TypesValidate *validator.Validate
-
-func init() {
-	{{.SpecLocation}}TypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc({{.SpecLocation}}TypesValidate)
-}
-{{ end -}}
-
 {{- define "typeDef" -}}
 {{ $td := .type }}
 {{ $config := .config }}
@@ -37,10 +24,12 @@ func init() {
 {{ $typeSchemaMap := .typeSchemaMap }}
 {{ $isParam := or (eq $loc "path") (eq $loc "query") (eq $loc "header") (eq $loc "body") (eq $loc "schema") (eq $loc "union") }}
 {{ $isResponse := eq $loc "response" }}
-{{ $shouldValidate := or $isParam (and $isResponse $config.Generate.ResponseValidators) }}
+{{ $skipValidation := $config.Generate.Validation.Skip }}
+{{ $shouldValidate := and (not $skipValidation) (or $isParam (and $isResponse $config.Generate.Validation.Response)) }}
 {{ $alias := .alias }}
 {{ if not $alias}}{{ $alias = $td.Name | fst | lower }}{{ end }}
-{{ $validatorVar := printf "%sTypesValidate" $loc }}
+{{ $validatorVar := "typesValidator" }}
+{{ $forceSimple := $config.Generate.Validation.Simple }}
 
     {{ if not $config.Generate.OmitDescription}}{{ toGoComment $td.Schema.Description $td.Name }}{{ end }}
     type {{$td.Name}} {{if $td.IsAlias}}={{end}} {{$td.Schema.TypeDecl}}
@@ -48,7 +37,7 @@ func init() {
     {{ if $shouldValidate }}
     {{ if and (not $td.IsAlias) (not $td.Schema.UnionElements) (not $td.Schema.IsAnyType) $td.Schema.NeedsValidation }}
     func ({{$alias}} {{$td.Name}}) Validate() error {
-        {{ $td.Schema.ValidateDecl $alias $validatorVar }}
+        {{ $td.Schema.ValidateDeclWithOptions $alias $validatorVar $forceSimple }}
     }
     {{ end }}
     {{ end -}}
@@ -195,6 +184,7 @@ func init() {
 {{ $config := .Config }}
 {{ $responseErrors := .ResponseErrors }}
 {{ $typeSchemaMap := .TypeSchemaMap }}
+{{ $loc := .SpecLocation }}
 
 {{- range .Types}}{{ $td := . }}
 {{ if not $td.Schema.UnionElements }}

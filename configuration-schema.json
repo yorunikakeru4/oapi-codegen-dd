@@ -102,9 +102,9 @@
             "type": "boolean",
             "description": "AlwaysPrefixEnumValues specifies whether to always prefix enum values with the schema name. Defaults to true."
         },
-        "response-validators": {
-            "type": "boolean",
-            "description": "ResponseValidators specifies whether to generate Validate() methods for response types. Useful for contract testing. Defaults to false."
+        "validation": {
+          "$ref": "#/definitions/ValidationOptions",
+          "description": "Validation specifies options for Validate() method generation."
         }
       },
       "required": []
@@ -197,6 +197,25 @@
         "timeout": {
           "type": "string",
           "description": "Timeout for the generated client."
+        }
+      },
+      "required": []
+    },
+    "ValidationOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skip": {
+          "type": "boolean",
+          "description": "Skip specifies whether to skip Validation method generation. Defaults to false."
+        },
+        "simple": {
+          "type": "boolean",
+          "description": "Simple specifies whether to use the simple validation approach. Defaults to false. Simple validation uses validate.Struct() for all types, whereas complex validation generates custom Validate() methods."
+        },
+        "response": {
+          "type": "boolean",
+          "description": "Response specifies whether to generate Validate() methods for response types. Useful for contract testing to ensure responses match the OpenAPI spec. Defaults to false."
         }
       },
       "required": []

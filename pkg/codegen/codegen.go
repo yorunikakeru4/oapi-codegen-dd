@@ -78,6 +78,7 @@ func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 		OmitDescription:        cfg.Generate.OmitDescription,
 		DefaultIntType:         cfg.Generate.DefaultIntType,
 		AlwaysPrefixEnumValues: cfg.Generate.AlwaysPrefixEnumValues,
+		SkipValidation:         cfg.Generate.Validation.Skip,
 		currentTypes:           map[string]TypeDefinition{},
 		visited:                map[string]bool{},
 	}

@@ -20,19 +20,14 @@ const (
 	ClientAndMaybeIdentityTypeIdentity     ClientAndMaybeIdentityType = "identity"
 )
 
-// validClientAndMaybeIdentityTypeValues is a map of valid values for ClientAndMaybeIdentityType
-var validClientAndMaybeIdentityTypeValues = map[ClientAndMaybeIdentityType]bool{
-	ClientAndMaybeIdentityTypeClient:       true,
-	ClientAndMaybeIdentityTypeClientWithID: true,
-	ClientAndMaybeIdentityTypeIdentity:     true,
-}
-
 // Validate checks if the ClientAndMaybeIdentityType value is valid
 func (c ClientAndMaybeIdentityType) Validate() error {
-	if !validClientAndMaybeIdentityTypeValues[c] {
+	switch c {
+	case ClientAndMaybeIdentityTypeClient, ClientAndMaybeIdentityTypeClientWithID, ClientAndMaybeIdentityTypeIdentity:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid ClientAndMaybeIdentityType value, got: %v", c))
 	}
-	return nil
 }
 
 type DogType string
@@ -41,17 +36,14 @@ const (
 	DogTypeDog DogType = "dog"
 )
 
-// validDogTypeValues is a map of valid values for DogType
-var validDogTypeValues = map[DogType]bool{
-	DogTypeDog: true,
-}
-
 // Validate checks if the DogType value is valid
 func (d DogType) Validate() error {
-	if !validDogTypeValues[d] {
+	switch d {
+	case DogTypeDog:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid DogType value, got: %v", d))
 	}
-	return nil
 }
 
 type CatType string
@@ -60,17 +52,14 @@ const (
 	CatTypeCat CatType = "cat"
 )
 
-// validCatTypeValues is a map of valid values for CatType
-var validCatTypeValues = map[CatType]bool{
-	CatTypeCat: true,
-}
-
 // Validate checks if the CatType value is valid
 func (c CatType) Validate() error {
-	if !validCatTypeValues[c] {
+	switch c {
+	case CatTypeCat:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CatType value, got: %v", c))
 	}
-	return nil
 }
 
 type GetFooResponse = map[string]any
@@ -113,22 +102,12 @@ func (g *GetPetResponse) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Client struct {
 	Name string `json:"name" validate:"required"`
 }
 
 func (c Client) Validate() error {
-	if err := schemaTypesValidate.Struct(c); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(c))
 }
 
 type Identity struct {
@@ -136,10 +115,7 @@ type Identity struct {
 }
 
 func (i Identity) Validate() error {
-	if err := schemaTypesValidate.Struct(i); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(i))
 }
 
 type ClientAndMaybeIdentity struct {
@@ -333,7 +309,7 @@ type Dog struct {
 
 func (d Dog) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(d.Name, "required"); err != nil {
+	if err := typesValidator.Var(d.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if d.Type != nil {
@@ -356,7 +332,7 @@ type Cat struct {
 
 func (c Cat) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := schemaTypesValidate.Var(c.Name, "required"); err != nil {
+	if err := typesValidator.Var(c.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
 	if v, ok := any(c.Type).(runtime.Validator); ok {
@@ -421,13 +397,6 @@ func (p *Pet) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -712,4 +681,11 @@ func (g *GetPet_Response_OneOf) UnmarshalJSON(data []byte) error {
 		return errors.New("unknown discriminator value: " + discriminator)
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

@@ -13,13 +13,6 @@ import (
 
 type GetFooResponse = map[string]any
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Order struct {
 	Client *Order_Client `json:"client,omitempty"`
 }
@@ -121,10 +114,7 @@ type Identity struct {
 }
 
 func (i Identity) Validate() error {
-	if err := schemaTypesValidate.Struct(i); err != nil {
-		return runtime.ConvertValidatorError(err)
-	}
-	return nil
+	return runtime.ConvertValidatorError(typesValidator.Struct(i))
 }
 
 type Verification struct {
@@ -138,13 +128,6 @@ type Address struct {
 
 type Location struct {
 	Description *string `json:"description,omitempty"`
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -204,4 +187,11 @@ func (o *Order_Client_OneOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

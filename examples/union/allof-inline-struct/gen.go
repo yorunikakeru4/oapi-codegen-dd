@@ -7,13 +7,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var bodyTypesValidate *validator.Validate
-
-func init() {
-	bodyTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(bodyTypesValidate)
-}
-
 type CreateTestBody struct {
 	ID     *string `json:"id,omitempty"`
 	Name   *string `json:"name,omitempty"`
@@ -24,16 +17,16 @@ type GetBaseResponse struct {
 	Items *GetBase_Response_Items `json:"items,omitempty"`
 }
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type GetBase_Response_Items []GetBase_Response_Items_Item
 
 type GetBase_Response_Items_Item struct {
 	ID   *string `json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

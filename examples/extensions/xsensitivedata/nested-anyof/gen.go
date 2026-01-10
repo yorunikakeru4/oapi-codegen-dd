@@ -17,17 +17,14 @@ const (
 	CreditCard CreditCardPaymentType = "credit_card"
 )
 
-// validCreditCardPaymentTypeValues is a map of valid values for CreditCardPaymentType
-var validCreditCardPaymentTypeValues = map[CreditCardPaymentType]bool{
-	CreditCard: true,
-}
-
 // Validate checks if the CreditCardPaymentType value is valid
 func (c CreditCardPaymentType) Validate() error {
-	if !validCreditCardPaymentTypeValues[c] {
+	switch c {
+	case CreditCard:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid CreditCardPaymentType value, got: %v", c))
 	}
-	return nil
 }
 
 type BankTransferPaymentType string
@@ -36,17 +33,14 @@ const (
 	BankTransfer BankTransferPaymentType = "bank_transfer"
 )
 
-// validBankTransferPaymentTypeValues is a map of valid values for BankTransferPaymentType
-var validBankTransferPaymentTypeValues = map[BankTransferPaymentType]bool{
-	BankTransfer: true,
-}
-
 // Validate checks if the BankTransferPaymentType value is valid
 func (b BankTransferPaymentType) Validate() error {
-	if !validBankTransferPaymentTypeValues[b] {
+	switch b {
+	case BankTransfer:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid BankTransferPaymentType value, got: %v", b))
 	}
-	return nil
 }
 
 type DomesticAccountAccountType string
@@ -55,17 +49,14 @@ const (
 	Domestic DomesticAccountAccountType = "domestic"
 )
 
-// validDomesticAccountAccountTypeValues is a map of valid values for DomesticAccountAccountType
-var validDomesticAccountAccountTypeValues = map[DomesticAccountAccountType]bool{
-	Domestic: true,
-}
-
 // Validate checks if the DomesticAccountAccountType value is valid
 func (d DomesticAccountAccountType) Validate() error {
-	if !validDomesticAccountAccountTypeValues[d] {
+	switch d {
+	case Domestic:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid DomesticAccountAccountType value, got: %v", d))
 	}
-	return nil
 }
 
 type InternationalAccountAccountType string
@@ -74,17 +65,14 @@ const (
 	International InternationalAccountAccountType = "international"
 )
 
-// validInternationalAccountAccountTypeValues is a map of valid values for InternationalAccountAccountType
-var validInternationalAccountAccountTypeValues = map[InternationalAccountAccountType]bool{
-	International: true,
-}
-
 // Validate checks if the InternationalAccountAccountType value is valid
 func (i InternationalAccountAccountType) Validate() error {
-	if !validInternationalAccountAccountTypeValues[i] {
+	switch i {
+	case International:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid InternationalAccountAccountType value, got: %v", i))
 	}
-	return nil
 }
 
 type PersonalBeneficiaryBeneficiaryType string
@@ -93,17 +81,14 @@ const (
 	Personal PersonalBeneficiaryBeneficiaryType = "personal"
 )
 
-// validPersonalBeneficiaryBeneficiaryTypeValues is a map of valid values for PersonalBeneficiaryBeneficiaryType
-var validPersonalBeneficiaryBeneficiaryTypeValues = map[PersonalBeneficiaryBeneficiaryType]bool{
-	Personal: true,
-}
-
 // Validate checks if the PersonalBeneficiaryBeneficiaryType value is valid
 func (p PersonalBeneficiaryBeneficiaryType) Validate() error {
-	if !validPersonalBeneficiaryBeneficiaryTypeValues[p] {
+	switch p {
+	case Personal:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid PersonalBeneficiaryBeneficiaryType value, got: %v", p))
 	}
-	return nil
 }
 
 type BusinessBeneficiaryBeneficiaryType string
@@ -112,17 +97,14 @@ const (
 	Business BusinessBeneficiaryBeneficiaryType = "business"
 )
 
-// validBusinessBeneficiaryBeneficiaryTypeValues is a map of valid values for BusinessBeneficiaryBeneficiaryType
-var validBusinessBeneficiaryBeneficiaryTypeValues = map[BusinessBeneficiaryBeneficiaryType]bool{
-	Business: true,
-}
-
 // Validate checks if the BusinessBeneficiaryBeneficiaryType value is valid
 func (b BusinessBeneficiaryBeneficiaryType) Validate() error {
-	if !validBusinessBeneficiaryBeneficiaryTypeValues[b] {
+	switch b {
+	case Business:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid BusinessBeneficiaryBeneficiaryType value, got: %v", b))
 	}
-	return nil
 }
 
 type DigitalWalletPaymentType string
@@ -131,24 +113,14 @@ const (
 	DigitalWallet DigitalWalletPaymentType = "digital_wallet"
 )
 
-// validDigitalWalletPaymentTypeValues is a map of valid values for DigitalWalletPaymentType
-var validDigitalWalletPaymentTypeValues = map[DigitalWalletPaymentType]bool{
-	DigitalWallet: true,
-}
-
 // Validate checks if the DigitalWalletPaymentType value is valid
 func (d DigitalWalletPaymentType) Validate() error {
-	if !validDigitalWalletPaymentTypeValues[d] {
+	switch d {
+	case DigitalWallet:
+		return nil
+	default:
 		return runtime.ValidationErrors{}.Add("Enum", fmt.Sprintf("must be a valid DigitalWalletPaymentType value, got: %v", d))
 	}
-	return nil
-}
-
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
 }
 
 type PaymentMethod struct {
@@ -218,7 +190,7 @@ func (c CreditCardPayment) Validate() error {
 			errors = errors.Append("Type", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(c.CardNumber, "required"); err != nil {
+	if err := typesValidator.Var(c.CardNumber, "required"); err != nil {
 		errors = errors.Append("CardNumber", err)
 	}
 	if c.BillingAddress != nil {
@@ -380,10 +352,10 @@ func (d DomesticAccount) Validate() error {
 			errors = errors.Append("AccountType", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(d.RoutingNumber, "required"); err != nil {
+	if err := typesValidator.Var(d.RoutingNumber, "required"); err != nil {
 		errors = errors.Append("RoutingNumber", err)
 	}
-	if err := schemaTypesValidate.Var(d.AccountNumber, "required"); err != nil {
+	if err := typesValidator.Var(d.AccountNumber, "required"); err != nil {
 		errors = errors.Append("AccountNumber", err)
 	}
 	if d.AccountHolder != nil {
@@ -465,10 +437,10 @@ func (i InternationalAccount) Validate() error {
 			errors = errors.Append("AccountType", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(i.Iban, "required"); err != nil {
+	if err := typesValidator.Var(i.Iban, "required"); err != nil {
 		errors = errors.Append("Iban", err)
 	}
-	if err := schemaTypesValidate.Var(i.SwiftCode, "required"); err != nil {
+	if err := typesValidator.Var(i.SwiftCode, "required"); err != nil {
 		errors = errors.Append("SwiftCode", err)
 	}
 	if i.AccountHolder != nil {
@@ -611,7 +583,7 @@ func (p PersonalBeneficiary) Validate() error {
 			errors = errors.Append("BeneficiaryType", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(p.FullName, "required"); err != nil {
+	if err := typesValidator.Var(p.FullName, "required"); err != nil {
 		errors = errors.Append("FullName", err)
 	}
 	if p.DateOfBirth != nil {
@@ -717,7 +689,7 @@ func (b BusinessBeneficiary) Validate() error {
 			errors = errors.Append("BeneficiaryType", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(b.CompanyName, "required"); err != nil {
+	if err := typesValidator.Var(b.CompanyName, "required"); err != nil {
 		errors = errors.Append("CompanyName", err)
 	}
 	if len(errors) == 0 {
@@ -783,7 +755,7 @@ func (d DigitalWalletPayment) Validate() error {
 			errors = errors.Append("Type", err)
 		}
 	}
-	if err := schemaTypesValidate.Var(d.WalletID, "required"); err != nil {
+	if err := typesValidator.Var(d.WalletID, "required"); err != nil {
 		errors = errors.Append("WalletID", err)
 	}
 	if len(errors) == 0 {
@@ -886,13 +858,6 @@ func (a *AccountHolder) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
-}
-
-var unionTypesValidate *validator.Validate
-
-func init() {
-	unionTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(unionTypesValidate)
 }
 
 func UnmarshalAs[T any](v json.RawMessage) (T, error) {
@@ -1094,4 +1059,11 @@ func (i *InternationalAccount_BeneficiaryDetails_AnyOf) Validate() error {
 		}
 	}
 	return nil
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }

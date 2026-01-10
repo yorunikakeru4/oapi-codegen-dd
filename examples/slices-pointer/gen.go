@@ -9,13 +9,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-var schemaTypesValidate *validator.Validate
-
-func init() {
-	schemaTypesValidate = validator.New(validator.WithRequiredStructEnabled())
-	runtime.RegisterCustomTypeFunc(schemaTypesValidate)
-}
-
 type Payments []string
 
 func (p Payments) Validate() error {
@@ -27,7 +20,7 @@ func (p Payments) Validate() error {
 		errors = errors.Add("Array", fmt.Sprintf("must have at least 1 items, got %d", len(p)))
 	}
 	for i, item := range p {
-		if err := schemaTypesValidate.Var(item, "omitempty,min=3"); err != nil {
+		if err := typesValidator.Var(item, "omitempty,min=3"); err != nil {
 			errors = errors.Append(fmt.Sprintf("[%d]", i), err)
 		}
 	}
@@ -62,4 +55,11 @@ func (u User) Validate() error {
 		return nil
 	}
 	return errors
+}
+
+var typesValidator *validator.Validate
+
+func init() {
+	typesValidator = validator.New(validator.WithRequiredStructEnabled())
+	runtime.RegisterCustomTypeFunc(typesValidator)
 }
