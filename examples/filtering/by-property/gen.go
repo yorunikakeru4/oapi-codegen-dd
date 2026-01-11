@@ -32,15 +32,21 @@ func NewDefaultClient(baseURL string, opts ...runtime.APIClientOption) (*Client,
 
 // ClientInterface is the interface for the API client.
 type ClientInterface interface {
-	GetClient(ctx context.Context, reqEditors ...runtime.RequestEditorFn) (*GetClientResponse, error)
+	// GetUsers List users
+	GetUsers(ctx context.Context, reqEditors ...runtime.RequestEditorFn) (*GetUsersResponse, error)
 
-	UpdateClient(ctx context.Context, options *UpdateClientRequestOptions, reqEditors ...runtime.RequestEditorFn) (*struct{}, error)
+	// CreateUser Create a user
+	CreateUser(ctx context.Context, options *CreateUserRequestOptions, reqEditors ...runtime.RequestEditorFn) (*CreateUserResponse, error)
+
+	// GetUser Get a user by ID
+	GetUser(ctx context.Context, options *GetUserRequestOptions, reqEditors ...runtime.RequestEditorFn) (*GetUserResponse, error)
 }
 
-func (c *Client) GetClient(ctx context.Context, reqEditors ...runtime.RequestEditorFn) (*GetClientResponse, error) {
+// GetUsers List users
+func (c *Client) GetUsers(ctx context.Context, reqEditors ...runtime.RequestEditorFn) (*GetUsersResponse, error) {
 	var err error
 	reqParams := runtime.RequestOptionsParameters{
-		RequestURL: c.apiClient.GetBaseURL() + "/client",
+		RequestURL: c.apiClient.GetBaseURL() + "/users",
 		Method:     "GET",
 	}
 
@@ -49,13 +55,13 @@ func (c *Client) GetClient(ctx context.Context, reqEditors ...runtime.RequestEdi
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetClientResponse, error) {
+	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetUsersResponse, error) {
 		bodyBytes := resp.Content
 		if resp.StatusCode != 200 {
 			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
 				runtime.WithStatusCode(resp.StatusCode))
 		}
-		target := new(GetClientResponse)
+		target := new(GetUsersResponse)
 		if err = json.Unmarshal(bodyBytes, target); err != nil {
 			err = fmt.Errorf("error decoding response: %w", err)
 			return nil, err
@@ -63,18 +69,19 @@ func (c *Client) GetClient(ctx context.Context, reqEditors ...runtime.RequestEdi
 		return target, nil
 	}
 
-	resp, err := c.apiClient.ExecuteRequest(ctx, req, "/client")
+	resp, err := c.apiClient.ExecuteRequest(ctx, req, "/users")
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
 	return responseParser(ctx, resp)
 }
 
-func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestOptions, reqEditors ...runtime.RequestEditorFn) (*struct{}, error) {
+// CreateUser Create a user
+func (c *Client) CreateUser(ctx context.Context, options *CreateUserRequestOptions, reqEditors ...runtime.RequestEditorFn) (*CreateUserResponse, error) {
 	var err error
 	reqParams := runtime.RequestOptionsParameters{
-		RequestURL:  c.apiClient.GetBaseURL() + "/client",
-		Method:      "PUT",
+		RequestURL:  c.apiClient.GetBaseURL() + "/users",
+		Method:      "POST",
 		Options:     options,
 		ContentType: "application/json",
 	}
@@ -84,10 +91,10 @@ func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestO
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	responseParser := func(ctx context.Context, resp *runtime.Response) (*struct{}, error) {
+	responseParser := func(ctx context.Context, resp *runtime.Response) (*CreateUserResponse, error) {
 		bodyBytes := resp.Content
-		if resp.StatusCode != 204 {
-			target := new(UpdateClientErrorResponse)
+		if resp.StatusCode != 200 {
+			target := new(CreateUserErrorResponse)
 			err = json.Unmarshal(bodyBytes, target)
 			if err != nil {
 				return nil, fmt.Errorf("error decoding response: %w", err)
@@ -99,10 +106,50 @@ func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestO
 			return nil, runtime.NewClientAPIError(fmt.Errorf("API error (status %d): %v", resp.StatusCode, *target),
 				runtime.WithStatusCode(resp.StatusCode))
 		}
-		return nil, nil
+		target := new(CreateUserResponse)
+		if err = json.Unmarshal(bodyBytes, target); err != nil {
+			err = fmt.Errorf("error decoding response: %w", err)
+			return nil, err
+		}
+		return target, nil
 	}
 
-	resp, err := c.apiClient.ExecuteRequest(ctx, req, "/client")
+	resp, err := c.apiClient.ExecuteRequest(ctx, req, "/users")
+	if err != nil {
+		return nil, fmt.Errorf("error executing request: %w", err)
+	}
+	return responseParser(ctx, resp)
+}
+
+// GetUser Get a user by ID
+func (c *Client) GetUser(ctx context.Context, options *GetUserRequestOptions, reqEditors ...runtime.RequestEditorFn) (*GetUserResponse, error) {
+	var err error
+	reqParams := runtime.RequestOptionsParameters{
+		RequestURL: c.apiClient.GetBaseURL() + "/users/{id}",
+		Method:     "GET",
+		Options:    options,
+	}
+
+	req, err := c.apiClient.CreateRequest(ctx, reqParams, reqEditors...)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	responseParser := func(ctx context.Context, resp *runtime.Response) (*GetUserResponse, error) {
+		bodyBytes := resp.Content
+		if resp.StatusCode != 200 {
+			return nil, runtime.NewClientAPIError(fmt.Errorf("unexpected status code: %d", resp.StatusCode),
+				runtime.WithStatusCode(resp.StatusCode))
+		}
+		target := new(GetUserResponse)
+		if err = json.Unmarshal(bodyBytes, target); err != nil {
+			err = fmt.Errorf("error decoding response: %w", err)
+			return nil, err
+		}
+		return target, nil
+	}
+
+	resp, err := c.apiClient.ExecuteRequest(ctx, req, "/users/{id}")
 	if err != nil {
 		return nil, fmt.Errorf("error executing request: %w", err)
 	}
@@ -111,14 +158,14 @@ func (c *Client) UpdateClient(ctx context.Context, options *UpdateClientRequestO
 
 var _ ClientInterface = (*Client)(nil)
 
-// UpdateClientRequestOptions is the options needed to make a request to UpdateClient.
-type UpdateClientRequestOptions struct {
-	Body *UpdateClientBody
+// CreateUserRequestOptions is the options needed to make a request to CreateUser.
+type CreateUserRequestOptions struct {
+	Body *CreateUserBody
 }
 
 // Validate validates all the fields in the options.
 // Use it if fields validation was not run.
-func (o *UpdateClientRequestOptions) Validate() error {
+func (o *CreateUserRequestOptions) Validate() error {
 	var errors runtime.ValidationErrors
 
 	if o.Body != nil {
@@ -136,85 +183,157 @@ func (o *UpdateClientRequestOptions) Validate() error {
 }
 
 // GetPathParams returns the path params as a map.
-func (o *UpdateClientRequestOptions) GetPathParams() (map[string]any, error) {
+func (o *CreateUserRequestOptions) GetPathParams() (map[string]any, error) {
 	return nil, nil
 }
 
 // GetQuery returns the query params as a map.
-func (o *UpdateClientRequestOptions) GetQuery() (map[string]any, error) {
+func (o *CreateUserRequestOptions) GetQuery() (map[string]any, error) {
 	return nil, nil
 }
 
 // GetBody returns the payload in any type that can be marshalled to JSON by the client.
-func (o *UpdateClientRequestOptions) GetBody() any {
+func (o *CreateUserRequestOptions) GetBody() any {
 	return o.Body
 }
 
 // GetHeader returns the headers as a map.
-func (o *UpdateClientRequestOptions) GetHeader() (map[string]string, error) {
+func (o *CreateUserRequestOptions) GetHeader() (map[string]string, error) {
 	return nil, nil
 }
 
-type UpdateClientBody = Person
-
-type GetClientResponse struct {
-	Name       string  `json:"name" validate:"required"`
-	Age        *int    `json:"age,omitempty"`
-	Address    *string `json:"address,omitempty"`
-	Mother     *Person `json:"mother,omitempty"`
-	Father     *Person `json:"father,omitempty"`
-	Employment *Job    `json:"employment,omitempty"`
+// GetUserRequestOptions is the options needed to make a request to GetUser.
+type GetUserRequestOptions struct {
+	PathParams *GetUserPath
 }
 
-type UpdateClientErrorResponse struct {
-	Code    string                           `json:"code" validate:"required"`
-	Details *string                          `json:"details,omitempty"`
-	Data    *UpdateClient_ErrorResponse_Data `json:"data,omitempty"`
-}
-
-func (r UpdateClientErrorResponse) Error() string {
-	res0 := r.Code
-	return res0
-}
-
-type Person struct {
-	Name       string `json:"name" validate:"required"`
-	Age        *int   `json:"age,omitempty"`
-	Employment *Job   `json:"employment,omitempty"`
-}
-
-func (p Person) Validate() error {
+// Validate validates all the fields in the options.
+// Use it if fields validation was not run.
+func (o *GetUserRequestOptions) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := typesValidator.Var(p.Name, "required"); err != nil {
-		errors = errors.Append("Name", err)
-	}
-	if p.Employment != nil {
-		if v, ok := any(p.Employment).(runtime.Validator); ok {
+
+	if o.PathParams != nil {
+		if v, ok := any(o.PathParams).(runtime.Validator); ok {
 			if err := v.Validate(); err != nil {
-				errors = errors.Append("Employment", err)
+				errors = errors.Append("PathParams", err)
 			}
 		}
 	}
 	if len(errors) == 0 {
 		return nil
 	}
+
 	return errors
 }
 
-type Job struct {
-	Title string `json:"title" validate:"required"`
+// GetPathParams returns the path params as a map.
+func (o *GetUserRequestOptions) GetPathParams() (map[string]any, error) {
+	return runtime.AsMap[any](o.PathParams)
 }
 
-func (j Job) Validate() error {
-	return runtime.ConvertValidatorError(typesValidator.Struct(j))
+// GetQuery returns the query params as a map.
+func (o *GetUserRequestOptions) GetQuery() (map[string]any, error) {
+	return nil, nil
 }
 
-type UpdateClient_ErrorResponse_Data struct {
-	// Code Error code
-	Code *string `json:"code,omitempty"`
+// GetBody returns the payload in any type that can be marshalled to JSON by the client.
+func (o *GetUserRequestOptions) GetBody() any {
+	return nil
+}
 
-	// Message Error message
-	Message *string `json:"message,omitempty"`
+// GetHeader returns the headers as a map.
+func (o *GetUserRequestOptions) GetHeader() (map[string]string, error) {
+	return nil, nil
+}
+
+type OrganizationPlan string
+
+const (
+	Enterprise OrganizationPlan = "enterprise"
+	Free       OrganizationPlan = "free"
+	Pro        OrganizationPlan = "pro"
+)
+
+type GetUserPath struct {
+	ID string `json:"id" validate:"required"`
+}
+
+func (g GetUserPath) Validate() error {
+	return runtime.ConvertValidatorError(typesValidator.Struct(g))
+}
+
+type CreateUserBody = User
+
+type GetUsersResponse []User
+
+type CreateUserResponse struct {
+	// ID Unique identifier
+	ID    string        `json:"id" validate:"required"`
+	Email runtime.Email `json:"email" validate:"required"`
+	Name  *string       `json:"name,omitempty"`
+
+	// Organization Organization that a user belongs to.
+	// This schema is kept because User.organization is in the filter.
+	Organization *Organization `json:"organization,omitempty"`
+}
+
+type CreateUserErrorResponse struct {
+	Code    string  `json:"code" validate:"required"`
+	Message string  `json:"message" validate:"required"`
+	Details *string `json:"details,omitempty"`
+}
+
+func (r CreateUserErrorResponse) Error() string {
+	res0 := r.Message
+	return res0
+}
+
+type GetUserResponse struct {
+	// ID Unique identifier
+	ID    string        `json:"id" validate:"required"`
+	Email runtime.Email `json:"email" validate:"required"`
+	Name  *string       `json:"name,omitempty"`
+
+	// Organization Organization that a user belongs to.
+	// This schema is kept because User.organization is in the filter.
+	Organization *Organization `json:"organization,omitempty"`
+}
+
+type User struct {
+	// ID Unique identifier
+	ID    string        `json:"id" validate:"required"`
+	Email runtime.Email `json:"email" validate:"required"`
+	Name  *string       `json:"name,omitempty"`
+
+	// Organization Organization that a user belongs to.
+	// This schema is kept because User.organization is in the filter.
+	Organization *Organization `json:"organization,omitempty"`
+}
+
+func (u User) Validate() error {
+	return runtime.ConvertValidatorError(typesValidator.Struct(u))
+}
+
+// Organization Organization that a user belongs to.
+// This schema is kept because User.organization is in the filter.
+type Organization struct {
+	ID   string            `json:"id" validate:"required"`
+	Name string            `json:"name" validate:"required"`
+	Plan *OrganizationPlan `json:"plan,omitempty"`
+}
+
+func (o Organization) Validate() error {
+	return runtime.ConvertValidatorError(typesValidator.Struct(o))
+}
+
+type Error struct {
+	Code    string  `json:"code" validate:"required"`
+	Message string  `json:"message" validate:"required"`
+	Details *string `json:"details,omitempty"`
+}
+
+func (e Error) Validate() error {
+	return runtime.ConvertValidatorError(typesValidator.Struct(e))
 }
 
 var typesValidator *validator.Validate

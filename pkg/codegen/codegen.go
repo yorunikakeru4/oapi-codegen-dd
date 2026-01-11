@@ -57,7 +57,7 @@ func Generate(docContents []byte, cfg Configuration) (GeneratedCode, error) {
 
 // CreateParseContext creates a ParseContext from an OpenAPI contents and a ParseConfig.
 func CreateParseContext(docContents []byte, cfg Configuration) (*ParseContext, []error) {
-	cfg = cfg.Merge(NewDefaultConfiguration())
+	cfg = cfg.WithDefaults()
 
 	doc, err := CreateDocument(docContents, cfg)
 	if err != nil {
@@ -74,14 +74,6 @@ func CreateParseContext(docContents []byte, cfg Configuration) (*ParseContext, [
 
 func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) (*ParseContext, error) {
 	cfg = cfg.WithDefaults()
-	parseOptions := ParseOptions{
-		OmitDescription:        cfg.Generate.OmitDescription,
-		DefaultIntType:         cfg.Generate.DefaultIntType,
-		AlwaysPrefixEnumValues: cfg.Generate.AlwaysPrefixEnumValues,
-		SkipValidation:         cfg.Generate.Validation.Skip,
-		currentTypes:           map[string]TypeDefinition{},
-		visited:                map[string]bool{},
-	}
 
 	builtModel, err := doc.BuildV3Model()
 	if err != nil {
@@ -89,15 +81,25 @@ func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 	}
 	model := &builtModel.Model
 
+	if model == nil {
+		return nil, nil
+	}
+
+	parseOptions := ParseOptions{
+		OmitDescription:        cfg.Generate.OmitDescription,
+		DefaultIntType:         cfg.Generate.DefaultIntType,
+		AlwaysPrefixEnumValues: cfg.Generate.AlwaysPrefixEnumValues,
+		SkipValidation:         cfg.Generate.Validation.Skip,
+		currentTypes:           map[string]TypeDefinition{},
+		visited:                map[string]bool{},
+		model:                  model,
+	}
+
 	var (
 		operations     []OperationDefinition
 		importSchemas  []GoSchema
 		responseErrors []string
 	)
-
-	if model == nil {
-		return nil, nil
-	}
 
 	// Process Components
 	typeDefs, err := collectComponentDefinitions(model, parseOptions)

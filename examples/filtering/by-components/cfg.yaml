@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../../configuration-schema.json
+#
+# Component Filtering Example
+# ===========================
+#
+# Demonstrates pruning of component responses, headers, requestBodies,
+# parameters, and their transitively referenced schemas.
+#
+# KEPT (referenced by operation):
+#   - parameters: RequestId
+#   - requestBodies: CreateOrder
+#   - responses: OrderCreated, Unauthorized
+#   - headers: OrderId (via OrderCreated)
+#   - schemas: Order, Error
+#
+# PRUNED (not referenced):
+#   - parameters: UnusedParam -> UnusedParamSchema
+#   - requestBodies: UnusedBody -> UnusedBodySchema
+#   - responses: UnusedResponse -> UnusedHeader, UnusedResponseSchema
+
+package: filteringbycomponents
+output:
+  use-single-file: true
+generate:
+  client: true
+  validation:
+    simple: true

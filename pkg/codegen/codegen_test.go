@@ -23,9 +23,6 @@ import (
 //go:embed testdata/test_spec.yml
 var testDocument string
 
-//go:embed testdata/user.yml
-var userDocument string
-
 //go:embed testdata/backslash-escaping.yml
 var backslashEscapingYAML string
 

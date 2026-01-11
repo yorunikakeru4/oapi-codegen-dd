@@ -1,0 +1,132 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Component Filtering Example
+  description: |
+    Demonstrates pruning of component responses, headers, requestBodies,
+    parameters, and their transitively referenced schemas.
+
+paths:
+  /orders:
+    post:
+      operationId: createOrder
+      parameters:
+        - $ref: "#/components/parameters/RequestId"    # KEPT
+      requestBody:
+        $ref: "#/components/requestBodies/CreateOrder" # KEPT
+      responses:
+        201:
+          $ref: "#/components/responses/OrderCreated"  # KEPT
+        401:
+          $ref: "#/components/responses/Unauthorized"  # KEPT
+
+components:
+  parameters:
+    # KEPT - referenced by operation
+    RequestId:
+      name: X-Request-Id
+      in: header
+      schema:
+        type: string
+
+    # PRUNED - not referenced
+    UnusedParam:
+      name: unused
+      in: query
+      schema:
+        $ref: "#/components/schemas/UnusedParamSchema"
+
+  requestBodies:
+    # KEPT - referenced by operation
+    CreateOrder:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Order"
+
+    # PRUNED - not referenced
+    UnusedBody:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UnusedBodySchema"
+
+  responses:
+    # KEPT - referenced by operation
+    OrderCreated:
+      description: Order created
+      headers:
+        X-Order-Id:
+          $ref: "#/components/headers/OrderId"         # KEPT
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Order"
+
+    # KEPT - referenced by operation
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    # PRUNED - not referenced (and its header + schema are pruned too)
+    UnusedResponse:
+      description: Unused
+      headers:
+        X-Unused:
+          $ref: "#/components/headers/UnusedHeader"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UnusedResponseSchema"
+
+  headers:
+    # KEPT - referenced by OrderCreated response
+    OrderId:
+      schema:
+        type: string
+
+    # PRUNED - only referenced by UnusedResponse
+    UnusedHeader:
+      schema:
+        type: string
+
+  schemas:
+    # KEPT - referenced by CreateOrder and OrderCreated
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        total:
+          type: number
+
+    # KEPT - referenced by Unauthorized
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+
+    # PRUNED - only referenced by UnusedParam
+    UnusedParamSchema:
+      type: object
+      properties:
+        filter:
+          type: string
+
+    # PRUNED - only referenced by UnusedBody
+    UnusedBodySchema:
+      type: object
+      properties:
+        data:
+          type: string
+
+    # PRUNED - only referenced by UnusedResponse
+    UnusedResponseSchema:
+      type: object
+      properties:
+        unused:
+          type: string

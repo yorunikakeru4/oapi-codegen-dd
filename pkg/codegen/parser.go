@@ -23,6 +23,8 @@ import (
 	"strings"
 	"text/template"
 
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
+
 	"github.com/iancoleman/strcase"
 	"golang.org/x/tools/imports"
 )
@@ -63,6 +65,10 @@ type ParseOptions struct {
 	// naming parameters
 	baseName     string
 	nameSuffixes []string
+
+	// model is the high-level OpenAPI model, used to resolve $ref to mutated schemas
+	// instead of following stale low-level references
+	model *v3high.Document
 }
 
 func (o ParseOptions) WithReference(reference string) ParseOptions {
@@ -97,6 +103,11 @@ func (o ParseOptions) WithNameSuffixes(suffixes []string) ParseOptions {
 
 func (o ParseOptions) WithSpecLocation(specLocation SpecLocation) ParseOptions {
 	o.specLocation = specLocation
+	return o
+}
+
+func (o ParseOptions) WithModel(model *v3high.Document) ParseOptions {
+	o.model = model
 	return o
 }
 

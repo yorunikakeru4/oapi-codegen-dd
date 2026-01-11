@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/pb33f/libopenapi/datamodel/high/base"
+	v3high "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 // GoSchema describes an OpenAPI schema, with lots of helper fields to use in the templating engine.
@@ -268,7 +269,8 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, options ParseOptions) (GoSc
 		return GoSchema{GoType: "any"}, nil
 	}
 
-	schema := schemaProxy.Schema()
+	// Resolve the schema, preferring the mutated model for component references
+	schema := resolveSchema(schemaProxy, options.model)
 
 	ref := options.reference
 
@@ -552,6 +554,32 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, options ParseOptions) (GoSc
 	}
 
 	return enhanced, nil
+}
+
+// resolveSchema resolves a SchemaProxy to its Schema, preferring the mutated model for component references.
+// This ensures that when we have a $ref to a component schema, we get the mutated version from the model
+// (which may have had properties filtered) instead of the stale low-level version.
+func resolveSchema(schemaProxy *base.SchemaProxy, model *v3high.Document) *base.Schema {
+	if schemaProxy == nil {
+		return nil
+	}
+
+	// Check if this is a component schema reference
+	if model != nil && model.Components != nil && model.Components.Schemas != nil {
+		if low := schemaProxy.GoLow(); low != nil {
+			ref := low.GetReference()
+			if strings.HasPrefix(ref, "#/components/schemas/") {
+				schemaName := strings.TrimPrefix(ref, "#/components/schemas/")
+				if modelSchemaProxy, ok := model.Components.Schemas.Get(schemaName); ok && modelSchemaProxy != nil {
+					// Use the schema from the model, which has been mutated
+					return modelSchemaProxy.Schema()
+				}
+			}
+		}
+	}
+
+	// Fall back to the default resolution
+	return schemaProxy.Schema()
 }
 
 // SchemaDescriptor describes a GoSchema, a type definition.

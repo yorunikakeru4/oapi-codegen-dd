@@ -31,7 +31,7 @@ func CreateDocument(docContents []byte, cfg Configuration) (libopenapi.Document,
 	}
 
 	var filtered bool
-	doc, filtered, err = filterOutDocument(doc, cfg.Filter)
+	model, filtered, err := filterOutDocument(doc, cfg.Filter)
 	if err != nil {
 		return nil, fmt.Errorf("error filtering document: %w", err)
 	}
@@ -39,17 +39,12 @@ func CreateDocument(docContents []byte, cfg Configuration) (libopenapi.Document,
 	// If we filtered anything, we must prune to remove dangling references
 	// Otherwise, only prune if SkipPrune is false
 	if filtered || !cfg.SkipPrune {
-		if err = pruneSchema(doc); err != nil {
+		if err = pruneSchema(model); err != nil {
 			return nil, fmt.Errorf("error pruning schema: %w", err)
 		}
 		return doc, nil
 	}
 
-	// If we're not pruning, we still need to reload the document to persist filter changes
-	_, doc, _, err = doc.RenderAndReload()
-	if err != nil {
-		return nil, fmt.Errorf("error reloading document: %w", err)
-	}
 	return doc, nil
 }
 

@@ -115,14 +115,13 @@ func TestFilterOnlyCat(t *testing.T) {
 	assert.NotEmpty(t, m2.Model.Paths.PathItems.GetOrZero("/cat").Get, "GET /cat operation should still be in spec")
 	assert.Empty(t, m2.Model.Paths.PathItems.GetOrZero("/dog").Get, "GET /dog should have been removed from spec")
 
-	err = pruneSchema(doc2)
+	err = pruneSchema(&m2.Model)
 	assert.Nil(t, err)
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, _ = doc2.BuildV3Model()
 
-	assert.Equal(t, 3, model.Model.Components.Schemas.Len())
+	assert.Equal(t, 3, m2.Model.Components.Schemas.Len())
 }
 
 func TestFilterOnlyDog(t *testing.T) {
@@ -159,14 +158,13 @@ func TestFilterOnlyDog(t *testing.T) {
 	assert.NotEmpty(t, m2.Model.Paths.PathItems.GetOrZero("/dog").Get)
 	assert.Empty(t, m2.Model.Paths.PathItems.GetOrZero("/cat").Get)
 
-	err = pruneSchema(doc2)
+	err = pruneSchema(&m2.Model)
 	assert.Nil(t, err)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m3, _ := doc2.BuildV3Model()
 
-	assert.Equal(t, 3, m3.Model.Components.Schemas.Len())
+	assert.Equal(t, 3, m2.Model.Components.Schemas.Len())
 }
 
 func TestPruningUnusedComponents(t *testing.T) {
@@ -189,9 +187,7 @@ func TestPruningUnusedComponents(t *testing.T) {
 	assert.Equal(t, 1, m.Components.Links.Len())
 	assert.Equal(t, 1, m.Components.Callbacks.Len())
 
-	_ = pruneSchema(doc)
-	model, _ = doc.BuildV3Model()
-	m = &model.Model
+	_ = pruneSchema(&model.Model)
 
 	assert.Equal(t, 0, m.Components.Schemas.Len())
 	assert.Equal(t, 0, m.Components.Parameters.Len())
@@ -219,11 +215,8 @@ func TestPruneParameterSchemaRefs(t *testing.T) {
 	assert.Equal(t, 2, m.Components.Parameters.Len(), "Should have 2 parameters before pruning")
 
 	// Prune the schema
-	err = pruneSchema(doc)
+	err = pruneSchema(&model.Model)
 	assert.NoError(t, err)
-
-	model, _ = doc.BuildV3Model()
-	m = &model.Model
 
 	// After pruning: schemas referenced by parameters should be preserved
 	assert.Equal(t, 2, m.Components.Schemas.Len(), "Should have 2 schemas after pruning (DateProp and FormatProp)")
@@ -261,29 +254,29 @@ func TestPruneInlineParameterSchemaRefs(t *testing.T) {
 		_, doc2, _, err := doc.RenderAndReload()
 		assert.NoError(t, err)
 
-		// Prune unused schemas
-		err = pruneSchema(doc2)
+		model2, err := doc2.BuildV3Model()
 		assert.NoError(t, err)
 
-		model3, err := doc2.BuildV3Model()
+		// Prune unused schemas
+		err = pruneSchema(&model2.Model)
 		assert.NoError(t, err)
 
 		// After pruning: should have 2 schemas (UserId, User)
 		// UserId should NOT be pruned even though it's only referenced in path parameter
-		assert.Equal(t, 2, model3.Model.Components.Schemas.Len())
+		assert.Equal(t, 2, model2.Model.Components.Schemas.Len())
 
 		// Verify UserId and User exist
-		_, hasUserId := model3.Model.Components.Schemas.Get("UserId")
+		_, hasUserId := model2.Model.Components.Schemas.Get("UserId")
 		assert.True(t, hasUserId, "UserId should not be pruned - it's referenced in path parameter")
 
-		_, hasUser := model3.Model.Components.Schemas.Get("User")
+		_, hasUser := model2.Model.Components.Schemas.Get("User")
 		assert.True(t, hasUser, "User should not be pruned - it's referenced in response")
 
 		// Verify ItemId and Item were pruned
-		_, hasItemId := model3.Model.Components.Schemas.Get("ItemId")
+		_, hasItemId := model2.Model.Components.Schemas.Get("ItemId")
 		assert.False(t, hasItemId, "ItemId should be pruned - items tag was filtered out")
 
-		_, hasItem := model3.Model.Components.Schemas.Get("Item")
+		_, hasItem := model2.Model.Components.Schemas.Get("Item")
 		assert.False(t, hasItem, "Item should be pruned - items tag was filtered out")
 	})
 }
@@ -305,35 +298,32 @@ func TestPruneComponentSchemaRefs(t *testing.T) {
 		assert.Equal(t, 6, model.Model.Components.Schemas.Len())
 
 		// Prune unused schemas
-		err = pruneSchema(doc)
-		assert.NoError(t, err)
-
-		model2, err := doc.BuildV3Model()
+		err = pruneSchema(&model.Model)
 		assert.NoError(t, err)
 
 		// After pruning: should have 5 schemas (all except UnusedSchema)
 		// AuthSpecification should NOT be pruned even though it's only referenced
 		// by other component schemas (SourceAuthSpecification, DestinationAuthSpecification)
-		assert.Equal(t, 5, model2.Model.Components.Schemas.Len())
+		assert.Equal(t, 5, model.Model.Components.Schemas.Len())
 
 		// Verify all the necessary schemas exist
-		_, hasAuthSpec := model2.Model.Components.Schemas.Get("AuthSpecification")
+		_, hasAuthSpec := model.Model.Components.Schemas.Get("AuthSpecification")
 		assert.True(t, hasAuthSpec, "AuthSpecification should not be pruned - it's referenced by component schemas")
 
-		_, hasSourceAuthSpec := model2.Model.Components.Schemas.Get("SourceAuthSpecification")
+		_, hasSourceAuthSpec := model.Model.Components.Schemas.Get("SourceAuthSpecification")
 		assert.True(t, hasSourceAuthSpec, "SourceAuthSpecification should not be pruned")
 
-		_, hasDestAuthSpec := model2.Model.Components.Schemas.Get("DestinationAuthSpecification")
+		_, hasDestAuthSpec := model.Model.Components.Schemas.Get("DestinationAuthSpecification")
 		assert.True(t, hasDestAuthSpec, "DestinationAuthSpecification should not be pruned")
 
-		_, hasSourceDefSpec := model2.Model.Components.Schemas.Get("SourceDefinitionSpecificationRead")
+		_, hasSourceDefSpec := model.Model.Components.Schemas.Get("SourceDefinitionSpecificationRead")
 		assert.True(t, hasSourceDefSpec, "SourceDefinitionSpecificationRead should not be pruned")
 
-		_, hasDestDefSpec := model2.Model.Components.Schemas.Get("DestinationDefinitionSpecificationRead")
+		_, hasDestDefSpec := model.Model.Components.Schemas.Get("DestinationDefinitionSpecificationRead")
 		assert.True(t, hasDestDefSpec, "DestinationDefinitionSpecificationRead should not be pruned")
 
 		// Verify UnusedSchema was pruned
-		_, hasUnused := model2.Model.Components.Schemas.Get("UnusedSchema")
+		_, hasUnused := model.Model.Components.Schemas.Get("UnusedSchema")
 		assert.False(t, hasUnused, "UnusedSchema should be pruned - it's not referenced anywhere")
 	})
 }
@@ -354,42 +344,39 @@ func TestPruneComponentRequestBodyRefs(t *testing.T) {
 		assert.Equal(t, 3, model.Model.Components.Schemas.Len())
 
 		// Prune unused components
-		err = pruneSchema(doc)
-		assert.NoError(t, err)
-
-		model2, err := doc.BuildV3Model()
+		err = pruneSchema(&model.Model)
 		assert.NoError(t, err)
 
 		// After pruning: should have 3 request bodies (all except UnusedRequest)
 		// CursorRequest should NOT be pruned even though it's only referenced
 		// by other component request bodies (AuditEventsRequest, ItemUsagesRequest)
-		assert.Equal(t, 3, model2.Model.Components.RequestBodies.Len())
+		assert.Equal(t, 3, model.Model.Components.RequestBodies.Len())
 
 		// After pruning: should have 2 schemas (Cursor, ResetCursor - UnusedSchema should be pruned)
-		assert.Equal(t, 2, model2.Model.Components.Schemas.Len())
+		assert.Equal(t, 2, model.Model.Components.Schemas.Len())
 
 		// Verify all the necessary request bodies exist
-		_, hasCursorReq := model2.Model.Components.RequestBodies.Get("CursorRequest")
+		_, hasCursorReq := model.Model.Components.RequestBodies.Get("CursorRequest")
 		assert.True(t, hasCursorReq, "CursorRequest should not be pruned - it's referenced by component request bodies")
 
-		_, hasAuditReq := model2.Model.Components.RequestBodies.Get("AuditEventsRequest")
+		_, hasAuditReq := model.Model.Components.RequestBodies.Get("AuditEventsRequest")
 		assert.True(t, hasAuditReq, "AuditEventsRequest should not be pruned")
 
-		_, hasItemReq := model2.Model.Components.RequestBodies.Get("ItemUsagesRequest")
+		_, hasItemReq := model.Model.Components.RequestBodies.Get("ItemUsagesRequest")
 		assert.True(t, hasItemReq, "ItemUsagesRequest should not be pruned")
 
 		// Verify UnusedRequest was pruned
-		_, hasUnusedReq := model2.Model.Components.RequestBodies.Get("UnusedRequest")
+		_, hasUnusedReq := model.Model.Components.RequestBodies.Get("UnusedRequest")
 		assert.False(t, hasUnusedReq, "UnusedRequest should be pruned - it's not referenced anywhere")
 
 		// Verify schemas
-		_, hasCursor := model2.Model.Components.Schemas.Get("Cursor")
+		_, hasCursor := model.Model.Components.Schemas.Get("Cursor")
 		assert.True(t, hasCursor, "Cursor schema should not be pruned")
 
-		_, hasResetCursor := model2.Model.Components.Schemas.Get("ResetCursor")
+		_, hasResetCursor := model.Model.Components.Schemas.Get("ResetCursor")
 		assert.True(t, hasResetCursor, "ResetCursor schema should not be pruned")
 
-		_, hasUnusedSchema := model2.Model.Components.Schemas.Get("UnusedSchema")
+		_, hasUnusedSchema := model.Model.Components.Schemas.Get("UnusedSchema")
 		assert.False(t, hasUnusedSchema, "UnusedSchema should be pruned - it's not referenced anywhere")
 	})
 }
@@ -410,37 +397,34 @@ func TestPruneDefaultResponseHeaders(t *testing.T) {
 		assert.Equal(t, 3, model.Model.Components.Schemas.Len())
 
 		// Prune unused components
-		err = pruneSchema(doc)
-		assert.NoError(t, err)
-
-		model2, err := doc.BuildV3Model()
+		err = pruneSchema(&model.Model)
 		assert.NoError(t, err)
 
 		// After pruning: should have 2 headers (ErrorCode, ErrorMessage - UnusedHeader should be pruned)
-		assert.Equal(t, 2, model2.Model.Components.Headers.Len())
+		assert.Equal(t, 2, model.Model.Components.Headers.Len())
 
 		// After pruning: should have 2 schemas (SuccessResponse, ErrorResponse - UnusedSchema should be pruned)
-		assert.Equal(t, 2, model2.Model.Components.Schemas.Len())
+		assert.Equal(t, 2, model.Model.Components.Schemas.Len())
 
 		// Verify ErrorCode and ErrorMessage headers exist
-		_, hasErrorCode := model2.Model.Components.Headers.Get("ErrorCode")
+		_, hasErrorCode := model.Model.Components.Headers.Get("ErrorCode")
 		assert.True(t, hasErrorCode, "ErrorCode header should not be pruned - it's referenced in default response")
 
-		_, hasErrorMessage := model2.Model.Components.Headers.Get("ErrorMessage")
+		_, hasErrorMessage := model.Model.Components.Headers.Get("ErrorMessage")
 		assert.True(t, hasErrorMessage, "ErrorMessage header should not be pruned - it's referenced in default response")
 
 		// Verify UnusedHeader was pruned
-		_, hasUnusedHeader := model2.Model.Components.Headers.Get("UnusedHeader")
+		_, hasUnusedHeader := model.Model.Components.Headers.Get("UnusedHeader")
 		assert.False(t, hasUnusedHeader, "UnusedHeader should be pruned - it's not referenced anywhere")
 
 		// Verify schemas
-		_, hasSuccess := model2.Model.Components.Schemas.Get("SuccessResponse")
+		_, hasSuccess := model.Model.Components.Schemas.Get("SuccessResponse")
 		assert.True(t, hasSuccess, "SuccessResponse schema should not be pruned")
 
-		_, hasError := model2.Model.Components.Schemas.Get("ErrorResponse")
+		_, hasError := model.Model.Components.Schemas.Get("ErrorResponse")
 		assert.True(t, hasError, "ErrorResponse schema should not be pruned")
 
-		_, hasUnusedSchema := model2.Model.Components.Schemas.Get("UnusedSchema")
+		_, hasUnusedSchema := model.Model.Components.Schemas.Get("UnusedSchema")
 		assert.False(t, hasUnusedSchema, "UnusedSchema should be pruned - it's not referenced anywhere")
 	})
 }
@@ -453,11 +437,11 @@ func TestPruneExamples(t *testing.T) {
 		doc, err := LoadDocumentFromContents(contents)
 		assert.NoError(t, err)
 
-		// Prune the document
-		err = pruneSchema(doc)
+		model, err := doc.BuildV3Model()
 		assert.NoError(t, err)
 
-		model, err := doc.BuildV3Model()
+		// Prune the document
+		err = pruneSchema(&model.Model)
 		assert.NoError(t, err)
 
 		// components/examples should be removed by pruning (set to nil)
@@ -495,11 +479,11 @@ func TestPruneExamples(t *testing.T) {
 		doc, err := LoadDocumentFromContents(contents)
 		assert.NoError(t, err)
 
-		// Prune the document
-		err = pruneSchema(doc)
+		model, err := doc.BuildV3Model()
 		assert.NoError(t, err)
 
-		model, err := doc.BuildV3Model()
+		// Prune the document
+		err = pruneSchema(&model.Model)
 		assert.NoError(t, err)
 
 		// components/examples should be removed (set to nil)

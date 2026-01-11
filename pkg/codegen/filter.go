@@ -21,7 +21,7 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-func filterOutDocument(doc libopenapi.Document, cfg FilterConfig) (libopenapi.Document, bool, error) {
+func filterOutDocument(doc libopenapi.Document, cfg FilterConfig) (*v3high.Document, bool, error) {
 	model, err := doc.BuildV3Model()
 	if err != nil {
 		return nil, false, fmt.Errorf("error building model: %w", err)
@@ -32,7 +32,7 @@ func filterOutDocument(doc libopenapi.Document, cfg FilterConfig) (libopenapi.Do
 	filtered := removedOperations || removedProperties
 
 	// Don't reload yet - let the caller decide when to reload (after pruning if needed)
-	return doc, filtered, nil
+	return &model.Model, filtered, nil
 }
 
 func filterOperations(model *v3high.Document, cfg FilterConfig) bool {
@@ -155,14 +155,14 @@ func filterComponentSchemaProperties(model *v3high.Document, cfg FilterConfig) b
 			schema.Extensions = newExtensions
 		}
 
-		var copiedKeys []string
+		// Copy keys to avoid modifying map during iteration
+		var propKeys []string
 		for prop := range schema.Properties.KeysFromOldest() {
-			copiedKeys = append(copiedKeys, prop)
+			propKeys = append(propKeys, prop)
 		}
 
-		for _, propName := range copiedKeys {
-			isRequired := slices.Contains(schema.Required, propName)
-			if isRequired {
+		for _, propName := range propKeys {
+			if slices.Contains(schema.Required, propName) {
 				continue
 			}
 

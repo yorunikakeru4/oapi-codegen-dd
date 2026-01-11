@@ -1,23 +1,76 @@
 # yaml-language-server: $schema=../../../configuration-schema.json
+#
+# Property Filtering Example
+# ==========================
+#
+# This example demonstrates how schema property filtering works and how it
+# triggers transitive pruning of unreferenced schemas.
+#
+# Key behaviors demonstrated:
+#
+# 1. BASIC PROPERTY FILTERING
+#    - User schema: only id, email, name, organization are kept
+#    - profile, settings, and manager properties are filtered out
+#
+# 2. TRANSITIVE SCHEMA PRUNING
+#    - Profile schema is PRUNED because User.profile is filtered out
+#    - SocialLinks schema is PRUNED because it's only referenced by Profile
+#    - Settings schema is PRUNED because User.settings is filtered out
+#
+# 3. NESTED PROPERTY FILTERING
+#    - Organization schema: only id, name, plan are kept
+#    - Organization.billing is filtered out
+#    - BillingInfo schema is PRUNED because Organization.billing is filtered out
+#    - PaymentMethod schema is PRUNED because it's only referenced by BillingInfo
+#
+# 4. RESPONSE TYPE FILTERING
+#    - Inline response types (e.g., CreateUserResponse) use the filtered User schema
+#    - They should NOT include profile, settings, manager, or other filtered properties
+#
+# 5. ANYOF WITH SCHEMA REFS (Stripe-style expandable fields)
+#    - User.manager is an anyOf: [string, $ref: Manager]
+#    - When User.manager is filtered out, Manager schema is also PRUNED
+#    - This pattern is common in Stripe API for expandable fields
+#
+# Expected generated schemas:
+#   - User (with id, email, name, organization only)
+#   - Organization (with id, name, plan only)
+#   - Error (unchanged)
+#
+# Expected PRUNED schemas (not generated):
+#   - Profile
+#   - SocialLinks
+#   - Settings
+#   - Manager (referenced via anyOf, but still pruned)
+#   - BillingInfo
+#   - PaymentMethod
+
 package: filteringbyproperty
 output:
   use-single-file: true
-error-mapping:
-  UpdateClientErrorResponse: code
 generate:
   client: true
+  validation:
+    simple: true
+error-mapping:
+  CreateUserErrorResponse: message
+
 filter:
   include:
     schema-properties:
-      Person:
-        # name is required and will be present regardless
-        # - name
-        - age
-        - employment
-  exclude:
-    schema-properties:
-      Job:
-        # title is required and won't be removed
-        - title
-        - experience
-        - created_at
+      # Keep only essential User properties
+      # This filters out: profile, settings
+      # Which causes Profile, SocialLinks, Settings to be pruned
+      User:
+        - id
+        - email
+        - name
+        - organization
+
+      # Keep only essential Organization properties
+      # This filters out: billing
+      # Which causes BillingInfo, PaymentMethod to be pruned
+      Organization:
+        - id
+        - name
+        - plan
