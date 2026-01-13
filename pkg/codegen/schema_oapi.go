@@ -77,7 +77,11 @@ func oapiSchemaToGoType(schema *base.Schema, options ParseOptions) (GoSchema, er
 			return GoSchema{}, fmt.Errorf("error generating type for array: %w", err)
 		}
 
-		if (arrayType.HasAdditionalProperties || len(arrayType.UnionElements) != 0 || len(arrayType.Properties) > 0) && arrayType.RefType == "" {
+		// Create a named type for array items if they have complex structure (additional properties,
+		// union values, or properties) and are not already a named type or an array type.
+		// Skip if items are an array - nested arrays should not create intermediate _Item types.
+		isArrayItems := arrayType.ArrayType != nil
+		if (arrayType.HasAdditionalProperties || len(arrayType.UnionElements) != 0 || len(arrayType.Properties) > 0) && arrayType.RefType == "" && !isArrayItems {
 			// If we have items which have additional properties, union values, or properties,
 			// but are not a pre-defined type, we need to define a type
 			// for them, which will be based on the field names we followed
@@ -97,8 +101,17 @@ func oapiSchemaToGoType(schema *base.Schema, options ParseOptions) (GoSchema, er
 			arrayType.RefType = typeName
 		}
 
+		// Determine the element type for the array.
+		// If the items created a named type (RefType is set), use that.
+		// Otherwise use GoType. This ensures nested arrays like [][]struct{}
+		// become [][]TypeName when an _Item type was created.
+		elemType := arrayType.RefType
+		if elemType == "" {
+			elemType = arrayType.GoType
+		}
+
 		return GoSchema{
-			GoType:          "[]" + arrayType.TypeDecl(),
+			GoType:          "[]" + elemType,
 			ArrayType:       &arrayType,
 			AdditionalTypes: arrayType.AdditionalTypes,
 			Properties:      arrayType.Properties,

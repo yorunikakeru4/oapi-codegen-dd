@@ -1,0 +1,32 @@
+openapi: 3.0.0
+info:
+  title: Nested Array Test
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      operationId: GetTest
+      responses:
+        "200":
+          description: success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  params:
+                    type: object
+                    properties:
+                      required:
+                        type: array
+                        items:
+                          type: array
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                name:
+                                  type: string
+                                description:
+                                  type: string
