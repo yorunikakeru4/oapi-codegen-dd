@@ -34,8 +34,9 @@ func TestCreateUserBody_ReadOnlyFieldsOptional(t *testing.T) {
 	require.NotContains(t, result, "createdAt")
 }
 
-func TestCreateUserResponse_ReadOnlyFieldsRequired(t *testing.T) {
+func TestCreateUserResponse_ReadOnlyFieldsOptional(t *testing.T) {
 	// Response should have all fields including readOnly ones
+	// ReadOnly fields are now optional (pointers) since component schemas are shared
 	jsonData := `{
 		"id": "123",
 		"name": "John Doe",
@@ -47,13 +48,15 @@ func TestCreateUserResponse_ReadOnlyFieldsRequired(t *testing.T) {
 	err := json.Unmarshal([]byte(jsonData), &response)
 	require.NoError(t, err)
 
-	require.Equal(t, "123", response.ID)
+	require.NotNil(t, response.ID)
+	require.Equal(t, "123", *response.ID)
 	require.Equal(t, "John Doe", response.Name)
 	require.Equal(t, "john@example.com", response.Email)
 }
 
 func TestUser_ComponentSchema(t *testing.T) {
-	// The component schema should still have all fields required
+	// Component schemas have readOnly fields as optional (pointers)
+	// since they're shared between requests and responses
 	jsonData := `{
 		"id": "123",
 		"name": "John Doe",
@@ -68,7 +71,8 @@ func TestUser_ComponentSchema(t *testing.T) {
 	err = user.Validate()
 	require.NoError(t, err)
 
-	require.Equal(t, "123", user.ID)
+	require.NotNil(t, user.ID)
+	require.Equal(t, "123", *user.ID)
 	require.Equal(t, "John Doe", user.Name)
 	require.Equal(t, "john@example.com", user.Email)
 }

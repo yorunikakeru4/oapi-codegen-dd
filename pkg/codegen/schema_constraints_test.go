@@ -169,40 +169,40 @@ func TestNewConstraints(t *testing.T) {
 		}, res)
 	})
 
-	t.Run("readOnly required field in request body should not be required", func(t *testing.T) {
+	t.Run("readOnly required field should not be required", func(t *testing.T) {
 		schema := &base.Schema{
 			Type:     []string{"string"},
 			Required: []string{"foo"},
 			ReadOnly: ptr(true),
 		}
 
+		// ReadOnly fields should not have struct-level required validation
+		// regardless of specLocation (component schemas are shared)
 		res := newConstraints(schema, ConstraintsContext{
-			name:         "foo",
-			required:     true,
-			specLocation: SpecLocationBody,
+			name:     "foo",
+			required: true,
 		})
 
-		// ReadOnly fields should not be required in request bodies
 		assert.Equal(t, Constraints{
 			ReadOnly: ptr(true),
 			Nullable: ptr(true),
 		}, res)
 	})
 
-	t.Run("writeOnly required field in response should not be required", func(t *testing.T) {
+	t.Run("writeOnly required field should not be required", func(t *testing.T) {
 		schema := &base.Schema{
 			Type:      []string{"string"},
 			Required:  []string{"foo"},
 			WriteOnly: ptr(true),
 		}
 
+		// WriteOnly fields should not have struct-level required validation
+		// regardless of specLocation (component schemas are shared)
 		res := newConstraints(schema, ConstraintsContext{
-			name:         "foo",
-			required:     true,
-			specLocation: SpecLocationResponse,
+			name:     "foo",
+			required: true,
 		})
 
-		// WriteOnly fields should not be required in responses
 		assert.Equal(t, Constraints{
 			WriteOnly: ptr(true),
 			Nullable:  ptr(true),

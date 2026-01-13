@@ -41,7 +41,7 @@ type CreateUserBody struct {
 	// Password User's password. This is writeOnly AND required.
 	// - In request bodies (POST, PATCH): should be required
 	// - In responses (GET): should not be present
-	Password string `json:"password" validate:"required"`
+	Password *string `json:"password,omitempty"`
 
 	// Bio Optional user biography (not required, not readOnly/writeOnly)
 	Bio *string `json:"bio,omitempty"`
@@ -70,9 +70,6 @@ func (c CreateUserBody) Validate() error {
 			errors = errors.Append("Email", err)
 		}
 	}
-	if err := typesValidator.Var(c.Password, "required"); err != nil {
-		errors = errors.Append("Password", err)
-	}
 	if len(errors) == 0 {
 		return nil
 	}
@@ -94,7 +91,7 @@ type UpdateUserBody struct {
 	// Password User's password. This is writeOnly AND required.
 	// - In request bodies (POST, PATCH): should be required
 	// - In responses (GET): should not be present
-	Password string `json:"password" validate:"required"`
+	Password *string `json:"password,omitempty"`
 
 	// Bio Optional user biography (not required, not readOnly/writeOnly)
 	Bio *string `json:"bio,omitempty"`
@@ -123,9 +120,6 @@ func (u UpdateUserBody) Validate() error {
 			errors = errors.Append("Email", err)
 		}
 	}
-	if err := typesValidator.Var(u.Password, "required"); err != nil {
-		errors = errors.Append("Password", err)
-	}
 	if len(errors) == 0 {
 		return nil
 	}
@@ -136,7 +130,7 @@ type CreateUserResponse struct {
 	// ID Auto-generated user ID. This is readOnly AND required.
 	// - In request bodies (POST, PATCH): should be optional (pointer with omitempty)
 	// - In responses (GET): should be required (non-pointer)
-	ID string `json:"id" validate:"required"`
+	ID *string `json:"id,omitempty"`
 
 	// Name User's full name (regular required field)
 	Name string `json:"name" validate:"required"`
@@ -155,7 +149,7 @@ type CreateUserResponse struct {
 	// CreatedAt Auto-generated creation timestamp. This is readOnly AND required.
 	// - In request bodies: should be optional (pointer with omitempty)
 	// - In responses: should be required (non-pointer)
-	CreatedAt time.Time `json:"createdAt" validate:"required"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 
 	// UpdatedAt Auto-generated update timestamp. This is readOnly but NOT required.
 	// - In request bodies: should be optional (pointer with omitempty)
@@ -172,7 +166,7 @@ type GetUserResponse struct {
 	// ID Auto-generated user ID. This is readOnly AND required.
 	// - In request bodies (POST, PATCH): should be optional (pointer with omitempty)
 	// - In responses (GET): should be required (non-pointer)
-	ID string `json:"id" validate:"required"`
+	ID *string `json:"id,omitempty"`
 
 	// Name User's full name (regular required field)
 	Name string `json:"name" validate:"required"`
@@ -191,7 +185,7 @@ type GetUserResponse struct {
 	// CreatedAt Auto-generated creation timestamp. This is readOnly AND required.
 	// - In request bodies: should be optional (pointer with omitempty)
 	// - In responses: should be required (non-pointer)
-	CreatedAt time.Time `json:"createdAt" validate:"required"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 
 	// UpdatedAt Auto-generated update timestamp. This is readOnly but NOT required.
 	// - In request bodies: should be optional (pointer with omitempty)
@@ -206,7 +200,7 @@ type UpdateUserResponse struct {
 	// ID Auto-generated user ID. This is readOnly AND required.
 	// - In request bodies (POST, PATCH): should be optional (pointer with omitempty)
 	// - In responses (GET): should be required (non-pointer)
-	ID string `json:"id" validate:"required"`
+	ID *string `json:"id,omitempty"`
 
 	// Name User's full name (regular required field)
 	Name string `json:"name" validate:"required"`
@@ -225,7 +219,7 @@ type UpdateUserResponse struct {
 	// CreatedAt Auto-generated creation timestamp. This is readOnly AND required.
 	// - In request bodies: should be optional (pointer with omitempty)
 	// - In responses: should be required (non-pointer)
-	CreatedAt time.Time `json:"createdAt" validate:"required"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 
 	// UpdatedAt Auto-generated update timestamp. This is readOnly but NOT required.
 	// - In request bodies: should be optional (pointer with omitempty)
@@ -240,7 +234,7 @@ type User struct {
 	// ID Auto-generated user ID. This is readOnly AND required.
 	// - In request bodies (POST, PATCH): should be optional (pointer with omitempty)
 	// - In responses (GET): should be required (non-pointer)
-	ID string `json:"id" validate:"required"`
+	ID *string `json:"id,omitempty"`
 
 	// Name User's full name (regular required field)
 	Name string `json:"name" validate:"required"`
@@ -251,7 +245,7 @@ type User struct {
 	// Password User's password. This is writeOnly AND required.
 	// - In request bodies (POST, PATCH): should be required
 	// - In responses (GET): should not be present
-	Password string `json:"password" validate:"required"`
+	Password *string `json:"password,omitempty"`
 
 	// Bio Optional user biography (not required, not readOnly/writeOnly)
 	Bio *string `json:"bio,omitempty"`
@@ -259,7 +253,7 @@ type User struct {
 	// CreatedAt Auto-generated creation timestamp. This is readOnly AND required.
 	// - In request bodies: should be optional (pointer with omitempty)
 	// - In responses: should be required (non-pointer)
-	CreatedAt time.Time `json:"createdAt" validate:"required"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 
 	// UpdatedAt Auto-generated update timestamp. This is readOnly but NOT required.
 	// - In request bodies: should be optional (pointer with omitempty)
@@ -272,9 +266,6 @@ type User struct {
 
 func (u User) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := typesValidator.Var(u.ID, "required"); err != nil {
-		errors = errors.Append("ID", err)
-	}
 	if err := typesValidator.Var(u.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
@@ -282,12 +273,6 @@ func (u User) Validate() error {
 		if err := v.Validate(); err != nil {
 			errors = errors.Append("Email", err)
 		}
-	}
-	if err := typesValidator.Var(u.Password, "required"); err != nil {
-		errors = errors.Append("Password", err)
-	}
-	if err := typesValidator.Var(u.CreatedAt, "required"); err != nil {
-		errors = errors.Append("CreatedAt", err)
 	}
 	if len(errors) == 0 {
 		return nil
@@ -319,7 +304,7 @@ type ListUsers_Response_Item struct {
 	// ID Auto-generated user ID. This is readOnly AND required.
 	// - In request bodies (POST, PATCH): should be optional (pointer with omitempty)
 	// - In responses (GET): should be required (non-pointer)
-	ID string `json:"id" validate:"required"`
+	ID *string `json:"id,omitempty"`
 
 	// Name User's full name (regular required field)
 	Name string `json:"name" validate:"required"`
@@ -338,7 +323,7 @@ type ListUsers_Response_Item struct {
 	// CreatedAt Auto-generated creation timestamp. This is readOnly AND required.
 	// - In request bodies: should be optional (pointer with omitempty)
 	// - In responses: should be required (non-pointer)
-	CreatedAt time.Time `json:"createdAt" validate:"required"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 
 	// UpdatedAt Auto-generated update timestamp. This is readOnly but NOT required.
 	// - In request bodies: should be optional (pointer with omitempty)
@@ -351,9 +336,6 @@ type ListUsers_Response_Item struct {
 
 func (l ListUsers_Response_Item) Validate() error {
 	var errors runtime.ValidationErrors
-	if err := typesValidator.Var(l.ID, "required"); err != nil {
-		errors = errors.Append("ID", err)
-	}
 	if err := typesValidator.Var(l.Name, "required"); err != nil {
 		errors = errors.Append("Name", err)
 	}
@@ -361,9 +343,6 @@ func (l ListUsers_Response_Item) Validate() error {
 		if err := v.Validate(); err != nil {
 			errors = errors.Append("Email", err)
 		}
-	}
-	if err := typesValidator.Var(l.CreatedAt, "required"); err != nil {
-		errors = errors.Append("CreatedAt", err)
 	}
 	if len(errors) == 0 {
 		return nil

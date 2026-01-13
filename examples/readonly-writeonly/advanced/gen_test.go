@@ -31,7 +31,9 @@ func TestCreateUserBody_ReadOnlyFieldsOptional(t *testing.T) {
 	// Verify that regular required fields are present
 	assert.Equal(t, "John Doe", body.Name)
 	assert.Equal(t, "john@example.com", string(body.Email))
-	assert.Equal(t, "secret123", body.Password)
+	// Password is now a pointer since writeOnly fields are optional at struct level
+	require.NotNil(t, body.Password)
+	assert.Equal(t, "secret123", *body.Password)
 	assert.NotNil(t, body.Bio)
 	assert.Equal(t, "Software engineer", *body.Bio)
 }
@@ -57,8 +59,9 @@ func TestUpdateUserBody_ReadOnlyFieldsOptional(t *testing.T) {
 	assert.Equal(t, "jane@example.com", string(body.Email))
 }
 
-func TestUser_ReadOnlyFieldsRequired(t *testing.T) {
-	// Test that readOnly fields (id, createdAt) are required in responses
+func TestUser_ReadOnlyFieldsOptional(t *testing.T) {
+	// ReadOnly and writeOnly fields are now optional (pointers) at struct level
+	// since component schemas are shared between requests and responses
 
 	now := time.Now()
 	responseJSON := `{
@@ -73,8 +76,10 @@ func TestUser_ReadOnlyFieldsRequired(t *testing.T) {
 	err := json.Unmarshal([]byte(responseJSON), &user)
 	require.NoError(t, err)
 
-	// Verify that readOnly fields are non-pointer (required)
-	assert.Equal(t, "user-123", user.ID)
+	// ReadOnly fields are now pointers (optional at struct level)
+	require.NotNil(t, user.ID)
+	assert.Equal(t, "user-123", *user.ID)
+	require.NotNil(t, user.CreatedAt)
 	assert.False(t, user.CreatedAt.IsZero())
 
 	// Verify regular fields
@@ -102,8 +107,9 @@ func TestUser_OptionalReadOnlyFields(t *testing.T) {
 	assert.Nil(t, user.LastLogin, "LastLogin should be optional even in responses")
 }
 
-func TestWriteOnlyFieldRequired(t *testing.T) {
-	// Test that writeOnly field (password) is required in request bodies
+func TestWriteOnlyFieldOptional(t *testing.T) {
+	// WriteOnly fields are now optional (pointers) at struct level
+	// since component schemas are shared between requests and responses
 
 	requestJSON := `{
 		"name": "John Doe",
@@ -114,8 +120,8 @@ func TestWriteOnlyFieldRequired(t *testing.T) {
 	err := json.Unmarshal([]byte(requestJSON), &body)
 	require.NoError(t, err)
 
-	// Password is writeOnly + required, so it should be empty string (not provided)
-	assert.Equal(t, "", body.Password, "Password was not provided in JSON")
+	// Password is writeOnly, now a pointer (optional at struct level)
+	assert.Nil(t, body.Password, "Password was not provided in JSON")
 
 	// With password
 	requestWithPassword := `{
@@ -126,5 +132,6 @@ func TestWriteOnlyFieldRequired(t *testing.T) {
 
 	err = json.Unmarshal([]byte(requestWithPassword), &body)
 	require.NoError(t, err)
-	assert.Equal(t, "secret123", body.Password)
+	require.NotNil(t, body.Password)
+	assert.Equal(t, "secret123", *body.Password)
 }

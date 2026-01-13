@@ -25,22 +25,22 @@ func (c CreateUserBody) Validate() error {
 
 type CreateUserResponse struct {
 	// ID Auto-generated user ID
-	ID    string `json:"id" validate:"required"`
-	Name  string `json:"name" validate:"required"`
-	Email string `json:"email" validate:"required"`
+	ID    *string `json:"id,omitempty"`
+	Name  string  `json:"name" validate:"required"`
+	Email string  `json:"email" validate:"required"`
 
 	// CreatedAt Auto-generated timestamp
-	CreatedAt time.Time `json:"createdAt" validate:"required"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }
 
 type User struct {
 	// ID Auto-generated user ID
-	ID    string `json:"id" validate:"required"`
-	Name  string `json:"name" validate:"required"`
-	Email string `json:"email" validate:"required"`
+	ID    *string `json:"id,omitempty"`
+	Name  string  `json:"name" validate:"required"`
+	Email string  `json:"email" validate:"required"`
 
 	// CreatedAt Auto-generated timestamp
-	CreatedAt time.Time `json:"createdAt" validate:"required"`
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }
 
 func (u User) Validate() error {

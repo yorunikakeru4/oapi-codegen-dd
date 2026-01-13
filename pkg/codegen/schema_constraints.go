@@ -127,15 +127,21 @@ func newConstraints(schema *base.Schema, opts ConstraintsContext) Constraints {
 		required = slices.Contains(schema.Required, name)
 	}
 
-	// ReadOnly fields should not be required in request bodies
-	// even if they are marked as required in the schema
-	if required && opts.specLocation == SpecLocationBody && schema.ReadOnly != nil && *schema.ReadOnly {
+	// ReadOnly fields should not have struct-level required validation.
+	// They are only present in responses, not in requests, so requiring them
+	// at the struct level would fail when validating request bodies.
+	// Component schemas are shared between requests and responses, so we can't
+	// rely on specLocation to determine the context.
+	if required && schema.ReadOnly != nil && *schema.ReadOnly {
 		required = false
 	}
 
-	// WriteOnly fields should not be required in responses
-	// even if they are marked as required in the schema
-	if required && opts.specLocation == SpecLocationResponse && schema.WriteOnly != nil && *schema.WriteOnly {
+	// WriteOnly fields should not have struct-level required validation.
+	// They are only present in requests, not in responses, so requiring them
+	// at the struct level would fail when validating response bodies.
+	// Component schemas are shared between requests and responses, so we can't
+	// rely on specLocation to determine the context.
+	if required && schema.WriteOnly != nil && *schema.WriteOnly {
 		required = false
 	}
 
