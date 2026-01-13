@@ -469,8 +469,10 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, options ParseOptions) (GoSc
 	}
 
 	// If the combinator (allOf/anyOf/oneOf) resulted in a complete schema, return it directly
-	// This handles cases like allOf with a description-only schema and a $ref
-	if !merged.IsZero() && merged.DefineViaAlias {
+	// This handles cases like:
+	// - allOf with a description-only schema and a $ref (DefineViaAlias=true)
+	// - allOf with additionalProperties that results in a map type
+	if !merged.IsZero() && (merged.DefineViaAlias || strings.HasPrefix(merged.GoType, "map[")) {
 		return merged, nil
 	}
 

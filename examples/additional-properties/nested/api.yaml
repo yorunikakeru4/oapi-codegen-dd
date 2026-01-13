@@ -1,0 +1,50 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Nested Additional Properties Test
+paths:
+  /files/{id}:
+    get:
+      operationId: getFile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+components:
+  schemas:
+    File:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        metadata:
+          allOf:
+            - additionalProperties:
+                additionalProperties:
+                  additionalProperties:
+                    $ref: "#/components/schemas/Metadata"
+                type: object
+              description: Nested map of scope -> templateKey -> Metadata
+              type: object
+    Metadata:
+      type: object
+      properties:
+        $parent:
+          type: string
+        $scope:
+          type: string
+        $template:
+          type: string
+        $version:
+          type: integer
