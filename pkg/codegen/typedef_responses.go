@@ -199,9 +199,23 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 			componentTypeName = schemaNameToTypeName(refType)
 		}
 
-		// Check if the component type actually exists
-		_, componentTypeExists := options.currentTypes[componentTypeName]
-		componentTypeExists = componentTypeExists && componentTypeName != ""
+		// Check if the component type actually exists AND is a response type.
+		// This is important because a component response might have the same name as a schema type.
+		// For example, components/responses/BusinessGroup might be an array of components/schemas/BusinessGroup.
+		// In this case, the response type will be named BusinessGroupResponse (with Response suffix).
+		componentTd, componentTypeExists := options.currentTypes[componentTypeName]
+		componentTypeExists = componentTypeExists && componentTypeName != "" && componentTd.SpecLocation == SpecLocationResponse
+
+		// If the component type doesn't exist with the original name, try with "Response" suffix.
+		// This handles the case where the response type was renamed to avoid conflict with a schema type.
+		if !componentTypeExists && componentTypeName != "" {
+			componentTypeNameWithSuffix := componentTypeName + "Response"
+			if td, exists := options.currentTypes[componentTypeNameWithSuffix]; exists && td.SpecLocation == SpecLocationResponse {
+				componentTypeName = componentTypeNameWithSuffix
+				componentTd = td
+				componentTypeExists = true
+			}
+		}
 
 		if componentTypeExists {
 			// Create an operation-specific alias to the component response type
@@ -222,9 +236,7 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 			// Use the component's schema instead of the regenerated contentSchema.
 			// This ensures we use the correct AdditionalTypes from the component
 			// rather than duplicates generated with the response path context.
-			if componentTd, ok := options.currentTypes[componentTypeName]; ok {
-				contentSchema = componentTd.Schema
-			}
+			contentSchema = componentTd.Schema
 		} else {
 			switch {
 			case contentType == "application/json":

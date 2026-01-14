@@ -1,0 +1,32 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Business Groups API
+paths:
+  /business-groups:
+    get:
+      operationId: getBusinessGroups
+      responses:
+        '200':
+          $ref: '#/components/responses/BusinessGroup'
+components:
+  schemas:
+    BusinessGroup:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: integer
+  responses:
+    # Response has the same name as the schema but is an array type.
+    # The generated type should be named BusinessGroupResponse to avoid conflict.
+    BusinessGroup:
+      description: A list of business groups
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              allOf:
+                - $ref: '#/components/schemas/BusinessGroup'

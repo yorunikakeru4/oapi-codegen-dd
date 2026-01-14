@@ -190,6 +190,19 @@ func getComponentResponses(responses *orderedmap.Map[string, *v3high.Response], 
 				return nil, fmt.Errorf("error making name for components/responses/%s: %w", responseName, err)
 			}
 
+			// Check if a type with the same name already exists (e.g., from components/schemas).
+			// If so, and the existing type is different (e.g., schema is struct, response is array),
+			// generate a unique name for the response type.
+			if existingType, exists := options.currentTypes[goTypeName]; exists {
+				// Check if the types are different (different GoType or different structure)
+				isDifferent := existingType.Schema.GoType != goType.GoType ||
+					(existingType.Schema.ArrayType == nil) != (goType.ArrayType == nil)
+				if isDifferent {
+					// Generate a unique name by appending "Response" suffix
+					goTypeName = generateTypeName(options.currentTypes, goTypeName, []string{"Response"})
+				}
+			}
+
 			typeDef := TypeDefinition{
 				JsonName:       responseName,
 				Schema:         goType,
