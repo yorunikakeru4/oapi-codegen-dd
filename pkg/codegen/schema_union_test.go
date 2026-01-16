@@ -247,6 +247,75 @@ paths:
 		value := extractDiscriminatorValue(schema.OneOf[0], "type")
 		assert.Equal(t, "", value)
 	})
+
+	t.Run("extracts discriminator value from referenced schema with enum", func(t *testing.T) {
+		// This tests the fix for the Spotify API issue where referenced schemas
+		// like TrackObject have type: { enum: [track] } but the discriminator
+		// was incorrectly using the reference name "TrackObject" instead of "track"
+		yamlContent := `
+openapi: 3.0.0
+info:
+  title: Test
+  version: 1.0.0
+paths:
+  /test:
+    get:
+      operationId: test
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TrackObject'
+                  - $ref: '#/components/schemas/EpisodeObject'
+                discriminator:
+                  propertyName: type
+components:
+  schemas:
+    TrackObject:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - track
+        name:
+          type: string
+    EpisodeObject:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - episode
+        title:
+          type: string
+`
+		srcDoc, err := LoadDocumentFromContents([]byte(yamlContent))
+		require.NoError(t, err)
+
+		v3Model, err := srcDoc.BuildV3Model()
+		require.NoError(t, err)
+
+		doc := v3Model.Model
+		schemaProxy := getOperationResponse(t, doc, "/test", "get")
+		require.NotNil(t, schemaProxy)
+
+		schema := schemaProxy.Schema()
+		require.NotNil(t, schema)
+		require.NotNil(t, schema.OneOf)
+		require.Len(t, schema.OneOf, 2)
+
+		// Test extracting discriminator value from referenced TrackObject
+		trackValue := extractDiscriminatorValue(schema.OneOf[0], "type")
+		assert.Equal(t, "track", trackValue, "Should extract 'track' from TrackObject's type enum")
+
+		// Test extracting discriminator value from referenced EpisodeObject
+		episodeValue := extractDiscriminatorValue(schema.OneOf[1], "type")
+		assert.Equal(t, "episode", episodeValue, "Should extract 'episode' from EpisodeObject's type enum")
+	})
 }
 
 func TestDeduplicateUnionElements_StricterWins(t *testing.T) {

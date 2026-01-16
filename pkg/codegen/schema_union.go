@@ -167,20 +167,20 @@ func generateUnion(elements []*base.SchemaProxy, discriminator *base.Discriminat
 			if !mapped {
 				var discriminatorValue string
 
-				// For inline schemas (no reference), try to extract the discriminator value
-				if element.GetReference() == "" {
-					discriminatorValue = extractDiscriminatorValue(element, discriminator.PropertyName)
-					if discriminatorValue == "" {
-						// If we have an explicit mapping but can't determine the discriminator value
-						// for an inline schema, that's an error
+				// Try to extract the discriminator value from the schema's enum first.
+				// This works for both inline and referenced schemas.
+				discriminatorValue = extractDiscriminatorValue(element, discriminator.PropertyName)
+
+				if discriminatorValue == "" {
+					if element.GetReference() == "" {
+						// For inline schemas without an enum value, we can't determine the discriminator
 						if discriminator.Mapping.Len() != 0 {
 							return GoSchema{}, ErrAmbiguousDiscriminatorMapping
 						}
 						// Otherwise, skip this element (it won't be mapped)
 						continue
 					}
-				} else {
-					// For referenced schemas, use the reference name
+					// For referenced schemas without an enum value, fall back to the reference name
 					discriminatorValue = refPathToObjName(element.GetReference())
 				}
 
@@ -236,7 +236,8 @@ func isStricterElement(elem1, elem2 UnionElement) bool {
 }
 
 // extractDiscriminatorValue attempts to extract the discriminator value from a schema.
-// For inline schemas, it looks for the discriminator property and extracts its enum value.
+// It looks for the discriminator property and extracts its enum value.
+// Works for both inline and referenced schemas (references are resolved automatically).
 // Returns empty string if the value cannot be determined.
 func extractDiscriminatorValue(element *base.SchemaProxy, discriminatorProp string) string {
 	if element == nil {
