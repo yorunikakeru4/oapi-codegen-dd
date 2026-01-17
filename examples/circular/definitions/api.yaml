@@ -1,0 +1,61 @@
+openapi: 3.0.3
+info:
+  title: Recursive Definitions API
+  version: 1.0.0
+paths:
+  /reports/{id}:
+    get:
+      summary: Get a report by ID
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the report
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        '404':
+          description: Report not found
+components:
+  schemas:
+    Report:
+      type: object
+      properties:
+        reportData:
+          type: array
+          items:
+            $ref: '#/components/schemas/Report/definitions/reportComponent'
+        # Another non-standard circular ref using definitions
+        treeData:
+          type: array
+          items:
+            $ref: '#/components/schemas/Report/definitions/treeNode'
+      definitions:
+        reportComponent:
+          type: object
+          properties:
+            name:
+              type: string
+            components:
+              type: array
+              items:
+                $ref: '#/components/schemas/Report/definitions/reportComponent'
+        treeNode:
+          type: object
+          required:
+            - value
+          properties:
+            value:
+              type: string
+              minLength: 1
+            children:
+              type: array
+              items:
+                $ref: '#/components/schemas/Report/definitions/treeNode'
+

@@ -63,13 +63,36 @@ func oapiSchemaToGoType(schema *base.Schema, options ParseOptions) (GoSchema, er
 		// [] in front of it.
 		opts := options
 		var items *base.SchemaProxy
+		var itemRef string
 		if schema.Items != nil && schema.Items.IsA() {
 			items = schema.Items.A
-			ref := items.GoLow().GetReference()
-			opts = opts.WithReference(ref)
+			itemRef = items.GoLow().GetReference()
+			opts = opts.WithReference(itemRef)
 			// For inline items (no reference), we don't append to the path here.
 			// The path will be used for naming if needed (e.g., for unions or complex types).
 			// We rely on the tracking logic to only track schemas with references or single-element paths.
+		}
+
+		// Pre-register the type name with the reference if available.
+		// This allows circular references to find this type during processing.
+		// We'll update the registration with the full type definition after processing.
+		// Only pre-register if the ref is not already registered (to avoid overwriting).
+		var preRegisteredTypeName string
+		var weRegisteredRef bool // Track if WE registered the ref (vs it was already registered)
+		if itemRef != "" && !isStandardComponentReference(itemRef) {
+			if existingName, found := options.typeTracker.LookupByRef(itemRef); found {
+				// The ref is already registered, use the existing name
+				preRegisteredTypeName = existingName
+				weRegisteredRef = false
+			} else {
+				preRegisteredTypeName = pathToTypeName(append(path, "Item"))
+				if options.typeTracker.Exists(preRegisteredTypeName) {
+					preRegisteredTypeName = options.typeTracker.generateUniqueName(preRegisteredTypeName)
+				}
+				// Pre-register with just the name so circular references can find it
+				options.typeTracker.registerRef(itemRef, preRegisteredTypeName)
+				weRegisteredRef = true
+			}
 		}
 
 		arrayType, err := GenerateGoSchema(items, opts)
@@ -80,20 +103,31 @@ func oapiSchemaToGoType(schema *base.Schema, options ParseOptions) (GoSchema, er
 		// Create a named type for array items if they have complex structure (additional properties,
 		// union values, or properties) and are not already a named type or an array type.
 		// Skip if items are an array - nested arrays should not create intermediate _Item types.
+		// Also skip if the ref was already registered before we started (circular reference case).
+		// If WE registered the ref (weRegisteredRef=true), we should still create the type.
 		isArrayItems := arrayType.ArrayType != nil
-		if (arrayType.HasAdditionalProperties || len(arrayType.UnionElements) != 0 || len(arrayType.Properties) > 0) && arrayType.RefType == "" && !isArrayItems {
+		shouldCreateType := (arrayType.HasAdditionalProperties || len(arrayType.UnionElements) != 0 || len(arrayType.Properties) > 0) && arrayType.RefType == "" && !isArrayItems
+		// If the ref was already registered before we started, skip creating the type
+		// (this is a circular reference and the type will be created by the original caller)
+		if shouldCreateType && itemRef != "" && !weRegisteredRef {
+			shouldCreateType = false
+		}
+		if shouldCreateType {
 			// If we have items which have additional properties, union values, or properties,
 			// but are not a pre-defined type, we need to define a type
 			// for them, which will be based on the field names we followed
 			// to get to the type.
-			typeName := pathToTypeName(append(path, "Item"))
-
-			// Check if the type name already exists.
-			// If it does, generate a unique name to avoid conflicts and overwrites.
-			// This handles cases like allOf with duplicate property names where each
-			// property has different enum values - we need separate types for each.
-			if options.typeTracker.Exists(typeName) {
-				typeName = options.typeTracker.generateUniqueName(typeName)
+			// Use the pre-registered type name if available, otherwise generate a new one.
+			typeName := preRegisteredTypeName
+			if typeName == "" {
+				typeName = pathToTypeName(append(path, "Item"))
+				// Check if the type name already exists.
+				// If it does, generate a unique name to avoid conflicts and overwrites.
+				// This handles cases like allOf with duplicate property names where each
+				// property has different enum values - we need separate types for each.
+				if options.typeTracker.Exists(typeName) {
+					typeName = options.typeTracker.generateUniqueName(typeName)
+				}
 			}
 
 			typeDef := TypeDefinition{
@@ -104,7 +138,8 @@ func oapiSchemaToGoType(schema *base.Schema, options ParseOptions) (GoSchema, er
 				NeedsMarshaler:   needsMarshaler(arrayType),
 				HasSensitiveData: hasSensitiveData(arrayType),
 			}
-			options.typeTracker.register(typeDef, "")
+			// Register the full type definition (the ref mapping was already done in pre-registration)
+			options.typeTracker.register(typeDef, itemRef)
 			arrayType.AdditionalTypes = append(arrayType.AdditionalTypes, typeDef)
 			arrayType.RefType = typeName
 		}

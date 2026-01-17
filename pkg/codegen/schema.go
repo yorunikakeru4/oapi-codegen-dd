@@ -429,6 +429,20 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, options ParseOptions) (GoSc
 	if shouldTrack && options.visited != nil && options.visited[trackingKey] {
 		// For non-reference circular dependencies, return the type name
 		// This handles cases like recursive schemas (e.g., a Node with children of type Node)
+		// First, try to look up the type by reference in the type tracker
+		// This handles cases where the type was already created with a different name
+		// (e.g., Report_ReportData_Item for #/components/schemas/Report/definitions/reportComponent)
+		if options.typeTracker != nil && schemaRef != "" {
+			if actualName, found := options.typeTracker.LookupByRef(schemaRef); found {
+				return GoSchema{
+					GoType:         actualName,
+					DefineViaAlias: true,
+					Description:    schema.Description,
+					OpenAPISchema:  schema,
+				}, nil
+			}
+		}
+		// Fall back to generating a type name from the path
 		typeName := pathToTypeName(options.path)
 		return GoSchema{
 			GoType:         typeName,
@@ -578,7 +592,8 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, options ParseOptions) (GoSc
 				NeedsMarshaler:   needsMarshaler(enhanced),
 				HasSensitiveData: hasSensitiveData(enhanced),
 			}
-			options.typeTracker.register(typeDef, "")
+			// Register with the reference so circular references can find this type
+			options.typeTracker.register(typeDef, ref)
 			enhanced.AdditionalTypes = append(enhanced.AdditionalTypes, typeDef)
 			enhanced.RefType = refType
 		} else {
@@ -590,7 +605,8 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, options ParseOptions) (GoSc
 				SpecLocation:   options.specLocation,
 				NeedsMarshaler: false,
 			}
-			options.typeTracker.register(typeDef, "")
+			// Register with the reference so circular references can find this type
+			options.typeTracker.register(typeDef, ref)
 			enhanced.AdditionalTypes = append(enhanced.AdditionalTypes, typeDef)
 			enhanced.RefType = refType
 		}
