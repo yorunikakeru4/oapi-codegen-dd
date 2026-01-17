@@ -484,7 +484,7 @@ func (s GoSchema) canUseSimpleStructValidation() bool {
 
 // isArrayType checks if this schema represents an array type
 func (s GoSchema) isArrayType() bool {
-	return s.ArrayType != nil
+	return s.ArrayType != nil && strings.HasPrefix(s.TypeDecl(), "[]")
 }
 
 // isRefTypeDelegation checks if this schema should delegate to a RefType

@@ -72,6 +72,7 @@ func assertCodeEqual(t *testing.T, expected, actual string, msgAndArgs ...any) {
 func TestGoSchema_ValidateDecl_ArrayWithMinItems(t *testing.T) {
 	minItems := int64(1)
 	schema := GoSchema{
+		GoType: "[]string",
 		ArrayType: &GoSchema{
 			GoType: "string",
 		},
@@ -96,6 +97,7 @@ func TestGoSchema_ValidateDecl_ArrayWithMinItems(t *testing.T) {
 func TestGoSchema_ValidateDecl_ArrayWithMaxItems(t *testing.T) {
 	maxItems := int64(100)
 	schema := GoSchema{
+		GoType: "[]string",
 		ArrayType: &GoSchema{
 			GoType: "string",
 		},
@@ -118,6 +120,7 @@ func TestGoSchema_ValidateDecl_ArrayWithMinAndMaxItems(t *testing.T) {
 	minItems := int64(1)
 	maxItems := int64(100)
 	schema := GoSchema{
+		GoType: "[]string",
 		ArrayType: &GoSchema{
 			GoType: "string",
 		},
@@ -151,6 +154,7 @@ func TestGoSchema_ValidateDecl_NullableArrayWithConstraints(t *testing.T) {
 	minItems := int64(1)
 	nullable := true
 	schema := GoSchema{
+		GoType: "[]string",
 		ArrayType: &GoSchema{
 			GoType: "string",
 		},
@@ -178,6 +182,7 @@ func TestGoSchema_ValidateDecl_NullableArrayWithConstraints(t *testing.T) {
 
 func TestGoSchema_ValidateDecl_ArrayWithRefTypeItems(t *testing.T) {
 	schema := GoSchema{
+		GoType: "[]Payment",
 		ArrayType: &GoSchema{
 			RefType: "Payment",
 		},
@@ -203,6 +208,7 @@ func TestGoSchema_ValidateDecl_ArrayWithRefTypeItems(t *testing.T) {
 
 func TestGoSchema_ValidateDecl_ArrayWithExternalRefTypeItems(t *testing.T) {
 	schema := GoSchema{
+		GoType: "[]external.Payment",
 		ArrayType: &GoSchema{
 			RefType: "external.Payment", // External ref (contains ".")
 		},
@@ -215,6 +221,7 @@ func TestGoSchema_ValidateDecl_ArrayWithExternalRefTypeItems(t *testing.T) {
 
 func TestGoSchema_ValidateDecl_ArrayWithValidationTagsOnItems(t *testing.T) {
 	schema := GoSchema{
+		GoType: "[]string",
 		ArrayType: &GoSchema{
 			GoType: "string",
 			Constraints: Constraints{
@@ -243,6 +250,7 @@ func TestGoSchema_ValidateDecl_ArrayWithConstraintsAndValidationTags(t *testing.
 	minItems := int64(1)
 	maxItems := int64(100)
 	schema := GoSchema{
+		GoType: "[]string",
 		ArrayType: &GoSchema{
 			GoType: "string",
 			Constraints: Constraints{
@@ -679,6 +687,7 @@ func TestGoSchema_ValidateDecl_ArrayWithNullableAndRefTypeItems(t *testing.T) {
 	minItems := int64(1)
 	nullable := true
 	schema := GoSchema{
+		GoType: "[]Payment",
 		ArrayType: &GoSchema{
 			RefType: "Payment",
 		},

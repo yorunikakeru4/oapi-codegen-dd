@@ -238,7 +238,7 @@ func oapiSchemaToGoType(schema *base.Schema, options ParseOptions) (GoSchema, er
 				goType = "time.Time"
 			}
 		case "json":
-			goType = "runtime.RawMessage"
+			goType = "json.RawMessage"
 			skipOptionalPointer = true
 		case "binary":
 			goType = "runtime.File"
