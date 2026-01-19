@@ -50,6 +50,14 @@ func createFromCombinator(schema *base.Schema, options ParseOptions) (GoSchema, 
 		return GoSchema{}, nil
 	}
 
+	// If the schema has type: array alongside allOf/anyOf/oneOf, skip combinator processing.
+	// This is a malformed spec pattern where the combinator should be inside items, not at
+	// the same level as type: array. We let the array processing in schema_oapi.go handle
+	// this case by treating the combinator as defining the array items type.
+	if slices.Contains(schema.Type, "array") {
+		return GoSchema{}, nil
+	}
+
 	var (
 		out             GoSchema
 		allOfSchema     GoSchema
