@@ -203,6 +203,25 @@ func TestNewConstraints(t *testing.T) {
 		}, res)
 	})
 
+	t.Run("required string with maxLength=0 should not be required", func(t *testing.T) {
+		maxLn := int64(0)
+		schema := &base.Schema{
+			Type:      []string{"string"},
+			MaxLength: &maxLn,
+		}
+
+		res := newConstraints(schema, ConstraintsContext{
+			required: true,
+		})
+
+		assert.Equal(t, Constraints{
+			MaxLength: &maxLn,
+			ValidationTags: []string{
+				"max=0",
+			},
+		}, res)
+	})
+
 	t.Run("integer with maxLength - invalid spec, should be ignored", func(t *testing.T) {
 		maxLn := int64(8)
 		schema := &base.Schema{

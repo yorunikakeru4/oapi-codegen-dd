@@ -159,6 +159,12 @@ func newConstraints(schema *base.Schema, opts ConstraintsContext) Constraints {
 		nullable = hasNilType
 	}
 
+	// Don't require strings with maxLength=0 - the only valid value is ""
+	// which is nonsensical as a required field (likely a broken spec generator default)
+	if required && isString && schema.MaxLength != nil && *schema.MaxLength == 0 {
+		required = false
+	}
+
 	// Don't add "required" validation tag for object types (structs)
 	// Objects should be validated by calling their .Validate() method, not by validator.Var()
 	if required && isObject {
