@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	example5 "github.com/doordash-oss/oapi-codegen-dd/v3/examples/client/example5-query-explode-false"
-	"github.com/doordash-oss/oapi-codegen-dd/v3/pkg/runtime"
+	example5 "github.com/yorunikakeru4/oapi-codegen-dd/v3/examples/client/example5-query-explode-false"
+	"github.com/yorunikakeru4/oapi-codegen-dd/v3/pkg/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

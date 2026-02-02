@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/doordash-oss/oapi-codegen-dd/v3/pkg/codegen"
+	"github.com/yorunikakeru4/oapi-codegen-dd/v3/pkg/codegen"
 	"go.yaml.in/yaml/v4"
 )
 

@@ -3,7 +3,7 @@
 package example3
 
 import (
-	"github.com/doordash-oss/oapi-codegen-dd/v3/pkg/runtime"
+	"github.com/yorunikakeru4/oapi-codegen-dd/v3/pkg/runtime"
 )
 
 type User struct {

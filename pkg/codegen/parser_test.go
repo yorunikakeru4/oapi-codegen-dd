@@ -25,8 +25,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"github.com/doordash-oss/oapi-codegen-dd/v3/pkg/codegen"
-	"github.com/doordash-oss/oapi-codegen-dd/v3/pkg/codegen/ast"
+	"github.com/yorunikakeru4/oapi-codegen-dd/v3/pkg/codegen"
+	"github.com/yorunikakeru4/oapi-codegen-dd/v3/pkg/codegen/ast"
 )
 func main() {
 	fmt.Println("Hello, World!")

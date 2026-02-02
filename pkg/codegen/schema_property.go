@@ -15,7 +15,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/doordash-oss/oapi-codegen-dd/v3/pkg/runtime"
+	"github.com/yorunikakeru4/oapi-codegen-dd/v3/pkg/runtime"
 )
 
 type Property struct {
