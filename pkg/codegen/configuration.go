@@ -253,6 +253,11 @@ type GenerateOptions struct {
 
 	// Validation specifies options for Validate() method generation.
 	Validation ValidationOptions `yaml:"validation"`
+
+	// AutoExtraTags specifies automatic tag generation from OpenAPI schema fields.
+	// Key is the Go struct tag name, value is the OpenAPI schema field to extract.
+	// Example: {"jsonschema": "description", "validate": "x-validation"}
+	AutoExtraTags map[string]string `yaml:"auto-extra-tags,omitempty"`
 }
 
 type ValidationOptions struct {

@@ -1,0 +1,73 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Auto Extra Tags Example
+  description: Example of using auto-extra-tags to automatically generate struct tags from OpenAPI fields
+components:
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - username
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: "User unique identifier"
+          x-validation: "required,min=1"
+        email:
+          type: string
+          format: email
+          description: "User email address"
+          x-validation: "required,email"
+        username:
+          type: string
+          minLength: 3
+          maxLength: 20
+          description: "Username for the account"
+          x-validation: "required,min=3,max=20"
+        age:
+          type: integer
+          minimum: 0
+          maximum: 150
+          description: "User age in years"
+          x-validation: "omitempty,min=0,max=150"
+        website:
+          type: string
+          format: uri
+          description: "User personal website URL"
+          x-validation: "omitempty,url"
+        bio:
+          type: string
+          maxLength: 500
+          description: "User biography text"
+          x-validation: "omitempty,max=500"
+    Product:
+      type: object
+      required:
+        - name
+        - price
+      properties:
+        name:
+          type: string
+          description: "Product name"
+          x-validation: "required"
+        price:
+          type: number
+          format: float
+          minimum: 0
+          description: "Product price in USD"
+          x-validation: "required,min=0"
+        tags:
+          type: array
+          items:
+            type: string
+          description: "Product tags for categorization"
+          x-validation: "omitempty,dive,min=1"
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+          description: "Additional product metadata"

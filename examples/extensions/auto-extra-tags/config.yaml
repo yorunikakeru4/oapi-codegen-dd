@@ -1,0 +1,10 @@
+package: autoextratags
+skip-prune: true
+output:
+  use-single-file: true
+  directory: .
+  filename: gen.go
+generate:
+  auto-extra-tags:
+    jsonschema: description     # Extract description field as jsonschema tag
+    customvalidate: x-validation # Extract x-validation field as customvalidate tag

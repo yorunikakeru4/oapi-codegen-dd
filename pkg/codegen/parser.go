@@ -58,6 +58,10 @@ type ParseOptions struct {
 	// it cannot be an alias (aliases don't support methods).
 	ErrorMapping map[string]string
 
+	// AutoExtraTags specifies automatic tag generation from OpenAPI schema fields.
+	// Key is the Go struct tag name, value is the OpenAPI schema field to extract.
+	AutoExtraTags map[string]string
+
 	// runtime options
 	typeTracker  *TypeTracker
 	reference    string

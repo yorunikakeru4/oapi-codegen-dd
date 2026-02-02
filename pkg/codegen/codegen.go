@@ -91,6 +91,7 @@ func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 		AlwaysPrefixEnumValues: cfg.Generate.AlwaysPrefixEnumValues,
 		SkipValidation:         cfg.Generate.Validation.Skip,
 		ErrorMapping:           cfg.ErrorMapping,
+		AutoExtraTags:          cfg.Generate.AutoExtraTags,
 		typeTracker:            newTypeTracker(),
 		visited:                map[string]bool{},
 		model:                  model,
