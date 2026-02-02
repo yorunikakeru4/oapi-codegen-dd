@@ -82,7 +82,7 @@ When debugging complex issues, create a minimal reproducible example:
 
    import (
        "testing"
-       _ "github.com/doordash-oss/oapi-codegen-dd/v3/examples/issue-123"
+       _ "github.com/yorunikakeru4/oapi-codegen-dd/v3/examples/issue-123"
    )
 
    func TestCompiles(t *testing.T) {}

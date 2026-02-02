@@ -27,7 +27,7 @@ If you're migrating from v2, please refer to the [migration guide](docs/migrate-
 
 ```bash
 # Install
-go install github.com/doordash-oss/oapi-codegen-dd/v3/cmd/oapi-codegen@latest
+go install github.com/yorunikakeru4/oapi-codegen-dd/v3/cmd/oapi-codegen@latest
 
 # Generate code from the Petstore example
 oapi-codegen https://raw.githubusercontent.com/OAI/OpenAPI-Specification/main/examples/v3.0/petstore.yaml > petstore.go
