@@ -1,0 +1,87 @@
+{{/*
+Copyright 2026 DoorDash, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+{{define "server-main"}}
+{{- $config := .Config -}}
+{{- $server := .ServerOptions -}}
+{{- /* Types prefix: when models-package-alias is set, types are in a separate package */ -}}
+{{- $modelsAlias := $config.Generate.Handler.ModelsPackageAlias -}}
+{{- $typesPrefix := "handler." -}}
+{{- if $modelsAlias -}}
+{{- $typesPrefix = printf "%s." $modelsAlias -}}
+{{- end -}}
+// Package main - This file is generated ONCE as a starting point and will NOT be overwritten.
+// Modify it freely to customize your server setup.
+// To regenerate, delete this file or set generate.handler.output.overwrite: true in config.
+package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
+
+    "github.com/gin-gonic/gin"
+    handler "{{ $server.HandlerPackage }}"
+)
+
+func main() {
+    // Create Gin engine with default middleware (Logger, Recovery)
+    r := gin.Default()
+    {{- if $config.Generate.Handler.Middleware }}
+
+    // Add custom middleware from generated scaffold
+    r.Use(handler.ExampleMiddleware())
+    {{- end }}
+
+    // Create your service implementation
+    svc := handler.New{{ $config.Generate.Handler.Name }}()
+
+    // Register routes
+    {{ $typesPrefix }}NewRouter(r, svc)
+
+    // Configure server
+    port := {{ $server.Port }}
+    addr := fmt.Sprintf(":%d", port)
+    timeout := {{ $server.Timeout }} * time.Second
+
+    server := &http.Server{
+        Addr:         addr,
+        Handler:      r,
+        ReadTimeout:  timeout,
+        WriteTimeout: timeout,
+        IdleTimeout:  2 * timeout,
+    }
+
+    // Start server in goroutine
+    go func() {
+        log.Printf("Starting server on %s", addr)
+        if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            log.Fatalf("Server error: %v", err)
+        }
+    }()
+
+    // Wait for interrupt signal for graceful shutdown
+    quit := make(chan os.Signal, 1)
+    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+    <-quit
+
+    log.Println("Shutting down server...")
+}
+{{end}}
+{{template "server-main" .}}

@@ -67,9 +67,11 @@ var (
 var specsFS embed.FS
 
 type testResult struct {
-	name        string
-	passed      bool
-	stage       string // "read", "generate", "write", "mod-init", "mod-tidy", "build"
+	name   string
+	passed bool
+
+	// "read", "generate", "write", "mod-init", "mod-tidy", "build"
+	stage       string
 	err         string
 	tmpDir      string
 	linesOfCode int
@@ -329,11 +331,14 @@ func TestIntegration(t *testing.T) {
 			// Create config file
 			configContent := `package: integration
 generate:
-  client: true
   validation:
     response: true
-client:
-  name: IntegrationClient
+  handler:
+    kind: std-http
+    name: IntegrationHandler
+    validation:
+      request: true
+      response: true
 output:
   use-single-file: true
   filename: generated.go

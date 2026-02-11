@@ -90,6 +90,14 @@
           "type": "boolean",
           "description": "Client specifies whether to generate a client. Defaults to false."
         },
+        "models": {
+          "type": "boolean",
+          "description": "Models specifies whether to generate model types. Defaults to true. Set to false when models are generated in a separate package."
+        },
+        "handler": {
+          "$ref": "#/definitions/HandlerOptions",
+          "description": "Handler specifies options for handler/server code generation. If not specified, no handler code is generated."
+        },
         "omit-description": {
           "type": "boolean",
           "description": "OmitDescription specifies whether to omit schema description from the spec in the generated code. Defaults to false."
@@ -216,6 +224,104 @@
         "response": {
           "type": "boolean",
           "description": "Response specifies whether to generate Validate() methods for response types. Useful for contract testing to ensure responses match the OpenAPI spec. Defaults to false."
+        }
+      },
+      "required": []
+    },
+    "HandlerOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the generated service interface. Defaults to 'Service'."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["beego", "chi", "echo", "fasthttp", "fiber", "gin", "goframe", "go-zero", "gorilla-mux", "hertz", "iris", "kratos", "std-http"],
+          "description": "Router/framework to generate for. Required."
+        },
+        "models-package-alias": {
+          "type": "string",
+          "description": "Package alias to prefix model types with. Used when models are generated separately (generate.models: false). Example: 'types' will generate 'types.User' instead of 'User'."
+        },
+        "validation": {
+          "$ref": "#/definitions/HandlerValidation",
+          "description": "Validation options for request/response validation in handlers."
+        },
+        "output": {
+          "$ref": "#/definitions/ScaffoldOutput",
+          "description": "Output options for scaffolded handler files (service.go, middleware.go). Falls back to root output if not set."
+        },
+        "middleware": {
+          "$ref": "#/definitions/MiddlewareOptions",
+          "description": "Middleware generation options. If set, generates a scaffold middleware.go."
+        },
+        "server": {
+          "$ref": "#/definitions/ServerOptions",
+          "description": "Server generation options. If set, generates a scaffold server/main.go."
+        }
+      },
+      "required": ["kind"]
+    },
+    "ScaffoldOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Output options for scaffolded files (service.go, middleware.go).",
+      "properties": {
+        "directory": {
+          "type": "string",
+          "description": "Output directory, relative to the spec/config file location."
+        },
+        "package": {
+          "type": "string",
+          "description": "Package name for the generated file."
+        },
+        "overwrite": {
+          "type": "boolean",
+          "description": "Force regeneration of scaffold-once files (e.g., service.go, middleware.go). Normally these files are only generated if they don't exist. Defaults to false."
+        }
+      },
+      "required": []
+    },
+    "MiddlewareOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Options for generating middleware.go. Currently empty but allows for future extensibility.",
+      "properties": {},
+      "required": []
+    },
+    "ServerOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {
+          "type": "string",
+          "description": "Directory for the generated server main.go. Defaults to 'server'."
+        },
+        "port": {
+          "type": "integer",
+          "default": 8080,
+          "description": "Port for the server to listen on. Defaults to 8080."
+        },
+        "handler-package": {
+          "type": "string",
+          "description": "Import path for the handler package. Required."
+        }
+      },
+      "required": ["handler-package"]
+    },
+    "HandlerValidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "type": "boolean",
+          "description": "Request enables validation of incoming requests. Defaults to false."
+        },
+        "response": {
+          "type": "boolean",
+          "description": "Response enables validation of outgoing responses. Useful for contract testing. Defaults to false."
         }
       },
       "required": []
