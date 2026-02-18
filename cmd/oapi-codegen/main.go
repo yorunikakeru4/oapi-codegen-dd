@@ -108,20 +108,60 @@ func main() {
 		}
 	}
 
+	if destFile == "" && destDir == "" {
+		fmt.Print(code.GetCombined())
+		return
+	}
+
 	if destFile != "" {
-		err = os.WriteFile(destFile, []byte(code.GetCombined()), generatedFilePerm)
-		if err != nil {
+		if err = os.WriteFile(destFile, []byte(code.GetCombined()), generatedFilePerm); err != nil {
 			errExit("Error writing file: %v", err)
 		}
-	} else if destDir != "" {
-		for name, contents := range code {
-			err = os.WriteFile(filepath.Join(destDir, name+".go"), []byte(contents), generatedFilePerm)
-			if err != nil {
-				errExit("Error writing file: %v", err)
+	}
+
+	for name, contents := range code {
+		isScaffold := codegen.IsScaffoldFile(name)
+		actualName := name
+		if isScaffold {
+			actualName = codegen.ScaffoldFileName(name)
+		}
+
+		// Skip "all" key (combined output for single-file mode)
+		if name == "all" {
+			continue
+		}
+
+		// In single-file mode, only write scaffold files
+		if destFile != "" && !isScaffold {
+			continue
+		}
+
+		// Determine file path
+		var filePath string
+		if strings.Contains(actualName, "/") {
+			// Files with "/" have their full path already (e.g., "server/main")
+			filePath = actualName + ".go"
+		} else if destDir != "" {
+			filePath = filepath.Join(destDir, actualName+".go")
+		} else {
+			filePath = filepath.Join(filepath.Dir(destFile), actualName+".go")
+		}
+
+		// Skip scaffold files if they exist and overwrite is not set
+		scaffoldOverwrite := cfg.Generate != nil && cfg.Generate.Handler != nil &&
+			cfg.Generate.Handler.Output != nil && cfg.Generate.Handler.Output.Overwrite
+		if isScaffold && !scaffoldOverwrite {
+			if _, err := os.Stat(filePath); err == nil {
+				continue
 			}
 		}
-	} else {
-		fmt.Print(code.GetCombined())
+
+		if err := os.MkdirAll(filepath.Dir(filePath), 0750); err != nil {
+			errExit("Error creating directory: %v", err)
+		}
+		if err = os.WriteFile(filePath, []byte(contents), generatedFilePerm); err != nil {
+			errExit("Error writing file: %v", err)
+		}
 	}
 }
 

@@ -10,7 +10,10 @@
 
 package codegen
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Configuration defines code generation customizations.
 // PackageName to generate the code under.
@@ -36,6 +39,7 @@ type Configuration struct {
 
 	Generate *GenerateOptions `yaml:"generate"`
 	Filter   FilterConfig     `yaml:"filter,omitempty"`
+	Overlay  *OverlayOptions  `yaml:"overlay,omitempty"`
 
 	AdditionalImports []AdditionalImport `yaml:"additional-imports,omitempty"`
 	ErrorMapping      map[string]string  `yaml:"error-mapping,omitempty"`
@@ -83,6 +87,18 @@ func (o Configuration) WithDefaults() Configuration {
 		// Fill in missing Generate fields from defaults
 		if o.Generate.DefaultIntType == "" {
 			o.Generate.DefaultIntType = defaults.Generate.DefaultIntType
+		}
+		// Fill in Handler defaults if Handler is configured
+		if o.Generate.Handler != nil {
+			if o.Generate.Handler.Name == "" {
+				o.Generate.Handler.Name = "Service"
+			}
+			if o.Generate.Handler.Kind == "" {
+				o.Generate.Handler.Kind = HandlerKindChi
+			}
+			if o.Generate.Handler.MultipartMaxMemory == 0 {
+				o.Generate.Handler.MultipartMaxMemory = 32
+			}
 		}
 	}
 
@@ -158,6 +174,26 @@ func (o Configuration) OverwriteWith(other Configuration) Configuration {
 			}
 			if other.Generate.Validation.Response {
 				o.Generate.Validation.Response = other.Generate.Validation.Response
+			}
+
+			// Overwrite Handler options
+			if other.Generate.Handler != nil {
+				if o.Generate.Handler == nil {
+					o.Generate.Handler = other.Generate.Handler
+				} else {
+					if other.Generate.Handler.Name != "" {
+						o.Generate.Handler.Name = other.Generate.Handler.Name
+					}
+					if other.Generate.Handler.Kind != "" {
+						o.Generate.Handler.Kind = other.Generate.Handler.Kind
+					}
+					if other.Generate.Handler.Validation.Request {
+						o.Generate.Handler.Validation.Request = other.Generate.Handler.Validation.Request
+					}
+					if other.Generate.Handler.Validation.Response {
+						o.Generate.Handler.Validation.Response = other.Generate.Handler.Validation.Response
+					}
+				}
 			}
 		}
 	}
@@ -242,6 +278,19 @@ type GenerateOptions struct {
 	// Client specifies whether to generate a client. Defaults to false.
 	Client bool `yaml:"client"`
 
+	// Models specifies whether to generate model types. Defaults to true.
+	// Set to false when models are generated in a separate package.
+	Models *bool `yaml:"models,omitempty"`
+
+	// Handler specifies options for handler/server code generation.
+	// If nil, no handler code is generated.
+	Handler *HandlerOptions `yaml:"handler,omitempty"`
+
+	// MCPServer specifies options for MCP (Model Context Protocol) server generation.
+	// If set, generates MCP tools that wrap the generated client for AI assistant integration.
+	// Requires client generation to be enabled.
+	MCPServer *MCPServerOptions `yaml:"mcp-server,omitempty"`
+
 	// OmitDescription specifies whether to omit schema description from the spec in the generated code. Defaults to false.
 	OmitDescription bool `yaml:"omit-description"`
 
@@ -279,9 +328,195 @@ type Output struct {
 	Filename      string `yaml:"filename"`
 }
 
+// OverlayOptions specifies OpenAPI Overlay files to apply to the spec before generation.
+// See https://spec.openapis.org/overlay/v1.0.0.html for the Overlay specification.
+type OverlayOptions struct {
+	// Sources is a list of overlay files to apply to the OpenAPI spec.
+	// Each source can be a file path or URL. Overlays are applied in order.
+	Sources []string `yaml:"sources"`
+}
+
 type Client struct {
 	Name    string        `yaml:"name"`
 	Timeout time.Duration `yaml:"timeout"`
+}
+
+// HandlerKind specifies the router/framework to generate handler code for.
+type HandlerKind string
+
+const (
+	HandlerKindBeego      HandlerKind = "beego"
+	HandlerKindChi        HandlerKind = "chi"
+	HandlerKindEcho       HandlerKind = "echo"
+	HandlerKindFastHTTP   HandlerKind = "fasthttp"
+	HandlerKindFiber      HandlerKind = "fiber"
+	HandlerKindGin        HandlerKind = "gin"
+	HandlerKindGoFrame    HandlerKind = "goframe"
+	HandlerKindGoZero     HandlerKind = "go-zero"
+	HandlerKindGorillaMux HandlerKind = "gorilla-mux"
+	HandlerKindHertz      HandlerKind = "hertz"
+	HandlerKindIris       HandlerKind = "iris"
+	HandlerKindKratos     HandlerKind = "kratos"
+	HandlerKindStdHTTP    HandlerKind = "std-http"
+)
+
+// IsValid returns true if the handler kind is a supported value.
+func (k HandlerKind) IsValid() bool {
+	switch k {
+	case HandlerKindBeego, HandlerKindChi, HandlerKindEcho, HandlerKindFastHTTP, HandlerKindFiber, HandlerKindGin, HandlerKindGoFrame, HandlerKindGoZero, HandlerKindGorillaMux, HandlerKindHertz, HandlerKindIris, HandlerKindKratos, HandlerKindStdHTTP:
+		return true
+	default:
+		return false
+	}
+}
+
+// HandlerOptions specifies options for handler/server code generation.
+type HandlerOptions struct {
+	// Name is the name of the service interface. Defaults to "Service".
+	Name string `yaml:"name"`
+
+	// Kind specifies the router/framework to generate for. Defaults to "chi".
+	// Supported values: "chi"
+	Kind HandlerKind `yaml:"kind"`
+
+	// Validation specifies options for request/response validation in handlers.
+	Validation HandlerValidation `yaml:"validation"`
+
+	// ModelsPackageAlias is the package alias to prefix model types with.
+	// Used when models are generated separately (generate.models: false).
+	// Example: "types" will generate "types.User" instead of "User".
+	ModelsPackageAlias string `yaml:"models-package-alias"`
+
+	// MultipartMaxMemory is the maximum memory in MB for multipart form parsing.
+	// Defaults to 32MB (matching Go stdlib). Files exceeding this are stored in temp files.
+	MultipartMaxMemory int `yaml:"multipart-max-memory"`
+
+	// Output specifies output for scaffolded handler files (service.go, middleware.go).
+	// Falls back to root output if nil.
+	Output *ScaffoldOutput `yaml:"output"`
+
+	// Middleware specifies options for generating middleware.go.
+	// If nil, no middleware is generated.
+	Middleware *MiddlewareOptions `yaml:"middleware"`
+
+	// Server specifies options for generating a runnable server main.go.
+	// If nil, no server is generated.
+	Server *ServerOptions `yaml:"server"`
+}
+
+// ResolveScaffoldOutput returns the output config for scaffold files (service.go, middleware.go).
+// Uses handler.output if set, otherwise falls back to root output.
+func (o HandlerOptions) ResolveScaffoldOutput(rootOutput *Output) ScaffoldOutput {
+	if o.Output != nil {
+		return *o.Output
+	}
+	return ScaffoldOutput{
+		Directory: rootOutput.Directory,
+		Package:   "", // will use root package name
+	}
+}
+
+// ResolveServerOutput returns the output config for server/main.go.
+// Uses server.directory if set, otherwise defaults to "server".
+// Package is always "main" for server.
+func (o HandlerOptions) ResolveServerOutput() ScaffoldOutput {
+	dir := "server"
+	if o.Server != nil && o.Server.Directory != "" {
+		dir = o.Server.Directory
+	}
+	return ScaffoldOutput{
+		Directory: dir,
+		Package:   "main",
+	}
+}
+
+// Validate returns an error if the handler options are invalid.
+func (o HandlerOptions) Validate() error {
+	if o.Kind == "" {
+		return ErrHandlerKindRequired
+	}
+	if !o.Kind.IsValid() {
+		return fmt.Errorf("%w: %q", ErrHandlerKindUnsupported, o.Kind)
+	}
+	return nil
+}
+
+// HandlerValidation specifies validation options for handlers.
+type HandlerValidation struct {
+	// Request enables validation of incoming requests. Defaults to false.
+	Request bool `yaml:"request"`
+
+	// Response enables validation of outgoing responses. Defaults to false.
+	// Useful for contract testing.
+	Response bool `yaml:"response"`
+}
+
+// MiddlewareOptions specifies options for generating middleware.go.
+// Currently empty but allows for future extensibility.
+type MiddlewareOptions struct {
+}
+
+// MCPServerOptions specifies options for MCP (Model Context Protocol) server generation.
+// MCP servers expose API operations as tools that AI assistants (Claude, Cursor, etc.) can invoke.
+// The generated code wraps the generated client to make real API calls.
+type MCPServerOptions struct {
+	// DefaultSkip specifies whether operations are skipped by default.
+	// If true, operations are excluded unless x-mcp.skip is explicitly false.
+	// If false (default), operations are included unless x-mcp.skip is true.
+	DefaultSkip bool `yaml:"default-skip"`
+}
+
+// ScaffoldOutput specifies output options for scaffolded files.
+// Scaffold files are always generated as separate files (not merged).
+type ScaffoldOutput struct {
+	// Directory is the output directory, relative to the spec/config file location.
+	Directory string `yaml:"directory"`
+
+	// Package is the package name for the generated file.
+	Package string `yaml:"package"`
+
+	// Overwrite forces regeneration of scaffold-once files (e.g., service.go, middleware.go).
+	// Normally these files are only generated if they don't exist. Defaults to false.
+	Overwrite bool `yaml:"overwrite"`
+}
+
+// ServerOptions specifies options for generating a runnable server main.go.
+type ServerOptions struct {
+	// Directory is the output directory for server/main.go.
+	// Defaults to "server".
+	Directory string `yaml:"directory"`
+
+	// Port is the port the server listens on. Defaults to 8080.
+	Port int `yaml:"port"`
+
+	// Timeout is the request timeout in seconds. Defaults to 30.
+	Timeout int `yaml:"timeout"`
+
+	// HandlerPackage is the full import path of the handler package.
+	// Required when server generation is enabled.
+	HandlerPackage string `yaml:"handler-package"`
+}
+
+// WithDefaults returns a copy of ServerOptions with default values applied.
+func (o ServerOptions) WithDefaults() ServerOptions {
+	if o.Directory == "" {
+		o.Directory = "server"
+	}
+	if o.Port == 0 {
+		o.Port = 8080
+	}
+	if o.Timeout == 0 {
+		o.Timeout = 30
+	}
+	return o
+}
+
+// Validate returns an error if the server options are invalid.
+func (o ServerOptions) Validate() error {
+	if o.HandlerPackage == "" {
+		return ErrServerHandlerPackageRequired
+	}
+	return nil
 }
 
 // NewDefaultConfiguration creates a new default Configuration.

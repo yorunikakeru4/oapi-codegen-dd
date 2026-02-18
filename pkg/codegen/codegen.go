@@ -81,6 +81,15 @@ func CreateParseContextFromDocument(doc libopenapi.Document, cfg Configuration) 
 	}
 	model := &builtModel.Model
 
+	return CreateParseContextFromModel(model, cfg)
+}
+
+// CreateParseContextFromModel creates a ParseContext from an already-built OpenAPI v3 model.
+// This is useful when the model has been modified in-place,
+// and you want to avoid rebuilding it from the document.
+func CreateParseContextFromModel(model *v3high.Document, cfg Configuration) (*ParseContext, error) {
+	cfg = cfg.WithDefaults()
+
 	if model == nil {
 		return nil, nil
 	}
@@ -194,6 +203,9 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 		responseErrors []string
 	)
 
+	// Track seen operation IDs to deduplicate inline before generating param types
+	seenOperationIDs := make(map[string]int)
+
 	for path, pathItem := range model.Paths.PathItems.FromOldest() {
 		// These are parameters defined for all methods on a given path. They
 		// are shared by all methods.
@@ -204,13 +216,23 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 
 		for method, operation := range pathItem.GetOperations().FromOldest() {
 			var (
-				headerDef     *TypeDefinition
+				headerDef     *RequestParametersDefinition
 				pathParamsDef *TypeDefinition
 			)
 
 			operationID, err := createOperationID(method, path, operation.OperationId)
 			if err != nil {
 				return nil, fmt.Errorf("error creating operation ID: %w", err)
+			}
+
+			// Deduplicate operation ID inline before generating param types
+			// This ensures each operation gets unique type names for path/query params
+			if count, exists := seenOperationIDs[operationID]; exists {
+				count++
+				seenOperationIDs[operationID] = count
+				operationID = fmt.Sprintf("%s_%d", operationID, count)
+			} else {
+				seenOperationIDs[operationID] = 0
 			}
 
 			// These are parameters defined for the specific path method that we're iterating over.
@@ -254,7 +276,7 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 			headerParams := filterParameterDefinitionByType(allParams, "header")
 			headerParamsDef, headerDefs, headerSchemas := generateParamsTypes(headerParams, operationID+"Headers", options)
 			if headerParamsDef != nil {
-				headerDef = &headerParamsDef.TypeDef
+				headerDef = headerParamsDef
 				typeDefs = append(typeDefs, headerDefs...)
 				if len(headerSchemas) > 0 {
 					importSchemas = append(importSchemas, headerSchemas...)
@@ -293,6 +315,18 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 				}
 			}
 
+			// Parse x-mcp extension if present
+			var mcpExt *MCPExtension
+			if operation.Extensions != nil {
+				extensions := extractExtensions(operation.Extensions)
+				if mcpValue, ok := extensions[extMCP]; ok {
+					mcpExt, err = extParseMCP(mcpValue)
+					if err != nil {
+						return nil, fmt.Errorf("error parsing x-mcp extension for %s: %w", operationID, err)
+					}
+				}
+			}
+
 			operations = append(operations, OperationDefinition{
 				ID:          operationID,
 				Summary:     operation.Summary,
@@ -305,12 +339,12 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 				Query:      queryParamsDef,
 				Response:   response,
 				Body:       bodyDefinition,
+				MCP:        mcpExt,
 			})
 		}
 	}
 
-	// Deduplicate operation IDs and resolve RequestOptions name collisions
-	operations = deduplicateOperationIDs(operations)
+	// Resolve RequestOptions name collisions (operation IDs already deduplicated inline)
 	operations = resolveRequestOptionsCollisions(operations, options.typeTracker)
 
 	allTypeDefs := extractAllTypeDefinitions(typeDefs)
@@ -325,8 +359,18 @@ func collectOperationDefinitions(model *v3high.Document, options ParseOptions) (
 
 // resolveRequestOptionsCollisions checks if any operation's RequestOptions type name
 // would collide with existing component schemas, and renames the operation ID if needed.
+// It also checks for ServiceRequestOptions collisions (used by handler generation).
 func resolveRequestOptionsCollisions(operations []OperationDefinition, tracker *TypeTracker) []OperationDefinition {
 	result := make([]OperationDefinition, len(operations))
+
+	// First pass: register all client RequestOptions names so handler can detect collisions
+	clientRequestOptions := make(map[string]bool)
+	for _, op := range operations {
+		if op.HasRequestOptions() {
+			name := UppercaseFirstCharacter(op.ID) + "RequestOptions"
+			clientRequestOptions[name] = true
+		}
+	}
 
 	for i, op := range operations {
 		if !op.HasRequestOptions() {
@@ -335,32 +379,19 @@ func resolveRequestOptionsCollisions(operations []OperationDefinition, tracker *
 		}
 
 		// Check if the RequestOptions type name would collide and get a unique base name
-		op.ID = tracker.generateUniqueBaseName(UppercaseFirstCharacter(op.ID), "RequestOptions")
+		baseName := UppercaseFirstCharacter(op.ID)
+		baseName = tracker.generateUniqueBaseName(baseName, "RequestOptions")
 
-		result[i] = op
-	}
-
-	return result
-}
-
-// deduplicateOperationIDs ensures all operation IDs are unique by appending a suffix to duplicates
-func deduplicateOperationIDs(operations []OperationDefinition) []OperationDefinition {
-	seen := make(map[string]int) // map of operation ID to count
-	result := make([]OperationDefinition, len(operations))
-
-	for i, op := range operations {
-		originalID := op.ID
-		count, exists := seen[originalID]
-
-		if exists {
-			// This is a duplicate, append a suffix
-			count++
-			seen[originalID] = count
-			op.ID = fmt.Sprintf("%s_%d", originalID, count)
-		} else {
-			seen[originalID] = 0
+		// Also check if ServiceRequestOptions would collide with any client RequestOptions
+		// e.g., createPayment -> CreatePaymentServiceRequestOptions collides with
+		//       createPaymentService -> CreatePaymentServiceRequestOptions
+		serviceOptsName := baseName + "ServiceRequestOptions"
+		if clientRequestOptions[serviceOptsName] {
+			// Collision detected - append suffix to make it unique
+			baseName = baseName + "Handler"
 		}
 
+		op.ID = baseName
 		result[i] = op
 	}
 
@@ -438,6 +469,7 @@ func extractAllTypeDefinitions(types []TypeDefinition) []TypeDefinition {
 
 // collectResponseErrors collects the response errors from the type definitions.
 // We need non-alias types for the response errors, so we could generate Error function.
+// This also marks each resolved type as needing an Error() method in the TypeTracker.
 func collectResponseErrors(errNames []string, tracker *TypeTracker) ([]string, error) {
 	if len(errNames) == 0 {
 		return nil, nil
@@ -457,6 +489,7 @@ func collectResponseErrors(errNames []string, tracker *TypeTracker) ([]string, e
 			if visited[name] {
 				// Circular reference detected, use current name
 				res = append(res, name)
+				tracker.MarkNeedsErrorMethod(name)
 				break
 			}
 			visited[name] = true
@@ -467,6 +500,7 @@ func collectResponseErrors(errNames []string, tracker *TypeTracker) ([]string, e
 			}
 			if !typ.IsAlias() {
 				res = append(res, name)
+				tracker.MarkNeedsErrorMethod(name)
 				break
 			}
 			// For aliases, the target type name is in GoType (when DefineViaAlias is true)
@@ -477,6 +511,7 @@ func collectResponseErrors(errNames []string, tracker *TypeTracker) ([]string, e
 			}
 			if newName == "" || newName == name {
 				res = append(res, name)
+				tracker.MarkNeedsErrorMethod(name)
 				break
 			}
 
@@ -484,6 +519,7 @@ func collectResponseErrors(errNames []string, tracker *TypeTracker) ([]string, e
 			// (not a primitive Go type like map[string]any)
 			if _, exists := tracker.LookupByName(newName); !exists {
 				res = append(res, name)
+				tracker.MarkNeedsErrorMethod(name)
 				break
 			}
 			name = newName

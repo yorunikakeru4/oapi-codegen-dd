@@ -1,0 +1,91 @@
+{{/*
+Copyright 2026 DoorDash, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+{{define "server-main"}}
+{{- $config := .Config -}}
+{{- $server := .ServerOptions -}}
+{{- /* Types prefix: when models-package-alias is set, types are in a separate package */ -}}
+{{- $modelsAlias := $config.Generate.Handler.ModelsPackageAlias -}}
+{{- $typesPrefix := "handler." -}}
+{{- if $modelsAlias -}}
+{{- $typesPrefix = printf "%s." $modelsAlias -}}
+{{- end -}}
+// Package main - This file is generated ONCE as a starting point and will NOT be overwritten.
+// Modify it freely to customize your server setup.
+// To regenerate, delete this file or set generate.handler.output.overwrite: true in config.
+package main
+
+import (
+    "fmt"
+    "log"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
+
+    "github.com/gofiber/fiber/v3"
+    "github.com/gofiber/fiber/v3/middleware/recover"
+    "github.com/gofiber/fiber/v3/middleware/requestid"
+    "github.com/gofiber/fiber/v3/middleware/logger"
+    handler "{{ $server.HandlerPackage }}"
+)
+
+func main() {
+    // Create Fiber app
+    app := fiber.New(fiber.Config{
+        ReadTimeout:  {{ $server.Timeout }} * time.Second,
+        WriteTimeout: {{ $server.Timeout }} * time.Second,
+        IdleTimeout:  2 * {{ $server.Timeout }} * time.Second,
+    })
+
+    // Add Fiber built-in middleware
+    app.Use(recover.New())
+    app.Use(requestid.New())
+    app.Use(logger.New())
+    {{- if $config.Generate.Handler.Middleware }}
+
+    // Add custom middleware from generated scaffold
+    app.Use(handler.ExampleMiddleware())
+    {{- end }}
+
+    // Create your service implementation
+    svc := handler.New{{ $config.Generate.Handler.Name }}()
+
+    // Register routes
+    {{ $typesPrefix }}NewRouter(app, svc)
+
+    // Configure server
+    port := {{ $server.Port }}
+    addr := fmt.Sprintf(":%d", port)
+
+    // Start server in goroutine
+    go func() {
+        log.Printf("Starting server on %s", addr)
+        if err := app.Listen(addr); err != nil {
+            log.Fatalf("Server error: %v", err)
+        }
+    }()
+
+    // Wait for interrupt signal for graceful shutdown
+    quit := make(chan os.Signal, 1)
+    signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+    <-quit
+
+    log.Println("Shutting down server...")
+    _ = app.Shutdown()
+}
+{{end}}
+{{template "server-main" .}}
+
