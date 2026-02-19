@@ -93,6 +93,15 @@ func (s GoSchema) IsZero() bool {
 	return s.TypeDecl() == ""
 }
 
+// Format returns the OpenAPI format of the schema (e.g., "uuid", "date-time", "date").
+// Returns empty string if no format is specified.
+func (s GoSchema) Format() string {
+	if s.OpenAPISchema != nil {
+		return s.OpenAPISchema.Format
+	}
+	return ""
+}
+
 // IsAnyType returns true if the schema represents the 'any' type or an array of 'any'.
 // These types don't need validation methods since they accept any value.
 func (s GoSchema) IsAnyType() bool {
@@ -581,6 +590,21 @@ func GenerateGoSchema(schemaProxy *base.SchemaProxy, options ParseOptions) (GoSc
 		}, nil
 	}
 
+	// Handle format: binary without explicit type - treat as runtime.File
+	// Some specs define binary responses with just format: binary and no type
+	if schema.Format == "binary" {
+		constraints := newConstraints(schema, ConstraintsContext{
+			specLocation: options.specLocation,
+		})
+		return GoSchema{
+			GoType:         "runtime.File",
+			DefineViaAlias: true,
+			Description:    schema.Description,
+			OpenAPISchema:  schema,
+			Constraints:    constraints,
+		}, nil
+	}
+
 	// Handle objects and empty schemas first as a special case
 	if t == nil || slices.Contains(t, "object") {
 		res, err := createObjectSchema(schema, options)
@@ -833,11 +857,8 @@ func enhanceSchema(src, other GoSchema, options ParseOptions) GoSchema {
 }
 
 func needsMarshaler(schema GoSchema) bool {
-	// Check if any property has sensitive data
-	if hasSensitiveData(schema) {
-		return true
-	}
-
+	// Check if any property is an embedded field (no JSON field name)
+	// These require custom marshaling to merge JSON objects
 	res := false
 	for _, p := range schema.Properties {
 		if p.JsonFieldName == "" {

@@ -16,7 +16,6 @@ import (
 	"embed"
 	"fmt"
 	"go/format"
-	"io/fs"
 	"os"
 	"slices"
 	"sort"
@@ -34,10 +33,26 @@ import (
 //go:embed templates
 var templates embed.FS
 
+// GeneratedCode is a map of file names to generated code content.
+// Scaffold files (service, middleware, server/main) are prefixed with "scaffold:" in the key.
 type GeneratedCode map[string]string
 
+// GetCombined returns the combined single-file output (the "all" key).
 func (g GeneratedCode) GetCombined() string {
 	return g["all"]
+}
+
+// scaffoldPrefix is the prefix used to identify scaffold files in GeneratedCode.
+const scaffoldPrefix = "scaffold:"
+
+// IsScaffoldFile returns true if the file name indicates a scaffold file.
+func IsScaffoldFile(name string) bool {
+	return strings.HasPrefix(name, scaffoldPrefix)
+}
+
+// ScaffoldFileName returns the actual file name without the scaffold prefix.
+func ScaffoldFileName(name string) string {
+	return strings.TrimPrefix(name, scaffoldPrefix)
 }
 
 // Parser uses the provided ParseContext to generate Go code for the API.
@@ -110,20 +125,24 @@ type TplTypeContext struct {
 	Config         Configuration
 	WithHeader     bool
 	ResponseErrors map[string]bool
+	TypeTracker    *TypeTracker
 }
 
 // TplOperationsContext is the context passed to templates to generate client code.
 type TplOperationsContext struct {
-	Operations []OperationDefinition
-	Imports    []string
-	Config     Configuration
-	WithHeader bool
+	Operations    []OperationDefinition
+	Imports       []string
+	Config        Configuration
+	WithHeader    bool
+	ServerOptions *ServerOptions
+	PackageName   string
 }
 
 // NewParser creates a new Parser with the provided ParseConfig and ParseContext.
 func NewParser(cfg Configuration, ctx *ParseContext) (*Parser, error) {
 	cfg = cfg.WithDefaults()
-	tpl, err := loadTemplates()
+
+	tpl, err := loadTemplates(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("loading templates: %w", err)
 	}
@@ -154,9 +173,13 @@ func NewParser(cfg Configuration, ctx *ParseContext) (*Parser, error) {
 // It returns a map of generated code for each type of definition.
 func (p *Parser) Parse() (GeneratedCode, error) {
 	typesOut := make(map[string]string)
+	scaffoldOut := make(map[string]string)
 
 	useSingleFile := p.cfg.Output != nil && p.cfg.Output.UseSingleFile
 	withHeader := !useSingleFile
+
+	// Only generate models if Models is not explicitly false
+	shouldGenerateModels := p.cfg.Generate == nil || p.cfg.Generate.Models == nil || *p.cfg.Generate.Models
 	if useSingleFile {
 		out, err := p.ParseTemplates([]string{"header-inc.tmpl"}, EnumContext{
 			Imports:    p.ctx.Imports,
@@ -168,8 +191,8 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		}
 		typesOut["header"] = out
 
-		// Generate validator declaration for single file mode
-		if !p.cfg.Generate.Validation.Skip {
+		// Generate validator declaration for single file mode (only if generating models)
+		if shouldGenerateModels && !p.cfg.Generate.Validation.Skip {
 			out, err := p.ParseTemplates([]string{"common.tmpl"}, EnumContext{
 				Imports:    p.ctx.Imports,
 				Config:     p.cfg,
@@ -205,8 +228,185 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		}
 	}
 
-	// Generate validator file if validation is not skipped and not using single file
-	if !useSingleFile && !p.cfg.Generate.Validation.Skip {
+	// Generate handler code if handler generation is enabled
+	if len(p.ctx.Operations) > 0 && p.cfg.Generate.Handler != nil {
+		opsCtx := &TplOperationsContext{
+			Operations: p.ctx.Operations,
+			Imports:    p.ctx.Imports,
+			Config:     p.cfg,
+			WithHeader: withHeader,
+		}
+		// Determine which templates to use based on handler kind
+		handlerKind := p.cfg.Generate.Handler.Kind
+		templatePrefix := "handler/" + string(handlerKind) + "/"
+		sharedPrefix := "handler/"
+
+		// Generate handler files
+		if useSingleFile {
+			// In single-file mode, use the router-specific template which includes all shared templates
+			out, err := p.ParseTemplates([]string{templatePrefix + "handler.tmpl"}, opsCtx)
+			if err != nil {
+				return nil, fmt.Errorf("error generating code for handler: %w", err)
+			}
+			typesOut["handler"] = out
+		} else {
+			// In multi-file mode, generate separate files from shared templates
+			for _, tmpl := range []string{"errors", "adapter", "router"} {
+				out, err := p.ParseTemplates([]string{sharedPrefix + tmpl + ".tmpl"}, opsCtx)
+				if err != nil {
+					return nil, fmt.Errorf("error generating code for %s: %w", tmpl, err)
+				}
+				formatted, err := FormatCode(out)
+				if err != nil {
+					return nil, err
+				}
+				typesOut[strcase.ToSnake(tmpl)] = formatted
+			}
+		}
+
+		// Generate shared templates (router-agnostic) - these are regenerated files
+		for _, tmpl := range []string{"response-data", "service-options"} {
+			out, err := p.ParseTemplates([]string{sharedPrefix + tmpl + ".tmpl"}, opsCtx)
+			if err != nil {
+				return nil, fmt.Errorf("error generating code for %s: %w", tmpl, err)
+			}
+			formatted := out
+			if !useSingleFile {
+				formatted, err = FormatCode(out)
+				if err != nil {
+					return nil, fmt.Errorf("error formatting %s: %w", tmpl, err)
+				}
+			}
+			typesOut[strcase.ToSnake(tmpl)] = formatted
+		}
+
+		// Resolve scaffold output once for service and middleware
+		scaffoldOutput := p.cfg.Generate.Handler.ResolveScaffoldOutput(p.cfg.Output)
+		scaffoldPackage := scaffoldOutput.Package
+		if scaffoldPackage == "" {
+			scaffoldPackage = p.cfg.PackageName
+		}
+
+		// Generate middleware if enabled - scaffolded file
+		if p.cfg.Generate.Handler.Middleware != nil {
+			middlewareCtx := &TplOperationsContext{
+				Operations:  p.ctx.Operations,
+				Imports:     p.ctx.Imports,
+				Config:      p.cfg,
+				WithHeader:  withHeader,
+				PackageName: scaffoldPackage,
+			}
+			middlewareTmpl := templatePrefix + "middleware.tmpl"
+			middlewareOut, err := p.ParseTemplates([]string{middlewareTmpl}, middlewareCtx)
+			if err != nil {
+				// Fall back to shared middleware template
+				middlewareOut, err = p.ParseTemplates([]string{sharedPrefix + "middleware.tmpl"}, middlewareCtx)
+				if err != nil {
+					return nil, fmt.Errorf("error generating code for middleware: %w", err)
+				}
+			}
+			// Scaffold files are always separate files, so always format them
+			formattedMiddleware, err := FormatCode(middlewareOut)
+			if err != nil {
+				return nil, fmt.Errorf("error formatting middleware: %w", err)
+			}
+
+			// Use directory path as key if scaffold has different output directory
+			middlewareKey := "middleware"
+			if scaffoldOutput.Directory != "" && scaffoldOutput.Directory != p.cfg.Output.Directory {
+				middlewareKey = scaffoldOutput.Directory + "/middleware"
+			}
+			scaffoldOut[middlewareKey] = formattedMiddleware
+		}
+
+		// Generate service implementation stub - scaffolded file
+		serviceCtx := &TplOperationsContext{
+			Operations:  p.ctx.Operations,
+			Imports:     p.ctx.Imports,
+			Config:      p.cfg,
+			WithHeader:  withHeader,
+			PackageName: scaffoldPackage,
+		}
+		out, err := p.ParseTemplates([]string{sharedPrefix + "service.tmpl"}, serviceCtx)
+		if err != nil {
+			return GeneratedCode{}, fmt.Errorf("error generating code for handler implementation: %w", err)
+		}
+
+		// Scaffold files are always separate files, so always format them
+		formatted, err := FormatCode(out)
+		if err != nil {
+			return nil, fmt.Errorf("error formatting service: %w", err)
+		}
+
+		// Use directory path as key if scaffold has different output directory
+		serviceKey := "service"
+		if scaffoldOutput.Directory != "" && scaffoldOutput.Directory != p.cfg.Output.Directory {
+			serviceKey = scaffoldOutput.Directory + "/service"
+		}
+		scaffoldOut[serviceKey] = formatted
+
+		// Generate server main.go if server generation is enabled - scaffolded file
+		if p.cfg.Generate.Handler.Server != nil {
+			serverOpts := p.cfg.Generate.Handler.Server.WithDefaults()
+			if err := serverOpts.Validate(); err != nil {
+				return nil, fmt.Errorf("invalid server options: %w", err)
+			}
+			serverOutput := p.cfg.Generate.Handler.ResolveServerOutput()
+			serverCtx := &TplOperationsContext{
+				Operations:    p.ctx.Operations,
+				Imports:       p.ctx.Imports,
+				Config:        p.cfg,
+				WithHeader:    withHeader,
+				ServerOptions: &serverOpts,
+				PackageName:   serverOutput.Package,
+			}
+
+			// Try framework-specific server template first, fall back to shared
+			serverTmpl := templatePrefix + "server.tmpl"
+			out, err := p.ParseTemplates([]string{serverTmpl}, serverCtx)
+			if err != nil {
+				// Fall back to shared server template
+				out, err = p.ParseTemplates([]string{sharedPrefix + "server.tmpl"}, serverCtx)
+				if err != nil {
+					return nil, fmt.Errorf("error generating code for server: %w", err)
+				}
+			}
+
+			formatted, err := FormatCode(out)
+			if err != nil {
+				return nil, fmt.Errorf("error formatting server: %w", err)
+			}
+			scaffoldOut[serverOutput.Directory+"/main"] = formatted
+		}
+	}
+
+	// Generate MCP server tools if MCP server generation is enabled
+	if len(p.ctx.Operations) > 0 && p.cfg.Generate.MCPServer != nil {
+		if !p.cfg.Generate.Client {
+			return nil, fmt.Errorf("MCP server generation requires client generation to be enabled (set generate.client: true)")
+		}
+		opsCtx := &TplOperationsContext{
+			Operations: p.ctx.Operations,
+			Imports:    p.ctx.Imports,
+			Config:     p.cfg,
+			WithHeader: withHeader,
+		}
+		out, err := p.ParseTemplates([]string{"mcp/tools.tmpl"}, opsCtx)
+		if err != nil {
+			return nil, fmt.Errorf("error generating code for MCP tools: %w", err)
+		}
+		formatted := out
+		if !useSingleFile {
+			formatted, err = FormatCode(out)
+			if err != nil {
+				return nil, fmt.Errorf("error formatting MCP tools: %w", err)
+			}
+		}
+		typesOut["mcp_tools"] = formatted
+	}
+
+	// Generate validator file if validation is not skipped, not using single file, and generating models
+	if shouldGenerateModels && !useSingleFile && !p.cfg.Generate.Validation.Skip {
 		out, err := p.ParseTemplates([]string{"common.tmpl"}, EnumContext{
 			Imports:    p.ctx.Imports,
 			Config:     p.cfg,
@@ -221,8 +421,7 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		}
 		typesOut["common"] = formatted
 	}
-
-	if len(p.ctx.Enums) > 0 {
+	if shouldGenerateModels && len(p.ctx.Enums) > 0 {
 		out, err := p.ParseTemplates([]string{"enums.tmpl"}, EnumContext{
 			Enums:       p.ctx.Enums,
 			Imports:     p.ctx.Imports,
@@ -259,54 +458,59 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 		typeSchemaMap[td.Name] = td.Schema
 	}
 
-	for sl, tds := range p.ctx.TypeDefinitions {
-		if len(tds) == 0 {
-			continue
-		}
-		typesCtx := &TplTypeContext{
-			Types:          tds,
-			TypeSchemaMap:  typeSchemaMap,
-			SpecLocation:   string(sl),
-			Imports:        p.ctx.Imports,
-			Config:         p.cfg,
-			WithHeader:     withHeader,
-			ResponseErrors: responseErrs,
-		}
-		out, err := p.ParseTemplates([]string{"types.tmpl"}, typesCtx)
-		if err != nil {
-			return nil, fmt.Errorf("error generating code for %s type definitions: %w", sl, err)
-		}
-		formatted := out
-		if !useSingleFile {
-			formatted, err = FormatCode(out)
-			if err != nil {
-				return nil, err
+	// Only generate model types if Models is not explicitly false
+	if shouldGenerateModels {
+		for sl, tds := range p.ctx.TypeDefinitions {
+			if len(tds) == 0 {
+				continue
 			}
+			typesCtx := &TplTypeContext{
+				Types:          tds,
+				TypeSchemaMap:  typeSchemaMap,
+				SpecLocation:   string(sl),
+				Imports:        p.ctx.Imports,
+				Config:         p.cfg,
+				WithHeader:     withHeader,
+				ResponseErrors: responseErrs,
+				TypeTracker:    p.ctx.TypeTracker,
+			}
+			out, err := p.ParseTemplates([]string{"types.tmpl"}, typesCtx)
+			if err != nil {
+				return nil, fmt.Errorf("error generating code for %s type definitions: %w", sl, err)
+			}
+			formatted := out
+			if !useSingleFile {
+				formatted, err = FormatCode(out)
+				if err != nil {
+					return nil, err
+				}
+			}
+			typesOut[getSpecLocationOutName(sl)] = formatted
 		}
-		typesOut[getSpecLocationOutName(sl)] = formatted
-	}
 
-	if len(p.ctx.UnionTypes) > 0 {
-		out, err := p.ParseTemplates([]string{"types.tmpl", "union.tmpl"}, &TplTypeContext{
-			Types:          p.ctx.UnionTypes,
-			TypeSchemaMap:  typeSchemaMap,
-			SpecLocation:   "union",
-			Imports:        p.ctx.Imports,
-			Config:         p.cfg,
-			WithHeader:     withHeader,
-			ResponseErrors: responseErrs,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error generating code for union types: %w", err)
-		}
-		formatted := out
-		if !useSingleFile {
-			formatted, err = FormatCode(out)
+		if len(p.ctx.UnionTypes) > 0 {
+			out, err := p.ParseTemplates([]string{"types.tmpl", "union.tmpl"}, &TplTypeContext{
+				Types:          p.ctx.UnionTypes,
+				TypeSchemaMap:  typeSchemaMap,
+				SpecLocation:   "union",
+				Imports:        p.ctx.Imports,
+				Config:         p.cfg,
+				WithHeader:     withHeader,
+				ResponseErrors: responseErrs,
+				TypeTracker:    p.ctx.TypeTracker,
+			})
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error generating code for union types: %w", err)
 			}
+			formatted := out
+			if !useSingleFile {
+				formatted, err = FormatCode(out)
+				if err != nil {
+					return nil, err
+				}
+			}
+			typesOut["unions"] = formatted
 		}
-		typesOut["unions"] = formatted
 	}
 
 	if useSingleFile {
@@ -330,7 +534,6 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 				continue
 			}
 			res += code + "\n"
-			delete(typesOut, name)
 		}
 
 		formatted, err := FormatCode(res)
@@ -339,6 +542,11 @@ func (p *Parser) Parse() (GeneratedCode, error) {
 			return nil, err
 		}
 		typesOut = map[string]string{"all": formatted}
+	}
+
+	// Merge scaffold files into the main map with prefix
+	for name, content := range scaffoldOut {
+		typesOut[scaffoldPrefix+name] = content
 	}
 
 	return typesOut, nil
@@ -363,39 +571,63 @@ func (p *Parser) ParseTemplates(templates []string, data any) (string, error) {
 	return strings.Join(generatedTemplates, "\n"), nil
 }
 
-func loadTemplates() (*template.Template, error) {
+func loadTemplates(cfg Configuration) (*template.Template, error) {
 	tpl := template.New("templates").Funcs(TemplateFunctions)
 
-	err := fs.WalkDir(templates, "templates", func(path string, d fs.DirEntry, err error) error {
+	// Load templates from specific directories in order:
+	// 1. Root templates (templates/*.tmpl)
+	// 2. Handler shared templates (templates/handler/*.tmpl)
+	// 3. Selected framework templates (templates/handler/{kind}/*.tmpl)
+	dirs := []string{
+		"templates",
+		"templates/handler",
+	}
+
+	// Add framework-specific directory if handler is configured
+	if cfg.Generate != nil && cfg.Generate.Handler != nil && cfg.Generate.Handler.Kind != "" {
+		dirs = append(dirs, "templates/handler/"+string(cfg.Generate.Handler.Kind))
+	}
+
+	// Add MCP templates directory if MCP server is configured
+	if cfg.Generate != nil && cfg.Generate.MCPServer != nil {
+		dirs = append(dirs, "templates/mcp")
+	}
+
+	for _, dir := range dirs {
+		entries, err := templates.ReadDir(dir)
 		if err != nil {
-			return fmt.Errorf("error walking directory %s: %w", path, err)
-		}
-		if d.IsDir() {
-			return nil
+			// Skip if directory doesn't exist
+			continue
 		}
 
-		buf, err := templates.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("error reading file '%s': %w", path, err)
-		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
 
-		templateName := strings.TrimPrefix(path, "templates/")
-		tmpl := tpl.New(templateName)
-		_, err = tmpl.Parse(string(buf))
-		if err != nil {
-			return fmt.Errorf("parsing template '%s': %w", path, err)
-		}
-		return nil
-	})
+			path := dir + "/" + entry.Name()
+			buf, err := templates.ReadFile(path)
+			if err != nil {
+				return nil, fmt.Errorf("error reading file '%s': %w", path, err)
+			}
 
-	return tpl, err
+			templateName := strings.TrimPrefix(path, "templates/")
+			tmpl := tpl.New(templateName)
+			_, err = tmpl.Parse(string(buf))
+			if err != nil {
+				return nil, fmt.Errorf("parsing template '%s': %w", path, err)
+			}
+		}
+	}
+
+	return tpl, nil
 }
 
 // FormatCode formats the provided Go code.
 // It optimizes imports and formats the code using gofmt.
 func FormatCode(src string) (string, error) {
 	src = strings.Trim(src, "\n") + "\n"
-	if src == "" {
+	if src == "\n" || src == "" {
 		return src, nil
 	}
 

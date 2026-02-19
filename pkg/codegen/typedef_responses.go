@@ -46,6 +46,9 @@ type ResponseContentDefinition struct {
 	IsSuccess    bool
 	StatusCode   int
 	Headers      map[string]GoSchema
+	// IsRaw is true for unsupported content types (XML, form-urlencoded, etc.)
+	// that require the user to handle marshaling manually.
+	IsRaw bool
 }
 
 func getOperationResponses(operationID string, responses *v3high.Responses, options ParseOptions) (*ResponseDefinition, []TypeDefinition, error) {
@@ -196,6 +199,16 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 			continue
 		}
 
+		// For raw content types (XML, YAML, etc.), override the schema to []byte
+		// since we can't automatically unmarshal these formats.
+		if isRawContentType(contentType) {
+			contentSchema = GoSchema{
+				GoType:         "[]byte",
+				DefineViaAlias: true,
+				Description:    contentSchema.Description,
+			}
+		}
+
 		var responseName string
 		tag := ""
 
@@ -230,13 +243,15 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 			// to avoid overwriting the alias in the tracker with subsequent error responses.
 			// The first error response is the one that will be used as the Error in ResponseDefinition.
 			if isSuccess || !errorAliasRegistered {
-				// Create an operation-specific alias to the component response type
-				// e.g., GetFilesErrorResponse = InvalidRequestError
+				// Create an operation-specific alias to the component response/schema type
+				// e.g., GetFilesErrorResponse = InvalidRequestError or GetFilesErrorResponse = ServiceError
 				aliasName := operationID + typeSuffix
 
-				// Check if error mapping is configured for this response type.
+				// Check if error mapping is configured for this response type (the alias name).
 				// If so, we cannot use an alias because aliases don't support methods,
 				// and we need to generate an Error() method for error-mapped types.
+				// Note: If error-mapping is configured for the component type (not the alias),
+				// we keep the alias and let collectResponseErrors follow it to the component type.
 				hasErrorMapping := len(options.ErrorMapping) > 0 && options.ErrorMapping[aliasName] != ""
 
 				if hasErrorMapping {
@@ -309,6 +324,8 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 				tag = "Multipart"
 			case contentType == "text/plain":
 				tag = "Text"
+			case contentType == "text/html":
+				tag = "HTML"
 			}
 
 			codeName := strconv.Itoa(status)
@@ -320,16 +337,28 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 				contentSchema, _ = replaceInlineTypes(contentSchema, options)
 			}
 
-			// Check if error mapping is configured for this response type.
-			// If so and the schema is an alias, we need to look up the original type
-			// and copy its schema to generate a full struct (aliases don't support methods).
-			hasErrorMapping := len(options.ErrorMapping) > 0 && options.ErrorMapping[responseName] != ""
-			if hasErrorMapping && contentSchema.DefineViaAlias {
-				// Look up the original type by name (GoType contains the type name)
+			// For error responses with alias types, we need to handle two cases:
+			// 1. Primitive aliases (string, int, etc.): Convert to proper types so Error() can be added
+			// 2. Component schema aliases (ServiceError, etc.): Keep as aliases, let collectResponseErrors
+			//    follow them to the component schema which will get the Error() method
+			if !isSuccess && contentSchema.DefineViaAlias {
+				// Check if this is an alias to a registered type (component schema)
 				if originalTd, exists := options.typeTracker.LookupByName(contentSchema.GoType); exists {
-					// Copy the original schema but clear DefineViaAlias
-					contentSchema = originalTd.Schema
+					// This is an alias to a component schema.
+					// Only convert to full struct if error-mapping is configured for THIS response type.
+					// Otherwise, keep the alias and let collectResponseErrors follow it.
+					hasErrorMapping := len(options.ErrorMapping) > 0 && options.ErrorMapping[responseName] != ""
+					if hasErrorMapping {
+						// Copy the original schema but clear DefineViaAlias
+						contentSchema = originalTd.Schema
+						contentSchema.DefineViaAlias = false
+					}
+					// else: keep the alias, collectResponseErrors will follow it
+				} else {
+					// This is an alias to a primitive type (string, int, etc.)
+					// Convert to a proper type so Error() method can be added
 					contentSchema.DefineViaAlias = false
+					contentSchema.IsPrimitiveAlias = true
 				}
 			}
 
@@ -351,6 +380,10 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 			}
 		}
 
+		// IsRaw is true for unsupported content types that require manual marshaling
+		// Use HasPrefix to handle content types with parameters (e.g., "text/html; charset=UTF-8")
+		isRaw := isRawContentType(contentType)
+
 		rcd := &ResponseContentDefinition{
 			ResponseName: responseName,
 			IsSuccess:    isSuccess,
@@ -361,6 +394,7 @@ func getOperationResponses(operationID string, responses *v3high.Responses, opti
 			NameTag:      tag,
 			StatusCode:   status,
 			Headers:      headers,
+			IsRaw:        isRaw,
 		}
 		all[status] = rcd
 	}
@@ -478,4 +512,21 @@ func generateResponseHeadersSchema(headers iter.Seq2[string, *v3high.Header], op
 		res[hName] = hSchema
 	}
 	return res, nil
+}
+
+// isRawContentType returns true for content types that require manual marshaling
+// (XML, YAML, etc.) and should use []byte as the response type.
+func isRawContentType(contentType string) bool {
+	return contentType != "" &&
+		contentType != "application/json" &&
+		!strings.HasPrefix(contentType, "application/json;") &&
+		!isMediaTypeJson(contentType) &&
+		contentType != "text/plain" &&
+		!strings.HasPrefix(contentType, "text/plain;") &&
+		contentType != "text/html" &&
+		!strings.HasPrefix(contentType, "text/html;") &&
+		contentType != "application/octet-stream" &&
+		!strings.HasPrefix(contentType, "application/octet-stream;") &&
+		contentType != "application/x-www-form-urlencoded" &&
+		!strings.HasPrefix(contentType, "application/x-www-form-urlencoded;")
 }

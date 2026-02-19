@@ -1,0 +1,87 @@
+{{/*
+Copyright 2026 DoorDash, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+{{- $config := .Config -}}
+{{- $operations := .Operations -}}
+{{- $serviceName := $config.Generate.Handler.Name -}}
+{{- $receiver := $serviceName | fst | lower -}}
+{{- $packageName := .PackageName -}}
+{{- /* Models prefix: when using models-package-alias, model types need prefix */ -}}
+{{- $modelsAlias := $config.Generate.Handler.ModelsPackageAlias -}}
+{{- $modelsPrefix := "" -}}
+{{- if $modelsAlias -}}
+{{- $modelsPrefix = printf "%s." $modelsAlias -}}
+{{- end -}}
+// Package {{ $packageName }} This file is generated ONCE as a starting point and will NOT be overwritten.
+// Modify it freely to add your business logic.
+// To regenerate, delete this file or set generate.handler.output.overwrite: true in config.
+package {{ $packageName }}
+
+import (
+	"context"
+	{{- range $config.AdditionalImports}}
+	{{if .Alias}}{{.Alias}} {{end}}"{{.Package}}"
+	{{- end}}
+)
+
+// {{ $serviceName }} implements the {{ $serviceName }}Interface.
+// Add your dependencies here (database, clients, etc.)
+type {{ $serviceName }} struct {
+}
+
+// New{{ $serviceName }} creates a new {{ $serviceName }}.
+func New{{ $serviceName }}() *{{ $serviceName }} {
+	return &{{ $serviceName }}{}
+}
+
+// Ensure {{ $serviceName }} implements {{ $modelsPrefix }}{{ $serviceName }}Interface.
+var _ {{ $modelsPrefix }}{{ $serviceName }}Interface = (*{{ $serviceName }})(nil)
+
+{{- range $operations }}{{ $op := . }}
+
+// {{ $op.ID }} handles {{ $op.Method }} {{ $op.Path }}
+{{- if and (not $config.Generate.OmitDescription) $op.Summary }}
+{{ toGoComment $op.Summary "" }}
+{{- end }}
+{{- if $op.HasRequestOptions }}
+func ({{ $receiver }} *{{ $serviceName }}) {{ $op.ID }}(ctx context.Context, opts *{{ $modelsPrefix }}{{ $op.ID | ucFirst }}ServiceRequestOptions) ({{ if $op.Response.Success }}*{{ $modelsPrefix }}{{ $op.ID | ucFirst }}ResponseData, error{{ else }}error{{ end }}) {
+	// TODO: Implement your business logic here
+	{{- if $op.Response.Success }}
+	{{- if $op.Response.Success.IsRaw }}
+	return {{ $modelsPrefix }}New{{ $op.ID | ucFirst }}ResponseData([]byte("TODO: marshal response")), nil
+	{{- else }}
+	{{- $bodyType := $op.Response.Success.ResponseName -}}
+	{{- if eq $bodyType "struct{}" }}
+	return {{ $modelsPrefix }}New{{ $op.ID | ucFirst }}ResponseData(nil), nil
+	{{- else }}
+	{{- if $modelsPrefix }}{{ $bodyType = printf "%s%s" $modelsPrefix $bodyType }}{{ end }}
+	return {{ $modelsPrefix }}New{{ $op.ID | ucFirst }}ResponseData(new({{ $bodyType }})), nil
+	{{- end }}
+	{{- end }}
+	{{- else }}
+	return nil
+	{{- end }}
+}
+{{- else }}
+func ({{ $receiver }} *{{ $serviceName }}) {{ $op.ID }}(ctx context.Context) ({{ if $op.Response.Success }}*{{ $modelsPrefix }}{{ $op.ID | ucFirst }}ResponseData, error{{ else }}error{{ end }}) {
+	// TODO: Implement your business logic here
+	{{- if $op.Response.Success }}
+	return {{ $modelsPrefix }}New{{ $op.ID | ucFirst }}ResponseData(new({{ $modelsPrefix }}{{ $op.Response.Success.ResponseName }})), nil
+	{{- else }}
+	return nil
+	{{- end }}
+}
+{{- end }}
+{{- end }}

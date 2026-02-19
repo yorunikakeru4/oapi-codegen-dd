@@ -12,6 +12,7 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -43,11 +44,12 @@ type ParameterEncoding struct {
 // Spec is the parsed openapi3.Parameter object
 // GoSchema is the GoSchema object
 type ParameterDefinition struct {
-	ParamName string
-	In        string
-	Required  bool
-	Spec      *v3high.Parameter
-	Schema    GoSchema
+	ParamName      string
+	In             string
+	Required       bool
+	Spec           *v3high.Parameter
+	Schema         GoSchema
+	resolvedGoName string // The actual Go field name after conflict resolution (set by generateParamsTypes)
 }
 
 // TypeDef is here as an adapter after a large refactoring so that I don't
@@ -101,7 +103,7 @@ func (pd ParameterDefinition) Explode() bool {
 
 func (pd ParameterDefinition) GoVariableName() string {
 	name := strcase.ToLowerCamel(pd.GoName())
-	if isGoKeyword(name) {
+	if isGoKeyword(name) || reservedTemplateVars[name] {
 		name = "p" + strcase.ToCamel(name)
 	}
 	if unicode.IsNumber([]rune(name)[0]) {
@@ -111,18 +113,80 @@ func (pd ParameterDefinition) GoVariableName() string {
 }
 
 func (pd ParameterDefinition) GoName() string {
-	goName := pd.ParamName
-	exts := extractExtensions(pd.Spec.Extensions)
-	if extension, ok := exts[extGoName]; ok {
-		if extGoFieldName, err := parseString(extension); err == nil {
-			goName = extGoFieldName
-		}
+	// Use resolvedGoName if set (after conflict resolution in generateParamsTypes)
+	if pd.resolvedGoName != "" {
+		return pd.resolvedGoName
 	}
-	return schemaNameToTypeName(goName)
+	exts := extractExtensions(pd.Spec.Extensions)
+	return createPropertyGoFieldName(pd.ParamName, exts)
 }
 
-func (pd ParameterDefinition) IndirectOptional() bool {
-	return !pd.Required && !pd.Schema.SkipOptionalPointer
+// IsPointerType returns true if this parameter's field in the generated struct is a pointer.
+// This matches the logic used in generateParamsTypes() when creating Property objects.
+func (pd ParameterDefinition) IsPointerType() bool {
+	typeDef := pd.Schema.TypeDecl()
+
+	// Arrays and maps are not pointers (check TypeDecl prefix)
+	if strings.HasPrefix(typeDef, "map[") || strings.HasPrefix(typeDef, "[]") {
+		return false
+	}
+
+	// Check if the underlying OpenAPI schema is an array or map type
+	// This handles named type aliases like "type ExpandPublication = []string"
+	// or "type DateFilter = map[string]string"
+	if pd.Spec != nil && pd.Spec.Schema != nil {
+		schema := pd.Spec.Schema.Schema()
+		if schema != nil {
+			// Array types are not pointers
+			if slices.Contains(schema.Type, "array") {
+				return false
+			}
+			// Object types with additionalProperties generate maps, which are reference types
+			if slices.Contains(schema.Type, "object") && schemaHasAdditionalProperties(schema) {
+				return false
+			}
+		}
+	}
+
+	// Check x-go-type-skip-optional-pointer extension
+	skipOptionalPointer := pd.Schema.SkipOptionalPointer
+	if pd.Spec != nil {
+		exts := extractExtensions(pd.Spec.Extensions)
+		if extension, ok := exts[extPropGoTypeSkipOptionalPointer]; ok {
+			if skip, err := parseBooleanValue(extension); err == nil {
+				skipOptionalPointer = skip
+			}
+		}
+	}
+
+	if skipOptionalPointer {
+		return false
+	}
+
+	// Check if the parameter has a schema - if not, Nullable won't be set
+	// and the field won't be a pointer (matches newConstraints behavior)
+	if pd.Spec == nil || pd.Spec.Schema == nil {
+		return false
+	}
+
+	// A parameter is a pointer if it's nullable.
+	// This matches the logic in newConstraints: nullable := !required || hasNilType || deref(schema.Nullable)
+	// The parameter can be required but still nullable if schema.Nullable is true.
+	schema := pd.Spec.Schema.Schema()
+
+	// Special case for booleans: required booleans are not pointers even if nullable: true
+	// This matches newConstraints behavior where required booleans have nullable = hasNilType
+	// to avoid validation always failing with `false` value.
+	if schema != nil && pd.Required && slices.Contains(schema.Type, "boolean") {
+		// Only make it a pointer if there's an explicit "null" in the type array
+		return slices.Contains(schema.Type, "null")
+	}
+
+	if schema != nil && schema.Nullable != nil && *schema.Nullable {
+		return true
+	}
+
+	return !pd.Required
 }
 
 type ParameterDefinitions []ParameterDefinition
@@ -237,6 +301,12 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string, op
 	}
 	specLocation := SpecLocation(strings.ToLower(objectParams[0].In))
 
+	// Check if the type name already exists (e.g., from components/schemas).
+	// If it does, generate a unique name to avoid conflicts.
+	if options.typeTracker.Exists(typeName) {
+		typeName = options.typeTracker.generateUniqueName(typeName)
+	}
+
 	var (
 		typeDefs   []TypeDefinition
 		properties []Property
@@ -246,7 +316,8 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string, op
 	encodings := map[string]ParameterEncoding{}
 	goFieldNames := make(map[string]int) // Track Go field names to detect conflicts
 
-	for _, param := range objectParams {
+	for i := range objectParams {
+		param := &objectParams[i]
 		pSchema := param.Schema
 		if pSchema.HasAdditionalProperties {
 			propRefName := strings.Join([]string{typeName, param.GoName()}, "_")
@@ -282,6 +353,9 @@ func generateParamsTypes(objectParams []ParameterDefinition, typeName string, op
 		} else {
 			goFieldNames[baseGoName] = 0
 		}
+
+		// Store the resolved Go name for use in templates
+		param.resolvedGoName = goName
 
 		properties = append(properties, Property{
 			GoName:        goName,
